@@ -606,6 +606,24 @@ def build_html(days, sessions, pricing_hist, health=None):
     tmpl = tmpl.replace("__PRICEROWS__", "".join(price_rows))
     return tmpl
 
+def ingest_canonical():
+    """Dual-write the provider-neutral turn/tool/segment store (canonical.py).
+
+    Best-effort and fully isolated: it reads the same transcripts but writes only
+    its own machines/<id>/usage.db — it never touches daily/session JSON or the
+    report. Any failure is swallowed so the canonical layer can never break the
+    working pipeline. Imported lazily to avoid an import cycle (canonical imports
+    report). See docs/canonical-data-model.md."""
+    try:
+        import canonical
+        db = canonical.open_db()
+        files, recs = canonical.ingest(db)
+        db.close()
+        print(f"Canonical store: {canonical.DB_FILE} (capture={canonical.CAPTURE}) "
+              f"| {files} files -> {recs} records")
+    except Exception as e:
+        print(f"Canonical ingest skipped ({type(e).__name__}: {e})")
+
 def main():
     os.makedirs(MACHINE_DIR, exist_ok=True)   # machines/<machine_id>/
     newdays, newsess = analyze()
@@ -617,6 +635,7 @@ def main():
     health = build_health(days, scan_claude(), scan_codex())
     write_health(health)
     open(OUT_HTML, "w", encoding="utf-8").write(build_html(days, sessions, pricing_hist, health))
+    ingest_canonical()   # dual-write the richer turn/tool/segment store (best-effort)
     tc = sum(d["cost"] for d in days.values()); tm = sum(d["msgs"] for d in days.values())
     te = sum(d["tool_errors"] for d in days.values()); tr = sum(d["tool_results"] for d in days.values())
     ds = sorted(days)

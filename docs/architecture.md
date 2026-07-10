@@ -226,6 +226,7 @@ JS renders:
 | `machines/<id>/report.html` | per-machine output | git-ignored | `build_html()` |
 | `machines/<id>/health.json` | per-machine (schema drift + coverage) | git-ignored | `write_health()` |
 | `machines/<id>/run.log` | per-machine | git-ignored | `run.cmd` |
+| `machines/<id>/usage.db` | per-machine, durable (canonical store) | git-ignored | `canonical.ingest()` |
 | `pricing_history.json` | **shared, repo root** | **tracked** | `record_pricing()` |
 
 **Per-machine namespacing.** The repo is shared across machines, but every machine
@@ -286,6 +287,16 @@ session/`by_model` shapes, update the fixtures' expected numbers.
 
 ## Change log
 
+- **2026-07-10** — Canonical store (first slice): `canonical.py` — a
+  provider-neutral, turn/tool/segment-grained SQLite db (`machines/<id>/usage.db`)
+  that captures far more than the daily/session aggregates (per-tool latency, error
+  class, git branch, prompts/responses, redacted-reasoning provenance). Producer/
+  consumer split (a `Provider` yields neutral `Rec`s; `write()` upserts them
+  provider-blind), so a new provider is one class. `ClaudeProvider` implemented;
+  `CodexProvider` is the planned twin. Dual-written best-effort from `main()`
+  (`ingest_canonical()`), never touching the existing JSON/report. Opt-in verbatim
+  via `TOKENLENS_CAPTURE`. Design + measured size model:
+  [`canonical-data-model.md`](./canonical-data-model.md). Tests: `test_canonical.py`.
 - **2026-07-10** — Data health monitoring: `scan_claude()`/`scan_codex()` schema
   fingerprinting vs. a `SCHEMA_EXPECT` baseline, `coverage()` idle-vs-hole
   reconciliation + freshness watermark, `health.json`, a Data health report panel,
