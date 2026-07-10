@@ -16,7 +16,9 @@ Open the `report.html` in your machine's folder under `machines/` in any browser
 
 ### Per-machine data
 
-The repo is meant to be shared across several machines, and each machine has its own `~/.claude/projects`. So every machine's generated artifacts — `daily_metrics.json`, `session_metrics.json`, `report.html`, `run.log` — are written under **`machines/<machine-id>/`**, keyed by the sanitized hostname, so runs on different machines never overwrite each other. Set the `TOKENLENS_MACHINE` env var to override the folder name (e.g. to make a machine merge into an existing folder). `pricing_history.json` is the one shared store at the repo root, since pricing is the same everywhere.
+Each machine has its own `~/.claude/projects`, so every machine's generated artifacts — `daily_metrics.json`, `session_metrics.json`, `report.html`, `run.log` — are written under **`machines/<machine-id>/`**, keyed by the sanitized hostname, so runs on different machines never overwrite each other. Set the `TOKENLENS_MACHINE` env var to override the folder name (e.g. to make a machine merge into an existing folder).
+
+**`machines/` is git-ignored** — your report and metrics stay local to your machine and are never committed, so cloning this repo never carries anyone else's usage data. Just clone and run; you get your own report. `pricing_history.json` is the one generated file that *is* committed: it's non-personal (dates + Anthropic's public rates) and shared at the repo root so the pricing-over-time chart has history on a fresh clone.
 
 ## What it shows
 
@@ -84,14 +86,14 @@ The suite builds fixture transcripts with hand-computable token counts and check
 |------|------|
 | `report.py` | The whole tool — parser, persistence, and HTML template |
 | `test_report.py` | Test suite |
-| `pricing_history.json` | Daily snapshots of model pricing (shared across machines) |
 | `run.cmd` | Portable Windows daily-runner wrapper |
-| `machines/<id>/report.html` | Generated dashboard for that machine (open this) |
-| `machines/<id>/daily_metrics.json` | That machine's durable per-day metrics store |
-| `machines/<id>/session_metrics.json` | That machine's durable per-session metrics store |
-| `machines/<id>/run.log` | That machine's daily-runner log |
+| `pricing_history.json` | Daily snapshots of model pricing — **committed** (shared, non-personal) |
+| `machines/<id>/report.html` | Generated dashboard for that machine (open this) — *git-ignored* |
+| `machines/<id>/daily_metrics.json` | That machine's durable per-day metrics store — *git-ignored* |
+| `machines/<id>/session_metrics.json` | That machine's durable per-session metrics store — *git-ignored* |
+| `machines/<id>/run.log` | That machine's daily-runner log — *git-ignored* |
 
-The JSON files and `report.html` are generated artifacts, committed alongside the code — regenerating them is expected. Each machine gets its own `machines/<machine-id>/` folder on first run.
+Everything under `machines/` is generated and **git-ignored** — it stays local to each machine (see [Per-machine data](#per-machine-data)). Only `pricing_history.json` is a committed generated artifact. Each machine gets its own `machines/<machine-id>/` folder on first run.
 
 ---
 
