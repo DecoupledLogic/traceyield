@@ -524,7 +524,27 @@ const fmtUSD = v => "$"+(v>=1000? v.toLocaleString(undefined,{maximumFractionDig
 const fmtTok = v => v>=1e9?(v/1e9).toFixed(2)+"B":v>=1e6?(v/1e6).toFixed(1)+"M":v>=1e3?(v/1e3).toFixed(0)+"K":Math.round(v);
 const fmtInt = v => Math.round(v).toLocaleString();
 const esc = s => String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-const clean = p => p.replace("C--Users-charl-source-repos-","").replace("C--Users-charl-source-repos","(root)")||"(root)";
+// Claude Code encodes a project's absolute path as its dir name (path
+// separators → "-"), so every project on a machine shares a long, machine-
+// specific root (e.g. "C--Users-charl-source-repos-"). Compute the common
+// leading path SEGMENTS across all projects and strip them, so labels read as
+// just the repo name on ANY machine (no hardcoded prefix). Segment-wise (split
+// on "-") avoids cutting a name mid-word and handles the bare-root project.
+const PROJ_STRIP = (function(){
+  const lists=[];
+  const push=p=>{if(p)lists.push(p.split("-"));};
+  for(const dk in DATA.days){const bp=DATA.days[dk].by_project||{};for(const p in bp)push(p);}
+  (DATA.sessions||[]).forEach(s=>push(s.project));
+  if(lists.length<2)return 0;               // can't infer a shared root from one project
+  const n=Math.min(...lists.map(l=>l.length));
+  let common=0;
+  for(let i=0;i<n;i++){
+    const seg=lists[0][i];
+    if(lists.every(l=>l[i]===seg))common=i+1; else break;
+  }
+  return common;
+})();
+const clean = p => p ? (p.split("-").slice(PROJ_STRIP).join("-")||"(root)") : "(root)";
 const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 const dayKeys = Object.keys(DATA.days).sort();
