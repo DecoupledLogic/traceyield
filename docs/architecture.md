@@ -284,8 +284,24 @@ session/`by_model` shapes, update the fixtures' expected numbers.
   per-day/per-session dict shape, then generalize the few Anthropic-specific
   assumptions. Full plan in [`adding-openai-support.md`](./adding-openai-support.md);
   source research in [`openai-usage-data-research.md`](./openai-usage-data-research.md).
+  On the **canonical** side this is already proven: `CodexProvider` in
+  `canonical.py` is one new class emitting the shared `Rec` stream — see
+  [`codexprovider.md`](./codexprovider.md).
 
 ## Change log
+
+- **2026-07-10** — Canonical store: `CodexProvider` added to `canonical.py`
+  (parallel to `ClaudeProvider`, registered in `default_providers()`), parsing
+  Codex CLI rollout logs (`~/.codex/sessions/**/*.jsonl`) into the same neutral
+  `Rec` stream keyed `provider='codex'` — one new class, no schema / `write()` /
+  test-harness change, validating the provider abstraction. Codex-specific math:
+  fresh input = `input_tokens − cached_input_tokens`, cache-read =
+  `cached_input_tokens`, no cache-write tier; `reasoning_output` recorded as a
+  subset of output; both `token_count` shapes (nested `info.last_token_usage`
+  delta + old flat/cumulative diff); `codex_tier()` for the gpt-5* family; a
+  failure heuristic on `function_call_output` (`exit_code`/`success:false`) reusing
+  `report.classify()`. Real-corpus smoke: 37 Codex files fold into one `usage.db`
+  alongside Claude, idempotent on re-ingest. Reference: [`codexprovider.md`](./codexprovider.md).
 
 - **2026-07-10** — Canonical store (first slice): `canonical.py` — a
   provider-neutral, turn/tool/segment-grained SQLite db (`machines/<id>/usage.db`)

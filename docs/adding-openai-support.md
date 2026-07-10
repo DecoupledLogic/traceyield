@@ -5,6 +5,16 @@ dashboard, alongside (or instead of) Claude Code. Read
 [`openai-usage-data-research.md`](./openai-usage-data-research.md) first — this
 doc assumes the schema and cost model established there.*
 
+> **Status update (2026-07-10).** The **canonical store** already has a Codex
+> parser: `CodexProvider` in `canonical.py` ingests `~/.codex/sessions` into the
+> shared `Session`/`Turn`/`ToolCall`/`Segment`/`RawEvent` stream keyed
+> `provider='codex'` (see [`codexprovider.md`](./codexprovider.md) and the
+> canonical [change log](./architecture.md#change-log)). This document covers the
+> **other** integration path — teaching the `report.py` aggregate/HTML pipeline
+> to *emit a Codex dashboard*. The two are complementary: the canonical path
+> captures the raw neutral records; the aggregate flip (roadmap E1-F2-S1) will
+> derive the report from that store rather than re-parsing.
+
 ## Goal & scope
 
 Produce the **same `report.html`** — same day/week/month stepper, KPI cards,
