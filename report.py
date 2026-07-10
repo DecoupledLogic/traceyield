@@ -23,6 +23,7 @@ from collections import defaultdict, Counter
 HERE = os.path.dirname(os.path.abspath(__file__))
 CLAUDE_PROJECTS = os.path.expanduser(r"~/.claude/projects")
 DAILY_FILE = os.path.join(HERE, "daily_metrics.json")
+SESSION_FILE = os.path.join(HERE, "session_metrics.json")
 PRICING_FILE = os.path.join(HERE, "pricing_history.json")
 OUT_HTML = os.path.join(HERE, "report.html")
 
@@ -81,27 +82,36 @@ ERROR_META = {n: {"title": t, "fix": f} for n, _, t, f in ERROR_RULES}
 ERROR_META["other"] = {"title": "Other / uncategorized", "fix": "Review examples; add a rule to ERROR_RULES if a pattern recurs."}
 
 # ---------------------------------------------------------------- parse
-def project_of(path):
-    return os.path.relpath(path, CLAUDE_PROJECTS).split(os.sep)[0]
+def project_of(path, root=CLAUDE_PROJECTS):
+    return os.path.relpath(path, root).split(os.sep)[0]
 def result_text(b):
     c = b.get("content")
     if isinstance(c, str): return c
     if isinstance(c, list): return " ".join(x.get("text","") for x in c if isinstance(x, dict))
     return ""
 def new_tool(): return {"calls":0,"out":0,"cost":0.0,"err":0}
+def new_model(): return {"cost":0.0,"tok":{"input":0,"output":0,"cache_read":0,"cache_write_5m":0,"cache_write_1h":0}}
 def new_day():
     return {"cost":0.0,
             "tok":{"input":0,"output":0,"cache_read":0,"cache_write_5m":0,"cache_write_1h":0},
             "msgs":0,"tool_results":0,"tool_errors":0,
-            "sids":set(), "by_model":defaultdict(lambda:{"cost":0.0,"cache_read":0,"output":0}),
+            "sids":set(), "by_model":defaultdict(new_model),
             "by_project":defaultdict(lambda:{"cost":0.0,"msgs":0}),
             "by_tool":defaultdict(new_tool), "errors":Counter()}
+def new_session():
+    # sessions span days; accumulated globally (keyed by sessionId) so a single
+    # runaway conversation is visible even when its cost is split across dates.
+    return {"cost":0.0,
+            "tok":{"input":0,"output":0,"cache_read":0,"cache_write_5m":0,"cache_write_1h":0},
+            "msgs":0,"tool_results":0,"tool_errors":0,
+            "project":None,"start":None,"end":None,"by_model":defaultdict(float)}
 
-def analyze():
-    files = glob.glob(os.path.join(CLAUDE_PROJECTS, "**", "*.jsonl"), recursive=True)
+def analyze(root=CLAUDE_PROJECTS):
+    files = glob.glob(os.path.join(root, "**", "*.jsonl"), recursive=True)
     days = defaultdict(new_day)
+    sessions = defaultdict(new_session)
     for f in files:
-        proj = project_of(f)
+        proj = project_of(f, root)
         idname = {}
         try:
             for line in open(f, encoding="utf-8"):
@@ -116,7 +126,12 @@ def analyze():
                 if not isinstance(m, dict): continue
                 D = days[d]
                 sid = o.get("sessionId")
+                S = sessions[sid] if sid else None
                 if sid: D["sids"].add(sid)
+                if S is not None:
+                    if S["project"] is None: S["project"] = proj
+                    if S["start"] is None or ts < S["start"]: S["start"] = ts
+                    if S["end"] is None or ts > S["end"]: S["end"] = ts
                 turn_tools = []
                 content = m.get("content")
                 if isinstance(content, list):
@@ -130,8 +145,10 @@ def analyze():
                             idname[b.get("id")] = nm
                         elif t == "tool_result":
                             D["tool_results"] += 1
+                            if S is not None: S["tool_results"] += 1
                             if b.get("is_error"):
                                 D["tool_errors"] += 1
+                                if S is not None: S["tool_errors"] += 1
                                 D["errors"][classify(result_text(b))] += 1
                                 enm = idname.get(b.get("tool_use_id"))
                                 if enm: D["by_tool"][enm]["err"] += 1
@@ -149,8 +166,15 @@ def analyze():
                 D["cost"]+=cost; D["msgs"]+=1
                 tk=D["tok"]; tk["input"]+=inp; tk["output"]+=out; tk["cache_read"]+=cr
                 tk["cache_write_5m"]+=w5m; tk["cache_write_1h"]+=w1h
-                bm=D["by_model"][tr]; bm["cost"]+=cost; bm["cache_read"]+=cr; bm["output"]+=out
+                bm=D["by_model"][tr]; bm["cost"]+=cost
+                bmt=bm["tok"]; bmt["input"]+=inp; bmt["output"]+=out; bmt["cache_read"]+=cr
+                bmt["cache_write_5m"]+=w5m; bmt["cache_write_1h"]+=w1h
                 bp=D["by_project"][proj]; bp["cost"]+=cost; bp["msgs"]+=1
+                if S is not None:
+                    S["cost"]+=cost; S["msgs"]+=1
+                    stk=S["tok"]; stk["input"]+=inp; stk["output"]+=out; stk["cache_read"]+=cr
+                    stk["cache_write_5m"]+=w5m; stk["cache_write_1h"]+=w1h
+                    S["by_model"][tr]+=cost
                 # tool calls serialize (~100% single-tool turns) → attribute the
                 # whole turn's cost+output to its one tool; else a pseudo-row.
                 tkey = turn_tools[0] if len(turn_tools)==1 else ("(final response)" if not turn_tools else "(multi-tool turn)")
@@ -164,33 +188,59 @@ def analyze():
             "tok": D["tok"],
             "msgs": D["msgs"], "tool_results": D["tool_results"], "tool_errors": D["tool_errors"],
             "sessions": len(D["sids"]),
-            "by_model": {m:{"cost":round(v["cost"],4),"cache_read":v["cache_read"],"output":v["output"]} for m,v in D["by_model"].items()},
+            "by_model": {m:{"cost":round(v["cost"],4),"tok":v["tok"]} for m,v in D["by_model"].items()},
             "by_project": {p:{"cost":round(v["cost"],4),"msgs":v["msgs"]} for p,v in D["by_project"].items()},
             "by_tool": {t:{"calls":v["calls"],"out":v["out"],"cost":round(v["cost"],4),"err":v["err"]} for t,v in D["by_tool"].items()},
             "errors": dict(D["errors"]),
         }
-    return out
+    sess = {}
+    for sid, S in sessions.items():
+        sess[sid] = {
+            "cost": round(S["cost"], 4),
+            "tok": S["tok"],
+            "msgs": S["msgs"], "tool_results": S["tool_results"], "tool_errors": S["tool_errors"],
+            "project": S["project"], "start": S["start"], "end": S["end"],
+            "by_model": {m: round(c, 4) for m, c in S["by_model"].items()},
+        }
+    return out, sess
 
 # ---------------------------------------------------------------- persist
-def merge_daily(newdays):
+def merge_daily(newdays, path=DAILY_FILE):
     old = {}
-    if os.path.exists(DAILY_FILE):
-        try: old = json.load(open(DAILY_FILE, encoding="utf-8"))
+    if os.path.exists(path):
+        try: old = json.load(open(path, encoding="utf-8"))
         except: old = {}
     old.update(newdays)  # new authoritative per date; keeps rotated-out dates
-    json.dump(old, open(DAILY_FILE, "w", encoding="utf-8"), indent=0)
+    json.dump(old, open(path, "w", encoding="utf-8"), indent=0)
     return old
-def record_pricing():
+def merge_sessions(newsess, path=SESSION_FILE):
+    # Same merge philosophy as days: a session lives in one transcript, so a
+    # re-parse is fully authoritative for that id; sessions whose transcripts
+    # have rotated away are preserved from the prior store.
+    old = {}
+    if os.path.exists(path):
+        try: old = json.load(open(path, encoding="utf-8"))
+        except: old = {}
+    old.update(newsess)
+    json.dump(old, open(path, "w", encoding="utf-8"), indent=0)
+    return old
+def record_pricing(path=PRICING_FILE):
     hist = {}
-    if os.path.exists(PRICING_FILE):
-        try: hist = json.load(open(PRICING_FILE, encoding="utf-8"))
+    if os.path.exists(path):
+        try: hist = json.load(open(path, encoding="utf-8"))
         except: hist = {}
     hist[datetime.date.today().isoformat()] = {m:{"input":r[0],"output":r[1]} for m,r in PRICING.items()}
-    json.dump(hist, open(PRICING_FILE, "w", encoding="utf-8"), indent=2)
+    json.dump(hist, open(path, "w", encoding="utf-8"), indent=2)
     return hist
 
 # ---------------------------------------------------------------- html
-def build_html(days, pricing_hist):
+def top_sessions(sessions, n=50):
+    """Highest-cost sessions, id attached, for the report payload (full set is
+    persisted to session_metrics.json; only the top N are embedded in HTML)."""
+    rows = [dict(id=sid, **s) for sid, s in sessions.items()]
+    return sorted(rows, key=lambda s: s["cost"], reverse=True)[:n]
+
+def build_html(days, sessions, pricing_hist):
     price_rows = []
     for mdl in ("opus","sonnet","haiku"):
         i,o = PRICING[mdl]; cr = cache_rates(i)
@@ -199,6 +249,8 @@ def build_html(days, pricing_hist):
     payload = json.dumps({
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "days": days,
+        "sessions": top_sessions(sessions),
+        "pricing": {m:{"input":r[0],"output":r[1]} for m,r in PRICING.items()},
         "meta": ERROR_META,
         "pricing_history": pricing_hist,
     })
@@ -208,15 +260,19 @@ def build_html(days, pricing_hist):
     return tmpl
 
 def main():
-    newdays = analyze()
+    newdays, newsess = analyze()
     days = merge_daily(newdays)
+    sessions = merge_sessions(newsess)
     pricing_hist = record_pricing()
-    open(OUT_HTML, "w", encoding="utf-8").write(build_html(days, pricing_hist))
+    open(OUT_HTML, "w", encoding="utf-8").write(build_html(days, sessions, pricing_hist))
     tc = sum(d["cost"] for d in days.values()); tm = sum(d["msgs"] for d in days.values())
     te = sum(d["tool_errors"] for d in days.values()); tr = sum(d["tool_results"] for d in days.values())
     ds = sorted(days)
     print(f"{len(days)} active days ({ds[0]}..{ds[-1]}) | ${tc:,.2f} | {tm:,} turns | "
           f"{te}/{tr} tool errors ({te/max(tr,1)*100:.1f}%)")
+    if sessions:
+        top = max(sessions.values(), key=lambda s: s["cost"])
+        print(f"{len(sessions):,} sessions | priciest ${top['cost']:,.2f} ({top.get('project','?')})")
     print(f"Report: {OUT_HTML}")
 
 # ---------------------------------------------------------------- template
@@ -301,6 +357,11 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
   <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by project</div><div id="byproj"></div></div>
   <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by model tier</div><div id="bymodel"></div></div>
 </div>
+<div class="panel" id="routepanel">
+  <div class="muted" style="margin-bottom:6px">Model-routing savings estimate <span class="hint" id="routehint"></span></div>
+  <div class="hint" style="margin-bottom:12px">Recomputes this period&rsquo;s <b>Opus</b> token usage at a cheaper tier&rsquo;s rates &mdash; the savings from routing routine work with <span class="mono">/model</span>. Assume <input id="routeshare" type="number" value="30" min="0" max="100" step="5">% of Opus is safely routable to <select id="routetier"><option value="sonnet">Sonnet</option><option value="haiku">Haiku</option></select>. Upper bound &mdash; keep quality-sensitive work on Opus.</div>
+  <div id="routeout"></div>
+</div>
 <div class="panel"><div class="muted" style="margin-bottom:10px">Token composition</div><div id="comp"></div></div>
 <div class="panel"><div class="muted" style="margin-bottom:10px">Tool usage (calls)</div><div id="tools"></div></div>
 
@@ -312,6 +373,13 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 
 <h2>Selected period — errors &amp; fixes</h2>
 <div class="panel"><table><thead><tr><th>Pattern</th><th class="num">Count</th><th class="num">Share</th><th>Suggested fix</th></tr></thead><tbody id="errtbody"></tbody></table></div>
+
+<h2>Top sessions by cost <span class="hint">&mdash; all time &middot; catch runaway conversations</span></h2>
+<div class="panel">
+<table><thead><tr><th>Session</th><th>Project</th><th>Span</th><th class="num">Turns</th><th class="num">Tokens</th><th class="num">Cost</th><th class="num">Err rate</th><th>Tier mix ($)</th></tr></thead>
+<tbody id="sesstbody"></tbody></table>
+<div class="muted" style="margin-top:8px">A session is one conversation (distinct sessionId), summed across every day it touched. Top 50 by cost. A single session far above the rest usually means a long, uncleared context re-read every turn &mdash; <span class="mono">/clear</span> between tasks.</div>
+</div>
 
 <h2>Model pricing (tracked daily)</h2>
 <div class="panel"><div class="muted" style="margin-bottom:6px">Input price $/1M over time</div><div id="pricechart"></div></div>
@@ -346,6 +414,8 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 <dt>Tool error rate</dt><dd>Share of tool results returned as errors. Lower is better.</dd>
 <dt>Est. waste</dt><dd>Modeled error cost = errors &times; avg cost/call &times; retry factor. Cost/call is exact; the retry factor (how many extra turns an error triggers) is your tunable assumption.</dd>
 <dt>vs prev</dt><dd>Change from the previous period at the current granularity.</dd>
+<dt>Top sessions</dt><dd>Highest-cost individual conversations across all history. A single session far above the rest is a runaway context &mdash; the cheapest thing to fix.</dd>
+<dt>Routing estimate</dt><dd>This period&rsquo;s Opus tokens recosted at Sonnet/Haiku rates, scaled by your routable-share assumption. An upper bound on <span class="mono">/model</span> savings, not a promise.</dd>
 </dl>
 </div>
 
@@ -373,7 +443,7 @@ function blankPeriod(key,label){return{key,label,cost:0,
   by_model:{},by_project:{},by_tool:{},errors:{},dates:[]};}
 function addNum(dst,src,keys){keys.forEach(k=>dst[k]+=src[k]||0);}
 function addCounter(dst,src){for(const k in src)dst[k]=(dst[k]||0)+src[k];}
-function addModel(dst,src){for(const t in src){dst[t]=dst[t]||{cost:0,cache_read:0,output:0};for(const k in src[t])dst[t][k]=(dst[t][k]||0)+src[t][k];}}
+function addModel(dst,src){for(const t in src){dst[t]=dst[t]||{cost:0,tok:{input:0,output:0,cache_read:0,cache_write_5m:0,cache_write_1h:0}};dst[t].cost+=src[t].cost||0;const st=src[t].tok||{};for(const k in dst[t].tok)dst[t].tok[k]+=st[k]||0;}}
 function addProj(dst,src){for(const p in src){dst[p]=dst[p]||{cost:0,msgs:0};for(const k in src[p])dst[p][k]=(dst[p][k]||0)+src[p][k];}}
 function addTool(dst,src){for(const t in src){dst[t]=dst[t]||{calls:0,out:0,cost:0,err:0};for(const k in src[t])dst[t][k]=(dst[t][k]||0)+src[t][k];}}
 
@@ -472,8 +542,48 @@ function render(){
     const m=META[k]||{title:k,fix:""};
     return `<tr><td><b>${esc(m.title)}</b><br><span class='muted mono'>${esc(k)}</span></td><td class='num'>${v}</td><td class='num'>${Math.round(v/te*100)}%</td><td>${esc(m.fix)}</td></tr>`;
   }).join("")||"<tr><td colspan=4 class='muted'>No tool errors in this period. 🎉</td></tr>";
+  renderRoute(cur);
 }
 window.pick=i=>{state.idx=i;render();};
+
+// ---- model-routing savings estimate (selected period) ----
+function costAtRates(tok,r){return (tok.input*r.input + tok.output*r.output +
+  tok.cache_read*r.input*0.1 + tok.cache_write_5m*r.input*1.25 + tok.cache_write_1h*r.input*2.0)/1e6;}
+function renderRoute(cur){
+  const el=$("#routeout"), hint=$("#routehint");
+  const opus=cur.by_model&&cur.by_model.opus;
+  if(!opus||!opus.cost||!opus.tok){el.innerHTML="<p class='muted'>No Opus usage in this period.</p>";hint.textContent="";return;}
+  let share=parseFloat($("#routeshare").value); share=isNaN(share)?0:Math.max(0,Math.min(100,share))/100;
+  const tier=$("#routetier").value, rates=DATA.pricing[tier];
+  const atTier=costAtRates(opus.tok,rates);
+  const fullDelta=opus.cost-atTier;          // savings if 100% of Opus moved
+  const sav=share*fullDelta;                 // savings at the chosen routable share
+  const pct=opus.cost?fullDelta/opus.cost*100:0;
+  const newTotal=cur.cost-sav;
+  const card=(l,v,s,cls)=>`<div class='card'><div class='klabel'>${l}</div><div class='kval'>${v}</div>${s?`<div class='delta ${cls||"flat"}'>${s}</div>`:""}</div>`;
+  el.innerHTML="<div class='cards'>"+[
+    card("Opus spend",fmtUSD(opus.cost),"this period"),
+    card("If 100% → "+tier,fmtUSD(atTier),"−"+fmtUSD(fullDelta)+" ("+pct.toFixed(0)+"%)","down"),
+    card("Savings @ "+Math.round(share*100)+"%",fmtUSD(sav),"routed to "+tier,"down"),
+    card("New period total",fmtUSD(newTotal),"was "+fmtUSD(cur.cost)),
+  ].join("")+"</div>";
+  hint.textContent="— "+tier+" input $"+rates.input.toFixed(2)+"/1M vs Opus $"+DATA.pricing.opus.input.toFixed(2)+"/1M";
+}
+
+// ---- top sessions by cost (all time; period-independent) ----
+function renderSessions(){
+  const rows=DATA.sessions||[], body=$("#sesstbody");
+  if(!rows.length){body.innerHTML="<tr><td colspan=8 class='muted'>No sessions.</td></tr>";return;}
+  body.innerHTML=rows.map(s=>{
+    const tok=tokTotal(s.tok), er=s.tool_results?s.tool_errors/s.tool_results*100:0;
+    const d0=(s.start||"").slice(0,10), d1=(s.end||"").slice(0,10);
+    const span=d0===d1?d0:d0+" → "+d1;
+    const mix=Object.entries(s.by_model||{}).sort((a,b)=>b[1]-a[1]).map(([t,c])=>t+" "+fmtUSD(c)).join(", ");
+    return `<tr><td class='mono'>${esc((s.id||"").slice(0,8))}</td><td class='hlabel'>${esc(clean(s.project||"(root)"))}</td>`+
+      `<td class='mono'>${esc(span)}</td><td class='num'>${fmtInt(s.msgs)}</td><td class='num'>${fmtTok(tok)}</td>`+
+      `<td class='num'>${fmtUSD(s.cost)}</td><td class='num'>${s.tool_results?er.toFixed(1)+"%":"—"}</td><td>${esc(mix)}</td></tr>`;
+  }).join("");
+}
 
 function rebuild(keepEnd){
   state.periods=aggregate(state.gran);
@@ -505,10 +615,13 @@ document.querySelectorAll("#gran button").forEach(b=>b.onclick=()=>{
 });
 $("#metric").onchange=e=>{state.metric=e.target.value;render();};
 $("#retry").oninput=()=>render();
+$("#routeshare").oninput=()=>render();
+$("#routetier").onchange=()=>render();
 $("#prev").onclick=()=>{if(state.idx>0){state.idx--;render();}};
 $("#next").onclick=()=>{if(state.idx<state.periods.length-1){state.idx++;render();}};
 document.addEventListener("keydown",e=>{if(e.key==="ArrowLeft")$("#prev").click();if(e.key==="ArrowRight")$("#next").click();});
 
+renderSessions();
 rebuild(true);
 </script>
 </body></html>"""
