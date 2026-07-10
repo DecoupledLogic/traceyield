@@ -1,8 +1,9 @@
 # Architecture — how the tool is built
 
 *Living document. Update it whenever the tool changes — a new data source, a new
-panel, a schema change, a new provider. Last updated 2026-07-10 (Claude Code only;
-per-machine artifact namespacing landed).*
+panel, a schema change, a new provider. Last updated 2026-07-10 (data health
+monitoring landed: schema-drift fingerprinting + coverage-hole detection for
+Claude, plus Codex format baselining ahead of its parser).*
 
 > Background: [`claude-usage-data-research.md`](./claude-usage-data-research.md)
 > is why the tool is shaped this way (parse local transcripts, five-line cost
@@ -48,7 +49,7 @@ string literal (`HTML_TMPL`) with two placeholders (`__PAYLOAD__`,
 
 ## Data flow (one `python report.py` run)
 
-`main()` (`report.py`) runs five steps in order:
+`main()` (`report.py`) runs these steps in order:
 
 1. **Parse** — `analyze()` globs every `*.jsonl` under `CLAUDE_PROJECTS`
    (`~/.claude/projects`). Each transcript line is timestamped; metrics are
@@ -67,7 +68,11 @@ string literal (`HTML_TMPL`) with two placeholders (`__PAYLOAD__`,
 4. **Emit** — `build_html()` inlines the full payload (`days`, top `sessions`,
    `pricing`, error `meta`, `pricing_history`) into `HTML_TMPL` and writes
    `report.html`.
-5. **Check pricing drift** — `check_pricing_drift()` fetches Anthropic's
+5. **Health check** — `scan_claude()` / `scan_codex()` fingerprint the *shape*
+   of each provider's logs, `build_health()` diffs that against `SCHEMA_EXPECT`
+   and reconciles coverage, `write_health()` persists `health.json`, and
+   `print_health()` warns to stdout. See **Data health monitoring** below.
+6. **Check pricing drift** — `check_pricing_drift()` fetches Anthropic's
    published pricing page and warns to stdout if any tier in `PRICING` no longer
    matches. Runs *after* the report is written, is fully best-effort (never
    raises, never mutates `PRICING`), and degrades to a "skipped" note offline.
@@ -145,6 +150,54 @@ the merge/HTML layers don't care where a bucket came from.
   (from the embedded `pricing` block) and scale by a user-set "routable share" to
   estimate `/model`-routing savings. It's an **upper bound**, framed as such.
 
+## Data health monitoring (schema drift + coverage holes)
+
+The parser is **resilient by design** (`except: continue`), which means a vendor
+schema change never crashes — it *silently under-counts*: a renamed `usage`
+field reads 0, a new model id maps to no tier and gets $0 attributed. So drift
+can't be caught by watching for exceptions; it has to be **observed**. This layer
+(all in `report.py`, structural twin of `check_pricing_drift()` — best-effort,
+warns, never raises, never changes parsing) does that in two independent ways:
+
+- **Schema drift.** `scan_claude()` / `scan_codex()` do one cheap, cost-free pass
+  that fingerprints only the **load-bearing shapes** — `usage` keys, cache-write
+  keys, content-block types and model ids (Claude); `type` / `payload.type`
+  variants, `token_count` info keys and models (Codex) — plus which dates the
+  transcripts cover. `schema_drift()` diffs that fingerprint against
+  `SCHEMA_EXPECT`, a **baseline seeded from real data** (so already-normal fields
+  like Claude's `inference_geo` / `server_tool_use` / `<synthetic>` don't
+  false-alarm). It flags: a **new** value in a semantic category (possible new
+  field/model/type to review), an **unmapped model** (usage silently dropped —
+  add it to `tier()`), and a **required top-level key that vanished** (a likely
+  rename that blinds the parser). We deliberately do **not** fingerprint the ~70
+  churny top-level telemetry keys Claude Code writes — only the handful the
+  parser depends on, and only for disappearance. **The update ritual:** drift
+  fires → you look → either fix the parser or, if benign, add the new value to
+  `SCHEMA_EXPECT` (a small, reviewable edit that doubles as schema documentation).
+- **Coverage holes.** `coverage()` reconciles the durable day-series against the
+  dates transcripts still cover, separating **benign idle days** (no usage, no
+  alarm) from **suspicious holes**: a date whose transcripts carry lines but the
+  store recorded nothing, or a stored day with tool activity yet **$0 cost**
+  (usage rows dropped). Plus a **freshness watermark** (days since the store last
+  advanced — the actionable daily alarm if a scheduled run or parse is failing).
+  Scoped from the first active day to today; dates whose transcripts have rotated
+  away aren't reconstructable, so they're out of the actionable window.
+
+**Codex is fingerprint-only** for now — there's no cost model yet (see
+[`adding-openai-support.md`](./adding-openai-support.md)), but scanning
+`~/.codex/sessions` every run **baselines the format from day one**, so when the
+parser is built, drift is already caught and the research-doc schema is validated
+against reality. (On first run it already surfaced real divergences: a
+`model_context_window` key the doc didn't list, plain `gpt-5`, extra
+`payload.type` variants, and 15/37 sessions with no `token_count` events.)
+
+`build_health()` assembles the record; `write_health()` persists the full
+`health.json`; `_slim_health()` trims it (drops the per-date map + churny key
+list, caps the gap list) for embedding in the report payload. Surfaced three
+ways: the **Data health panel** at the top of `report.html`, **stdout warnings**
+via `print_health()` (captured in `run.log`), and the machine-readable
+`health.json` for future alerting.
+
 ## The emitted report (`HTML_TMPL`)
 
 One self-contained page. The Python payload (`build_html`) carries `generated`,
@@ -171,6 +224,7 @@ JS renders:
 | `machines/<id>/daily_metrics.json` | per-machine, durable | git-ignored | `merge_daily()` |
 | `machines/<id>/session_metrics.json` | per-machine, durable | git-ignored | `merge_sessions()` |
 | `machines/<id>/report.html` | per-machine output | git-ignored | `build_html()` |
+| `machines/<id>/health.json` | per-machine (schema drift + coverage) | git-ignored | `write_health()` |
 | `machines/<id>/run.log` | per-machine | git-ignored | `run.cmd` |
 | `pricing_history.json` | **shared, repo root** | **tracked** | `record_pricing()` |
 
@@ -232,6 +286,11 @@ session/`by_model` shapes, update the fixtures' expected numbers.
 
 ## Change log
 
+- **2026-07-10** — Data health monitoring: `scan_claude()`/`scan_codex()` schema
+  fingerprinting vs. a `SCHEMA_EXPECT` baseline, `coverage()` idle-vs-hole
+  reconciliation + freshness watermark, `health.json`, a Data health report panel,
+  and `run.log` warnings. Codex logs fingerprinted (drift-baselined) ahead of a
+  full parser.
 - **2026-07-10** — Per-machine artifact namespacing (`machines/<id>/`);
   machine-agnostic `run.cmd` and `clean()` project labels; `machines/` git-ignored,
   `pricing_history.json` kept shared. Pricing drift check added.

@@ -43,6 +43,10 @@ MACHINE_DIR = os.path.join(MACHINES_DIR, machine_id())
 DAILY_FILE = os.path.join(MACHINE_DIR, "daily_metrics.json")
 SESSION_FILE = os.path.join(MACHINE_DIR, "session_metrics.json")
 OUT_HTML = os.path.join(MACHINE_DIR, "report.html")
+HEALTH_FILE = os.path.join(MACHINE_DIR, "health.json")
+# Codex (OpenAI) CLI rollout logs — fingerprinted for schema drift even before a
+# full parser exists, so the format is baselined from day one (see docs/).
+CODEX_SESSIONS = os.path.expanduser(r"~/.codex/sessions")
 # pricing_history is derived from the PRICING table (not from any machine's
 # transcripts), so it's identical everywhere and stays shared at the repo root.
 PRICING_FILE = os.path.join(HERE, "pricing_history.json")
@@ -323,6 +327,258 @@ def check_pricing_drift(url=PRICING_URL):
         print(f"  pricing verified against Anthropic pricing page ({len(published)} tiers match)")
     return drift
 
+# ------------------------------------------------- schema & coverage monitoring
+#
+# The parser above is resilient by design (`except: continue`), so a vendor
+# schema change surfaces as SILENT under-counting, not a crash — a renamed usage
+# field reads 0, a new model id maps to no tier and gets $0 attributed. These
+# functions are the observability layer that catches that: each run fingerprints
+# the SHAPE of the data actually seen and diffs it against a declared baseline,
+# and reconciles the stored day-series against the dates transcripts still cover
+# so drift and data holes get surfaced (stdout, health.json, the report) instead
+# of quietly zeroing a day. Best-effort twins of check_pricing_drift(): they
+# never raise and never change how parsing works.
+
+# Declared baseline of the load-bearing shapes we understand today. Seeded from
+# REAL data, not vendor docs — so already-normal fields (Claude's inference_geo/
+# server_tool_use/iterations/speed/service_tier, the <synthetic> model id) don't
+# false-alarm. A NEW value in one of these small, semantic categories is the
+# earliest drift signal; when you confirm it's benign, add it here (that is the
+# update ritual). We deliberately DON'T fingerprint the ~70 churny top-level
+# telemetry keys Claude Code writes — only the handful the parser depends on,
+# and only for disappearance (a rename that blinds the parser).
+SCHEMA_EXPECT = {
+    "claude": {
+        "required_line_keys": {"timestamp", "sessionId", "message"},
+        "usage_keys": {"input_tokens", "output_tokens", "cache_read_input_tokens",
+                       "cache_creation_input_tokens", "cache_creation", "service_tier",
+                       "inference_geo", "server_tool_use", "iterations", "speed"},
+        "cache_creation_keys": {"ephemeral_5m_input_tokens", "ephemeral_1h_input_tokens"},
+        "block_types": {"text", "thinking", "tool_use", "tool_result"},
+        "known_unmapped_models": {"<synthetic>"},   # real ids we intentionally skip
+    },
+    "codex": {
+        "line_types": {"session_meta", "turn_context", "response_item", "event_msg",
+                       "compacted", "inter_agent_communication", "world_state"},
+        "payload_types": {"message", "user_message", "agent_message", "agent_reasoning",
+                          "reasoning", "function_call", "function_call_output",
+                          "token_count", "turn_aborted", "entered_review_mode",
+                          "exited_review_mode"},
+        "token_count_info_keys": {"total_token_usage", "last_token_usage",
+                                  "model_context_window"},
+    },
+}
+# Which fingerprint categories are diffed against the baseline for each provider,
+# and (for Claude) which model ids count as "unmapped" (usage silently dropped).
+DRIFT_CATS = {
+    "claude": ["usage_keys", "cache_creation_keys", "block_types"],
+    "codex":  ["line_types", "payload_types", "token_count_info_keys"],
+}
+
+def _fp(files, lines, jerr, seen, dates, flags, unknown_models):
+    """Normalize a scan into a JSON-safe fingerprint (sets -> sorted lists)."""
+    return {"files": files, "lines": lines, "json_errors": jerr,
+            "seen": {k: sorted(v) for k, v in seen.items()},
+            "dates": dict(dates), "flags": dict(flags),
+            "unknown_models": sorted(unknown_models)}
+
+def scan_claude(root=CLAUDE_PROJECTS):
+    """One defensive pass over the Claude transcripts collecting only SHAPE and
+    per-date coverage — never costs anything, so it stays cheap and can't skew
+    metrics. Mirrors analyze()'s resilience (per-line/per-file try/except)."""
+    files = glob.glob(os.path.join(root, "**", "*.jsonl"), recursive=True)
+    seen = {"line_keys": set(), "usage_keys": set(), "cache_creation_keys": set(),
+            "block_types": set(), "models": set()}
+    dates = defaultdict(int); flags = Counter(); unknown = set()
+    nfiles = nlines = jerr = 0
+    known_unmapped = SCHEMA_EXPECT["claude"]["known_unmapped_models"]
+    for f in files:
+        nfiles += 1
+        try:
+            for ln in open(f, encoding="utf-8"):
+                ln = ln.strip()
+                if not ln: continue
+                nlines += 1
+                try: o = json.loads(ln)
+                except: jerr += 1; continue
+                seen["line_keys"] |= set(o.keys())
+                ts = o.get("timestamp")
+                if ts: dates[ts[:10]] += 1
+                m = o.get("message")
+                if not isinstance(m, dict): continue
+                c = m.get("content")
+                if isinstance(c, list):
+                    for b in c:
+                        if isinstance(b, dict) and b.get("type"):
+                            seen["block_types"].add(b["type"])
+                u = m.get("usage")
+                if not isinstance(u, dict): continue
+                seen["usage_keys"] |= set(u.keys())
+                cc = u.get("cache_creation")
+                if isinstance(cc, dict): seen["cache_creation_keys"] |= set(cc.keys())
+                mdl = m.get("model")
+                if mdl:
+                    seen["models"].add(mdl)
+                    if tier(mdl) is None and mdl not in known_unmapped:
+                        unknown.add(mdl); flags["unmapped_model_turns"] += 1
+        except: continue
+    return _fp(nfiles, nlines, jerr, seen, dates, flags, unknown)
+
+def scan_codex(root=CODEX_SESSIONS):
+    """Fingerprint Codex rollout logs before a full parser exists — collects the
+    type/payload/token-usage shapes (to baseline drift vs. the research doc) and
+    flags sessions that have tool/message activity but no token_count events
+    (they would cost $0 — the `codex exec` gotcha). Costs nothing; no parser."""
+    files = glob.glob(os.path.join(root, "**", "*.jsonl"), recursive=True)
+    seen = {"line_types": set(), "payload_types": set(),
+            "token_count_info_keys": set(), "models": set()}
+    dates = defaultdict(int); flags = Counter(); unknown = set()
+    nfiles = nlines = jerr = 0
+    for f in files:
+        nfiles += 1; had_usage = had_activity = False
+        try:
+            for ln in open(f, encoding="utf-8"):
+                ln = ln.strip()
+                if not ln: continue
+                nlines += 1
+                try: o = json.loads(ln)
+                except: jerr += 1; continue
+                ts = o.get("timestamp")
+                if ts: dates[ts[:10]] += 1
+                typ = o.get("type")
+                if typ: seen["line_types"].add(typ)
+                p = o.get("payload")
+                if not isinstance(p, dict): continue
+                pt = p.get("type")
+                if pt: seen["payload_types"].add(pt)
+                if typ == "turn_context" and p.get("model"):
+                    mdl = p["model"]; seen["models"].add(mdl)
+                    if "gpt-" not in mdl.lower(): unknown.add(mdl)
+                if pt in ("function_call", "function_call_output", "message"):
+                    had_activity = True
+                if pt == "token_count":
+                    had_usage = True
+                    info = p.get("info")
+                    if isinstance(info, dict):
+                        seen["token_count_info_keys"] |= set(info.keys())
+        except: continue
+        if had_activity:
+            flags["files_with_activity"] += 1
+            if not had_usage: flags["files_without_usage"] += 1
+    return _fp(nfiles, nlines, jerr, seen, dates, flags, unknown)
+
+def schema_drift(fp, provider):
+    """Human-readable drift lines: NEW values in load-bearing categories (a new
+    field / model / message type to review), unmapped models (silently-dropped
+    cost), and required top-level keys that never appeared (a likely rename that
+    blinds the parser). Never raises; [] means no drift."""
+    exp = SCHEMA_EXPECT.get(provider, {})
+    out = []
+    for cat in DRIFT_CATS.get(provider, []):
+        known = exp.get(cat, set())
+        for v in fp["seen"].get(cat, []):
+            if v not in known:
+                out.append(f"new {cat[:-1]}: {v!r} (not in SCHEMA_EXPECT baseline)")
+    for mdl in fp.get("unknown_models", []):
+        out.append(f"unmapped model: {mdl!r} (usage skipped, $0 attributed -- add it to tier())")
+    if fp["lines"]:
+        seen_lk = set(fp["seen"].get("line_keys", []))
+        for rk in exp.get("required_line_keys", []):
+            if rk not in seen_lk:
+                out.append(f"required key not seen: {rk!r} (possible rename -- parser is blind to it)")
+    return out
+
+def coverage(days, scan_dates, today=None):
+    """Reconcile the stored day-series against the dates transcripts still cover.
+    Separates benign idle days from SUSPICIOUS holes: a date transcripts cover
+    but the store never recorded, or a stored day with tool activity yet $0 cost
+    (usage rows silently dropped). Also a freshness watermark (days since the
+    store last advanced). Scoped from the first active day to `today`; ancient
+    dates whose transcripts have rotated away aren't actionable, so we don't
+    reconstruct them -- we only reconcile within the window we can still see."""
+    today = today or datetime.date.today().isoformat()
+    active = sorted(days)
+    out = {"active_days": len(active), "first": active[0] if active else None,
+           "last": active[-1] if active else None, "days_since_last_active": None,
+           "calendar_gaps": [], "suspicious": [],
+           "recoverable_window": None, "checked_through": today}
+    if scan_dates:
+        sd = sorted(scan_dates); out["recoverable_window"] = [sd[0], sd[-1]]
+    if not active: return out
+    one = datetime.timedelta(days=1)
+    cur, end = datetime.date.fromisoformat(active[0]), datetime.date.fromisoformat(today)
+    while cur <= end:
+        ds = cur.isoformat()
+        if ds not in days:
+            out["calendar_gaps"].append(ds)
+            if ds in scan_dates:   # transcripts have lines here but nothing recorded
+                out["suspicious"].append({"date": ds,
+                    "reason": "transcript lines exist for this date but no usage was recorded"})
+        else:
+            D = days[ds]
+            if (D.get("tool_results", 0) or 0) > 0 and (D.get("cost", 0) or 0) == 0:
+                out["suspicious"].append({"date": ds,
+                    "reason": "tool activity but $0 cost (usage rows dropped -- likely model/schema drift)"})
+        cur += one
+    out["days_since_last_active"] = (end - datetime.date.fromisoformat(active[-1])).days
+    return out
+
+def build_health(days, claude_fp, codex_fp):
+    """Assemble the per-run health record: schema drift + coverage for Claude,
+    schema fingerprint for Codex. This is the machine-readable artifact behind
+    the report's Data health panel and the run.log warnings."""
+    return {
+        "generated": datetime.datetime.now().isoformat(timespec="seconds"),
+        "machine": machine_id(),
+        "providers": {
+            "claude": {"scan": claude_fp, "drift": schema_drift(claude_fp, "claude"),
+                       "coverage": coverage(days, claude_fp.get("dates", {}))},
+            "codex": {"scan": codex_fp, "drift": schema_drift(codex_fp, "codex")},
+        },
+    }
+
+def write_health(health, path=HEALTH_FILE):
+    json.dump(health, open(path, "w", encoding="utf-8"), indent=2)
+    return health
+
+def _slim_health(h):
+    """Trim the health record for embedding in the HTML payload: drop the big
+    per-date map and the churny top-level key list, cap the gap list. The full
+    record is what health.json keeps."""
+    if not h: return None
+    import copy
+    s = copy.deepcopy(h)
+    for P in s.get("providers", {}).values():
+        sc = P.get("scan", {})
+        sc.pop("dates", None)
+        sc.get("seen", {}).pop("line_keys", None)
+        g = P.get("coverage", {}).get("calendar_gaps")
+        if g and len(g) > 60: P["coverage"]["calendar_gaps"] = g[-60:]
+    return s
+
+def print_health(health):
+    """One-shot stdout summary (captured in run.log): schema drift per provider,
+    data holes, and staleness. Best-effort — the report is already written."""
+    for prov in ("claude", "codex"):
+        P = health["providers"][prov]; sc = P["scan"]; drift = P.get("drift", [])
+        if drift:
+            print(f"  {prov} SCHEMA DRIFT ({len(drift)}) -- review & update SCHEMA_EXPECT/tier() in report.py:")
+            for d in drift: print(f"      {d}")
+        else:
+            print(f"  {prov} schema OK ({sc['files']} files, {sc['lines']:,} lines, {sc['json_errors']} json errors)")
+    xf = health["providers"]["codex"]["scan"].get("flags", {})
+    if xf.get("files_without_usage"):
+        print(f"      codex: {xf['files_without_usage']}/{xf.get('files_with_activity',0)} active sessions had NO token_count (would cost $0)")
+    cov = health["providers"]["claude"].get("coverage", {})
+    for s in cov.get("suspicious", []):
+        print(f"  DATA HOLE {s['date']}: {s['reason']}")
+    gaps = cov.get("calendar_gaps", [])
+    if gaps:
+        print(f"  {len(gaps)} calendar gap day(s) with no usage in [{cov.get('first')}..{cov.get('checked_through')}] (idle days are normal; see Data health panel)")
+    dsl = cov.get("days_since_last_active")
+    if dsl and dsl > 1:
+        print(f"  WARNING: no recorded usage for {dsl} day(s) (last active {cov.get('last')})")
+
 # ---------------------------------------------------------------- html
 def top_sessions(sessions, n=50):
     """Highest-cost sessions, id attached, for the report payload (full set is
@@ -330,7 +586,7 @@ def top_sessions(sessions, n=50):
     rows = [dict(id=sid, **s) for sid, s in sessions.items()]
     return sorted(rows, key=lambda s: s["cost"], reverse=True)[:n]
 
-def build_html(days, sessions, pricing_hist):
+def build_html(days, sessions, pricing_hist, health=None):
     price_rows = []
     for mdl in ("opus","sonnet","haiku"):
         i,o = PRICING[mdl]; cr = cache_rates(i)
@@ -343,6 +599,7 @@ def build_html(days, sessions, pricing_hist):
         "pricing": {m:{"input":r[0],"output":r[1]} for m,r in PRICING.items()},
         "meta": ERROR_META,
         "pricing_history": pricing_hist,
+        "health": _slim_health(health),
     })
     tmpl = HTML_TMPL
     tmpl = tmpl.replace("__PAYLOAD__", payload)
@@ -355,7 +612,11 @@ def main():
     days = merge_daily(newdays)
     sessions = merge_sessions(newsess)
     pricing_hist = record_pricing()
-    open(OUT_HTML, "w", encoding="utf-8").write(build_html(days, sessions, pricing_hist))
+    # Fingerprint both providers' data shapes and reconcile coverage, then embed
+    # the health record in the report and persist it (best-effort; never fatal).
+    health = build_health(days, scan_claude(), scan_codex())
+    write_health(health)
+    open(OUT_HTML, "w", encoding="utf-8").write(build_html(days, sessions, pricing_hist, health))
     tc = sum(d["cost"] for d in days.values()); tm = sum(d["msgs"] for d in days.values())
     te = sum(d["tool_errors"] for d in days.values()); tr = sum(d["tool_results"] for d in days.values())
     ds = sorted(days)
@@ -367,6 +628,7 @@ def main():
         top = max(sessions.values(), key=lambda s: s["cost"])
         print(f"{len(sessions):,} sessions | priciest ${top['cost']:,.2f} ({top.get('project','?')})")
     print(f"Report: {OUT_HTML}")
+    print_health(health)    # schema drift + data holes (into run.log)
     check_pricing_drift()   # best-effort; report is already written above
 
 # ---------------------------------------------------------------- template
@@ -416,9 +678,17 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 .doc dl{margin:0} .doc dt{font-weight:600;margin-top:11px} .doc dd{margin:2px 0 0;color:var(--mut)}
 .doc dt .mono{color:var(--accent);margin-left:4px} .doc ul{margin:6px 0 0;padding-left:20px} .doc li{margin:7px 0}
 .doc p{margin:8px 0}
+#health{margin-top:14px} .hhdr{margin-bottom:4px;font-size:15px}
+.hpill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-right:8px;vertical-align:middle}
+.hpill.ok{background:#173a2a;color:#5bbf8a} .hpill.warn{background:#3a2a17;color:#f0a35e}
+.hrow{font-size:13px;padding:8px 0;border-top:1px solid var(--line)} .hrow:first-of-type{border-top:0}
+.hrow.warn{color:#f0a35e} .hrow.ok{color:var(--mut)} .hrow b{color:var(--ink)}
+.hrow ul{margin:6px 0 0;padding-left:20px} .hrow li{margin:3px 0}
 </style></head><body><div class="wrap">
 <h1>Claude Code — Usage &amp; Health</h1>
 <div class="sub" id="sub"></div>
+
+<div class="panel" id="health"></div>
 
 <div class="controls">
   <div class="seg" id="gran">
@@ -684,6 +954,28 @@ function renderRoute(cur){
   hint.textContent="— "+tier+" input $"+rates.input.toFixed(2)+"/1M vs Opus $"+DATA.pricing.opus.input.toFixed(2)+"/1M";
 }
 
+// ---- data health (schema drift + coverage; period-independent) ----
+function renderHealth(){
+  const box=$("#health"), H=DATA.health;
+  if(!H){box.style.display="none";return;}
+  const P=H.providers||{}, C=P.claude||{}, X=P.codex||{}, cov=C.coverage||{};
+  const susp=cov.suspicious||[], gaps=cov.calendar_gaps||[];
+  const stale=(cov.days_since_last_active||0)>1;
+  const warn=(C.drift&&C.drift.length)||(X.drift&&X.drift.length)||susp.length||stale;
+  const driftRow=(name,d)=> (d&&d.length)
+    ? `<div class="hrow warn"><b>${name} schema drift (${d.length})</b> — confirm, then update <span class="mono">SCHEMA_EXPECT</span> / <span class="mono">tier()</span> in report.py<ul>${d.map(x=>`<li class="mono">${esc(x)}</li>`).join("")}</ul></div>`
+    : `<div class="hrow ok">${name} schema OK <span class="hint">(${(d==null?"—":"no new fields, models, or block types")})</span></div>`;
+  let h=`<div class="hhdr"><span class="hpill ${warn?"warn":"ok"}">${warn?"Needs review":"All clear"}</span><b>Data health</b> <span class="hint">— schema drift &amp; coverage, checked every run · generated ${esc(H.generated||"")}</span></div>`;
+  h+=driftRow("Claude",C.drift);
+  if(stale) h+=`<div class="hrow warn"><b>Stale:</b> no recorded usage for ${cov.days_since_last_active} day(s) — last active ${esc(cov.last||"?")}. If you used Claude Code since, a run or parse is failing.</div>`;
+  if(susp.length) h+=`<div class="hrow warn"><b>${susp.length} suspicious data hole(s)</b> — had activity but nothing was recorded:<ul>${susp.slice(0,25).map(s=>`<li><b>${esc(s.date)}</b> — ${esc(s.reason)}</li>`).join("")}</ul></div>`;
+  h+=`<div class="hrow ok">Coverage: <b>${cov.active_days||0}</b> active days (${esc(cov.first||"?")} → ${esc(cov.last||"?")}) · <b>${gaps.length}</b> calendar gap day(s) with no usage${gaps.length?` <span class="hint">(${esc(gaps.slice(-10).join(", "))}${gaps.length>10?" …":""})</span>`:""}. <span class="hint">Idle days are normal — the flagged holes above are the ones to check.</span></div>`;
+  h+=driftRow("Codex",X.drift);
+  const xs=X.scan||{}, xf=xs.flags||{};
+  if(xs.files!=null) h+=`<div class="hrow ok">Codex fingerprint (no cost model yet): <b>${xs.files}</b> session files, ${fmtInt(xs.lines||0)} lines · ${xf.files_without_usage||0}/${xf.files_with_activity||0} active sessions carried <b>no</b> token_count (would cost $0)${(xs.unknown_models&&xs.unknown_models.length)?` · unmapped models: <span class="mono">${esc(xs.unknown_models.join(", "))}</span>`:""}.</div>`;
+  box.innerHTML=h;
+}
+
 // ---- top sessions by cost (all time; period-independent) ----
 function renderSessions(){
   const rows=DATA.sessions||[], body=$("#sesstbody");
@@ -735,6 +1027,7 @@ $("#prev").onclick=()=>{if(state.idx>0){state.idx--;render();}};
 $("#next").onclick=()=>{if(state.idx<state.periods.length-1){state.idx++;render();}};
 document.addEventListener("keydown",e=>{if(e.key==="ArrowLeft")$("#prev").click();if(e.key==="ArrowRight")$("#next").click();});
 
+renderHealth();
 renderSessions();
 rebuild(true);
 </script>
