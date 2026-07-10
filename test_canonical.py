@@ -68,6 +68,59 @@ def ingest_lines(lines, project="projX", name="conv.jsonl", capture="structural"
     return conn, tmp
 
 
+# --------------------------------------------------------------- codex fixture helpers
+def codex_line(ts, type_, **payload):
+    return line(timestamp=ts, type=type_, payload=payload)
+
+def codex_session_meta(ts, sid, cwd="/home/u/proj", cli_version="0.39.0", originator="codex_cli_rs"):
+    return codex_line(ts, "session_meta", id=sid, timestamp=ts, cwd=cwd,
+                       originator=originator, cli_version=cli_version, instructions=None)
+
+def codex_turn_context(ts, model, approval_policy="on-request", sandbox_mode="read-only", cwd="/home/u/proj"):
+    return codex_line(ts, "turn_context", cwd=cwd, approval_policy=approval_policy,
+                       sandbox_policy={"mode": sandbox_mode}, model=model, summary="auto")
+
+def codex_token_count(ts, last=None, total=None, flat=None):
+    info = {}
+    if total is not None: info["total_token_usage"] = total
+    if last is not None: info["last_token_usage"] = last
+    if flat is not None:
+        return line(timestamp=ts, type="event_msg",
+                     payload=dict({"type": "token_count"}, **flat))
+    return codex_line(ts, "event_msg", **{"type": "token_count", "info": info})
+
+def tok(inp=0, cached=0, out=0, reasoning=0):
+    total = inp + out
+    return {"input_tokens": inp, "cached_input_tokens": cached,
+            "output_tokens": out, "reasoning_output_tokens": reasoning, "total_tokens": total}
+
+def codex_message(ts, role, text):
+    kind = "input_text" if role == "user" else "output_text"
+    return codex_line(ts, "response_item", type="message", role=role,
+                       content=[{"type": kind, "text": text}])
+
+def codex_reasoning(ts, summary_text=None, encrypted="gAAA"):
+    summary = [{"type": "summary_text", "text": summary_text}] if summary_text is not None else []
+    return codex_line(ts, "response_item", type="reasoning", summary=summary,
+                       content=None, encrypted_content=encrypted)
+
+def codex_function_call(ts, call_id, name, arguments="{}"):
+    return codex_line(ts, "response_item", type="function_call", name=name,
+                       arguments=arguments, call_id=call_id)
+
+def codex_function_call_output(ts, call_id, output):
+    return codex_line(ts, "response_item", type="function_call_output",
+                       call_id=call_id, output=output)
+
+def codex_rollout(lines, capture="structural"):
+    """Write a codex rollout transcript, ingest with CodexProvider, return (conn, tmpdir)."""
+    tmp = tempfile.TemporaryDirectory()
+    write_transcript(tmp.name, "2026", "rollout-x.jsonl", lines)
+    conn = canonical.open_db(":memory:")
+    canonical.ingest(conn, [canonical.CodexProvider(root=tmp.name)], capture=capture)
+    return conn, tmp
+
+
 # --------------------------------------------------------------- pure helpers
 class TestHelpers(unittest.TestCase):
     def test_tool_kind_normalization(self):
@@ -352,6 +405,270 @@ class TestIngestSemantics(unittest.TestCase):
         self.assertEqual(files, 1)
         self.assertGreaterEqual(recs, 2)   # at least a Turn + a Session
         tmp.cleanup()
+
+
+# --------------------------------------------------------------- codex tier map
+class TestCodexTier(unittest.TestCase):
+    def test_known_models(self):
+        self.assertEqual(canonical.codex_tier("gpt-5-codex"), "gpt-5-codex")
+        self.assertEqual(canonical.codex_tier("gpt-5.3-codex"), "gpt-5.3-codex")
+        self.assertEqual(canonical.codex_tier("gpt-5.5"), "gpt-5.5")
+        self.assertEqual(canonical.codex_tier("gpt-5.5-pro"), "gpt-5.5-pro")
+        self.assertEqual(canonical.codex_tier("gpt-5"), "gpt-5")
+
+    def test_unknown_model_returns_none(self):
+        self.assertIsNone(canonical.codex_tier("claude-opus-4-8"))
+        self.assertIsNone(canonical.codex_tier(None))
+        self.assertIsNone(canonical.codex_tier(""))
+
+
+# --------------------------------------------------------------- CodexProvider: turns & tokens
+class TestCodexTurns(unittest.TestCase):
+    def test_fresh_input_math_from_last_token_usage(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_turn_context("2026-01-01T10:00:00Z", "gpt-5-codex"),
+            codex_token_count("2026-01-01T10:00:05Z",
+                              last=tok(inp=1000, cached=800, out=50, reasoning=20),
+                              total=tok(inp=1000, cached=800, out=50, reasoning=20)),
+        ])
+        r = conn.execute("SELECT input_fresh,cache_read,cache_write_5m,cache_write_1h,output,"
+                         "reasoning_output,tier,model FROM turn").fetchone()
+        self.assertEqual(r, (200, 800, 0, 0, 50, 20, "gpt-5-codex", "gpt-5-codex"))
+        tmp.cleanup()
+
+    def test_reasoning_output_not_folded_into_output(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_turn_context("2026-01-01T10:00:00Z", "gpt-5-codex"),
+            codex_token_count("2026-01-01T10:00:05Z",
+                              last=tok(inp=100, cached=0, out=400, reasoning=256)),
+        ])
+        r = conn.execute("SELECT output,reasoning_output FROM turn").fetchone()
+        self.assertEqual(r, (400, 256))   # reasoning is a subset, not additive
+        tmp.cleanup()
+
+    def test_old_flat_shape_first_turn_uses_absolute_values(self):
+        # oldest format: payload.input_tokens etc, no info nesting, no history yet
+        # to diff against -> the first observation is taken as the delta itself.
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_turn_context("2026-01-01T10:00:00Z", "gpt-5-codex"),
+            codex_token_count("2026-01-01T10:00:05Z",
+                              flat={"input_tokens": 500, "cached_input_tokens": 100,
+                                    "output_tokens": 30, "reasoning_output_tokens": 5}),
+        ])
+        r = conn.execute("SELECT input_fresh,cache_read,output,reasoning_output FROM turn").fetchone()
+        self.assertEqual(r, (400, 100, 30, 5))
+        tmp.cleanup()
+
+    def test_cumulative_diff_fallback_when_no_last_token_usage(self):
+        # second token_count only carries `total_token_usage` (cumulative); the
+        # per-turn delta must be diffed against the previous cumulative snapshot.
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_turn_context("2026-01-01T10:00:00Z", "gpt-5-codex"),
+            codex_token_count("2026-01-01T10:00:01Z",
+                              total=tok(inp=1000, cached=800, out=100, reasoning=10)),
+            codex_token_count("2026-01-01T10:00:05Z",
+                              total=tok(inp=1600, cached=1200, out=180, reasoning=30)),
+        ])
+        rows = conn.execute("SELECT input_fresh,cache_read,output,reasoning_output FROM turn "
+                            "ORDER BY ts").fetchall()
+        self.assertEqual(rows[0], (200, 800, 100, 10))     # first turn: absolute (no prior baseline)
+        self.assertEqual(rows[1], (200, 400, 80, 20))      # second turn: diffed vs. prior cumulative
+        tmp.cleanup()
+
+    def test_unknown_model_still_recorded_with_null_tier(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_turn_context("2026-01-01T10:00:00Z", "some-future-model"),
+            codex_token_count("2026-01-01T10:00:05Z", last=tok(inp=10, out=5)),
+        ])
+        r = conn.execute("SELECT model,tier FROM turn").fetchone()
+        self.assertEqual(r, ("some-future-model", None))
+        tmp.cleanup()
+
+    def test_model_switch_mid_session_retiers_later_turns(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_turn_context("2026-01-01T10:00:00Z", "gpt-5-codex"),
+            codex_token_count("2026-01-01T10:00:01Z", last=tok(inp=10, out=5)),
+            codex_turn_context("2026-01-01T10:00:02Z", "gpt-5.5"),
+            codex_token_count("2026-01-01T10:00:03Z", last=tok(inp=10, out=5)),
+        ])
+        rows = conn.execute("SELECT model,tier FROM turn ORDER BY ts").fetchall()
+        self.assertEqual(rows[0], ("gpt-5-codex", "gpt-5-codex"))
+        self.assertEqual(rows[1], ("gpt-5.5", "gpt-5.5"))
+        tmp.cleanup()
+
+    def test_codex_exec_file_with_no_token_count_events_yields_zero_turns(self):
+        # headless `codex exec` runs historically omit token_count entirely.
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_message("2026-01-01T10:00:01Z", "user", "do the thing"),
+            codex_function_call("2026-01-01T10:00:02Z", "call_1", "shell", '{"command":["ls"]}'),
+            codex_function_call_output("2026-01-01T10:00:03Z", "call_1",
+                                       '{"output":"a.txt\\n","metadata":{"exit_code":0,"duration_seconds":0.1}}'),
+        ])
+        self.assertEqual(conn.execute("SELECT count(*) FROM turn").fetchone()[0], 0)
+        self.assertEqual(conn.execute("SELECT count(*) FROM tool_call").fetchone()[0], 1)
+        self.assertGreater(conn.execute("SELECT count(*) FROM segment").fetchone()[0], 0)
+        tmp.cleanup()
+
+
+# --------------------------------------------------------------- CodexProvider: tool calls
+class TestCodexToolCalls(unittest.TestCase):
+    def test_failing_call_via_nonzero_exit_code(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_turn_context("2026-01-01T10:00:00Z", "gpt-5-codex"),
+            codex_function_call("2026-01-01T10:00:01Z", "call_1", "shell", '{"command":["git","status"]}'),
+            codex_function_call_output("2026-01-01T10:00:02Z", "call_1",
+                                       '{"output":"fatal: not a git repository (or any of the parent directories): .git",'
+                                       '"metadata":{"exit_code":128,"duration_seconds":0.05}}'),
+        ])
+        r = conn.execute("SELECT ok,error_class,exit_code FROM tool_call WHERE call_id='call_1'").fetchone()
+        self.assertEqual(r, (0, "git_error", 128))
+        tmp.cleanup()
+
+    def test_success_call_ok_with_null_error(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_function_call("2026-01-01T10:00:01Z", "call_1", "update_plan", '{"plan":[]}'),
+            codex_function_call_output("2026-01-01T10:00:02Z", "call_1", "Plan updated"),
+        ])
+        r = conn.execute("SELECT ok,error_class,exit_code FROM tool_call WHERE call_id='call_1'").fetchone()
+        self.assertEqual(r, (1, None, None))
+        tmp.cleanup()
+
+    def test_call_name_kind_and_turn_join(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_turn_context("2026-01-01T10:00:00Z", "gpt-5-codex"),
+            codex_token_count("2026-01-01T10:00:01Z", last=tok(inp=10, out=5)),
+            codex_function_call("2026-01-01T10:00:02Z", "call_1", "apply_patch", '{"patch":"..."}'),
+            codex_function_call_output("2026-01-01T10:00:03Z", "call_1", "applied"),
+        ])
+        r = conn.execute("SELECT name,kind,turn_id FROM tool_call WHERE call_id='call_1'").fetchone()
+        self.assertEqual(r[0], "apply_patch")
+        self.assertEqual(r[1], "file_edit")
+        self.assertEqual(r[2], "cs1:1")
+
+    def test_call_and_result_collapse_to_one_row(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_function_call("2026-01-01T10:00:01Z", "call_1", "shell", '{"command":["ls"]}'),
+            codex_function_call_output("2026-01-01T10:00:02Z", "call_1",
+                                       '{"output":"ok\\n","metadata":{"exit_code":0,"duration_seconds":0.1}}'),
+        ])
+        self.assertEqual(conn.execute("SELECT count(*) FROM tool_call").fetchone()[0], 1)
+        tmp.cleanup()
+
+
+# --------------------------------------------------------------- CodexProvider: segments
+class TestCodexSegments(unittest.TestCase):
+    def test_reasoning_summary_present_becomes_text(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_reasoning("2026-01-01T10:00:00Z", summary_text="planning the fix"),
+        ], capture="verbatim")
+        r = conn.execute("SELECT text,text_available FROM segment WHERE kind='reasoning'").fetchone()
+        self.assertEqual(r, ("planning the fix", 1))
+        tmp.cleanup()
+
+    def test_reasoning_count_only_has_no_text_but_hashes_encrypted_content(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_reasoning("2026-01-01T10:00:00Z", summary_text=None, encrypted="gAAA-secret"),
+        ])
+        r = conn.execute("SELECT text,text_available,sha256 FROM segment WHERE kind='reasoning'").fetchone()
+        self.assertIsNone(r[0])
+        self.assertEqual(r[1], 0)
+        self.assertEqual(r[2], canonical.sha("gAAA-secret"))
+        tmp.cleanup()
+
+    def test_message_segments_prompt_and_response(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_message("2026-01-01T10:00:01Z", "user", "please fix the bug"),
+            codex_message("2026-01-01T10:00:02Z", "assistant", "Fixed it."),
+        ], capture="verbatim")
+        rows = dict(conn.execute("SELECT kind,text FROM segment WHERE kind IN ('prompt','response')"))
+        self.assertEqual(rows["prompt"], "please fix the bug")
+        self.assertEqual(rows["response"], "Fixed it.")
+        tmp.cleanup()
+
+    def test_tool_args_and_output_captured(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_function_call("2026-01-01T10:00:01Z", "call_1", "shell", '{"command":["ls"]}'),
+            codex_function_call_output("2026-01-01T10:00:02Z", "call_1",
+                                       '{"output":"a.txt\\n","metadata":{"exit_code":0,"duration_seconds":0.1}}'),
+        ], capture="verbatim")
+        rows = dict(conn.execute("SELECT kind,text FROM segment WHERE kind IN ('tool_args','tool_output')"))
+        self.assertEqual(rows["tool_args"], '{"command":["ls"]}')
+        self.assertEqual(rows["tool_output"], "a.txt\n")
+        tmp.cleanup()
+
+    def test_unmodeled_event_msg_captured_as_raw_event(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_line("2026-01-01T10:00:01Z", "event_msg", type="agent_reasoning", text="thinking..."),
+        ])
+        r = conn.execute("SELECT type FROM raw_event").fetchone()
+        self.assertIsNotNone(r)
+        tmp.cleanup()
+
+
+# --------------------------------------------------------------- CodexProvider: session
+class TestCodexSession(unittest.TestCase):
+    def test_session_metadata_recorded(self):
+        conn, tmp = codex_rollout([
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1", cwd=r"C:\Users\u\proj",
+                               cli_version="0.39.0", originator="codex_cli_rs"),
+            codex_turn_context("2026-01-01T10:00:00Z", "gpt-5-codex"),
+        ])
+        r = conn.execute("SELECT provider,cwd,cli_version,source,approval_policy "
+                         "FROM session WHERE session_id='cs1'").fetchone()
+        self.assertEqual(r[0], "codex")
+        self.assertEqual(r[1], r"C:\Users\u\proj")
+        self.assertEqual(r[2], "0.39.0")
+        self.assertEqual(r[3], "codex_cli_rs")
+        self.assertEqual(r[4], "on-request")
+        tmp.cleanup()
+
+
+# --------------------------------------------------------------- CodexProvider: idempotency
+class TestCodexIdempotency(unittest.TestCase):
+    def test_reingest_does_not_grow_row_counts(self):
+        lines = [
+            codex_session_meta("2026-01-01T10:00:00Z", "cs1"),
+            codex_turn_context("2026-01-01T10:00:00Z", "gpt-5-codex"),
+            codex_message("2026-01-01T10:00:01Z", "user", "hi"),
+            codex_function_call("2026-01-01T10:00:02Z", "call_1", "shell", '{"command":["ls"]}'),
+            codex_function_call_output("2026-01-01T10:00:03Z", "call_1",
+                                       '{"output":"ok\\n","metadata":{"exit_code":0,"duration_seconds":0.1}}'),
+            codex_token_count("2026-01-01T10:00:04Z", last=tok(inp=10, out=5)),
+        ]
+        tmp = tempfile.TemporaryDirectory()
+        write_transcript(tmp.name, "2026", "rollout.jsonl", lines)
+        conn = canonical.open_db(":memory:")
+        prov = [canonical.CodexProvider(root=tmp.name)]
+        counts = lambda: tuple(conn.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
+                               for t in ("session", "turn", "tool_call", "segment", "raw_event"))
+        canonical.ingest(conn, prov)
+        first = counts()
+        canonical.ingest(conn, prov)
+        self.assertEqual(counts(), first)
+        tmp.cleanup()
+
+
+# --------------------------------------------------------------- default_providers registration
+class TestDefaultProviders(unittest.TestCase):
+    def test_codex_provider_registered(self):
+        names = {p.name for p in canonical.default_providers()}
+        self.assertEqual(names, {"claude", "codex"})
 
 
 if __name__ == "__main__":
