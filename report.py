@@ -688,8 +688,6 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 <h1>Claude Code — Usage &amp; Health</h1>
 <div class="sub" id="sub"></div>
 
-<div class="panel" id="health"></div>
-
 <div class="controls">
   <div class="seg" id="gran">
     <button data-g="day" class="on">Day</button><button data-g="week">Week</button><button data-g="month">Month</button>
@@ -782,6 +780,9 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 <dt>Routing estimate</dt><dd>This period&rsquo;s Opus tokens recosted at Sonnet/Haiku rates, scaled by your routable-share assumption. An upper bound on <span class="mono">/model</span> savings, not a promise.</dd>
 </dl>
 </div>
+
+<h2>Data health</h2>
+<div class="panel" id="health"></div>
 
 <div class="foot">Rerun daily: <span class="mono">python report.py</span>. Data bucketed by activity timestamp &rarr; <span class="mono">daily_metrics.json</span>; prices &rarr; <span class="mono">pricing_history.json</span>. Cost computed at current pricing. Use ← / → to step periods.</div>
 </div>
@@ -965,7 +966,7 @@ function renderHealth(){
   const driftRow=(name,d)=> (d&&d.length)
     ? `<div class="hrow warn"><b>${name} schema drift (${d.length})</b> — confirm, then update <span class="mono">SCHEMA_EXPECT</span> / <span class="mono">tier()</span> in report.py<ul>${d.map(x=>`<li class="mono">${esc(x)}</li>`).join("")}</ul></div>`
     : `<div class="hrow ok">${name} schema OK <span class="hint">(${(d==null?"—":"no new fields, models, or block types")})</span></div>`;
-  let h=`<div class="hhdr"><span class="hpill ${warn?"warn":"ok"}">${warn?"Needs review":"All clear"}</span><b>Data health</b> <span class="hint">— schema drift &amp; coverage, checked every run · generated ${esc(H.generated||"")}</span></div>`;
+  let h=`<div class="hhdr"><span class="hpill ${warn?"warn":"ok"}">${warn?"Needs review":"All clear"}</span><span class="hint">schema drift &amp; coverage, checked every run · generated ${esc(H.generated||"")}</span></div>`;
   h+=driftRow("Claude",C.drift);
   if(stale) h+=`<div class="hrow warn"><b>Stale:</b> no recorded usage for ${cov.days_since_last_active} day(s) — last active ${esc(cov.last||"?")}. If you used Claude Code since, a run or parse is failing.</div>`;
   if(susp.length) h+=`<div class="hrow warn"><b>${susp.length} suspicious data hole(s)</b> — had activity but nothing was recorded:<ul>${susp.slice(0,25).map(s=>`<li><b>${esc(s.date)}</b> — ${esc(s.reason)}</li>`).join("")}</ul></div>`;
