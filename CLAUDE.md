@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A single-file Python tool that parses Claude Code's own transcript logs and produces a self-contained, interactive HTML usage/health dashboard. No dependencies, no build step, no framework — just `report.py` (stdlib only) plus the JSON data files it maintains and the `report.html` it emits.
 
+**Per-machine data.** The repo is shared across machines, but every machine has its own `~/.claude/projects`, so each machine's derived artifacts (`daily_metrics.json`, `session_metrics.json`, `report.html`, `run.log`) live under `machines/<machine_id>/` — never at the repo root — so one machine's run can't clobber another's data. `machine_id()` returns the sanitized hostname by default; the `TOKENLENS_MACHINE` env var overrides it (used to point a machine at a pre-existing directory whose name doesn't match its hostname — e.g. the migrated `machines/charl/`). `pricing_history.json` is the one durable store that stays **shared at the repo root**, because it's stamped from the `PRICING` table (code), not derived from any machine's transcripts.
+
 ## Commands
 
 ```bash
@@ -14,7 +16,8 @@ python -m unittest test_report            # run the test suite (stdlib only, no 
 python -m pytest test_report.py -q        # same tests under pytest, if installed
 ```
 
-- `run.cmd` is the scheduled-task wrapper (uses the Anaconda Python at `C:\Users\charl\anaconda3\python.exe`) and appends a one-line summary to `run.log` each run. It runs daily via Windows Task Scheduler.
+- `run.cmd` is the scheduled-task wrapper. It's machine-agnostic: it resolves the repo dir from its own location (`%~dp0`), asks `report.py --machine-dir` where this machine's folder is, and appends its one-line summary to `machines\<machine_id>\run.log`. The interpreter is `python` on PATH unless `PYTHON` is set (e.g. `set PYTHON=C:\Users\charl\anaconda3\python.exe` before scheduling). It runs daily via Windows Task Scheduler.
+- `python report.py --machine-dir` prints the resolved per-machine directory and exits without parsing — it exists so `run.cmd` can locate the log without re-implementing hostname sanitization in batch.
 - No linter or package manifest. Beyond the tests, the smoke check is running the script and confirming the printed summary line (active days, total cost, turns, tool-error rate, session count) looks sane and `report.html` opens.
 
 ## Tests
@@ -47,7 +50,7 @@ All aggregation into **day / week / month** views happens **client-side** in the
 
 ## Conventions & gotchas
 
-- **Windows-first.** Paths, the `run.cmd` launcher, and the hardcoded Anaconda interpreter path all assume this specific Windows machine. The `clean()` JS helper strips the `C--Users-charl-source-repos-` project-dir prefix for display.
+- **Windows-first, but multi-machine.** `run.cmd` is now portable (self-locating dir + `PYTHON` override), and artifacts are namespaced per machine under `machines/<machine_id>/` (see "Per-machine data" above). The `clean()` JS helper is machine-agnostic: it derives the common leading path-segments across all project ids in the payload (`PROJ_STRIP`) and strips them, so "Cost by project" labels read as just the repo name on any machine — no hardcoded prefix.
 - **Everything is one file.** `report.py` holds config, parser, persistence, and the entire HTML/CSS/JS template (`HTML_TMPL`, a raw string). There is no templating engine — edits to the dashboard are string edits inside that literal. Keep the `__PAYLOAD__` / `__PRICEROWS__` placeholders intact.
 - **Resilient parsing by design.** The parse loop swallows per-line and per-file exceptions (`except: continue`) so one malformed transcript can't abort a run. Be careful adding logic that depends on every line succeeding.
-- `daily_metrics.json`, `session_metrics.json`, `pricing_history.json`, `report.html`, and `run.log` are **generated artifacts** committed alongside the code — regenerating them is expected, not a mistake.
+- **What's tracked vs. local.** `machines/` is **git-ignored** — the per-machine `daily_metrics.json`, `session_metrics.json`, `report.html`, and `run.log` are generated and stay local to each machine, so a clone never carries another user's usage data. The one committed generated artifact is `pricing_history.json` at the repo root (shared, non-personal: dates + public rates). A run on a new machine creates its own ignored `machines/<its-hostname>/` folder. Note: charl's original data still exists in older commits (main's initial commit onward) — untracking is going-forward only, not a history rewrite.

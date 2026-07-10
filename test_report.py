@@ -11,7 +11,7 @@ features — per-session cost accumulation and the per-tier token breakdown the
 model-routing estimator consumes. Fixtures are built with hand-computable
 numbers so expected costs are checked exactly, not approximately.
 """
-import json, os, tempfile, unittest, warnings
+import json, os, re, socket, tempfile, unittest, warnings
 import report
 
 # report.py favors a terse `json.load(open(...))` idiom that leaks file handles
@@ -92,6 +92,44 @@ class TestPureHelpers(unittest.TestCase):
         self.assertEqual([s["cost"] for s in top], [4.0, 3.0, 2.0])   # desc
         self.assertEqual(top[0]["id"], "s4")                          # id attached
         self.assertEqual(len(top), 3)                                 # capped
+
+
+# --------------------------------------------------------------- machine identity
+class TestMachineId(unittest.TestCase):
+    """machine_id() picks the per-machine data directory. Hostname by default,
+    TOKENLENS_MACHINE override, always sanitized to a filesystem-safe slug."""
+
+    def setUp(self):
+        self._saved = os.environ.pop("TOKENLENS_MACHINE", None)
+
+    def tearDown(self):
+        if self._saved is None:
+            os.environ.pop("TOKENLENS_MACHINE", None)
+        else:
+            os.environ["TOKENLENS_MACHINE"] = self._saved
+
+    def _expect(self, raw):
+        return re.sub(r"[^a-z0-9._-]+", "-", raw.strip().lower()).strip("-._") or "unknown"
+
+    def test_defaults_to_sanitized_hostname(self):
+        self.assertEqual(report.machine_id(), self._expect(socket.gethostname()))
+
+    def test_env_override_wins_and_is_sanitized(self):
+        os.environ["TOKENLENS_MACHINE"] = "Charl's PC!"
+        self.assertEqual(report.machine_id(), "charl-s-pc")
+
+    def test_blank_override_falls_back_to_hostname(self):
+        os.environ["TOKENLENS_MACHINE"] = "   "
+        self.assertEqual(report.machine_id(), self._expect(socket.gethostname()))
+
+    def test_data_files_are_namespaced_under_machine_dir(self):
+        # Derived artifacts live under machines/<id>/; pricing_history is shared
+        # at the repo root because it comes from PRICING, not from transcripts.
+        self.assertEqual(os.path.dirname(report.DAILY_FILE), report.MACHINE_DIR)
+        self.assertEqual(os.path.dirname(report.SESSION_FILE), report.MACHINE_DIR)
+        self.assertEqual(os.path.dirname(report.OUT_HTML), report.MACHINE_DIR)
+        self.assertEqual(os.path.dirname(report.MACHINE_DIR), report.MACHINES_DIR)
+        self.assertEqual(os.path.dirname(report.PRICING_FILE), report.HERE)
 
 
 # --------------------------------------------------------------- pricing drift

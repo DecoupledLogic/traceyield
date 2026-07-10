@@ -1,3 +1,10 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Per-machine generated artifacts (daily_metrics.json, session_metrics.json,
+# report.html, run.log). Each machine produces its own under machines/<id>/ on
+# run; these are local-only so a clone doesn't carry another user's usage data.
+# (pricing_history.json is intentionally NOT ignored — it's the shared,
+# non-personal price-history store at the repo root.)
+machines/

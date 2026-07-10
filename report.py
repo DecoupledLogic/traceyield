@@ -18,16 +18,34 @@ Each run:
 
 Run daily:  python report.py       (wire to a scheduled task; see README note)
 """
-import json, os, glob, html, datetime, re, urllib.request
+import json, os, glob, html, datetime, re, socket, sys, urllib.request
 from collections import defaultdict, Counter
 
 # ---------------------------------------------------------------- config
 HERE = os.path.dirname(os.path.abspath(__file__))
 CLAUDE_PROJECTS = os.path.expanduser(r"~/.claude/projects")
-DAILY_FILE = os.path.join(HERE, "daily_metrics.json")
-SESSION_FILE = os.path.join(HERE, "session_metrics.json")
+
+def machine_id():
+    """Identity of the machine whose transcripts we're parsing.
+
+    Each machine has its own ~/.claude/projects, so the artifacts derived from
+    it (daily_metrics/session_metrics/report.html/run.log) are namespaced under
+    machines/<machine_id>/ — otherwise one machine's run would clobber another's
+    data in the shared repo. Defaults to the sanitized hostname; the
+    TOKENLENS_MACHINE env var overrides it (e.g. to make a machine write into a
+    pre-existing directory whose name doesn't match its hostname)."""
+    raw = (os.environ.get("TOKENLENS_MACHINE") or "").strip() or socket.gethostname() or "unknown"
+    slug = re.sub(r"[^a-z0-9._-]+", "-", raw.strip().lower()).strip("-._")
+    return slug or "unknown"
+
+MACHINES_DIR = os.path.join(HERE, "machines")
+MACHINE_DIR = os.path.join(MACHINES_DIR, machine_id())
+DAILY_FILE = os.path.join(MACHINE_DIR, "daily_metrics.json")
+SESSION_FILE = os.path.join(MACHINE_DIR, "session_metrics.json")
+OUT_HTML = os.path.join(MACHINE_DIR, "report.html")
+# pricing_history is derived from the PRICING table (not from any machine's
+# transcripts), so it's identical everywhere and stays shared at the repo root.
 PRICING_FILE = os.path.join(HERE, "pricing_history.json")
-OUT_HTML = os.path.join(HERE, "report.html")
 
 # Base per-1M-token rates. Edit when Anthropic pricing changes.
 # Cache multipliers fixed by the API: read=0.1x, write-5m=1.25x, write-1h=2x.
@@ -332,6 +350,7 @@ def build_html(days, sessions, pricing_hist):
     return tmpl
 
 def main():
+    os.makedirs(MACHINE_DIR, exist_ok=True)   # machines/<machine_id>/
     newdays, newsess = analyze()
     days = merge_daily(newdays)
     sessions = merge_sessions(newsess)
@@ -340,7 +359,9 @@ def main():
     tc = sum(d["cost"] for d in days.values()); tm = sum(d["msgs"] for d in days.values())
     te = sum(d["tool_errors"] for d in days.values()); tr = sum(d["tool_results"] for d in days.values())
     ds = sorted(days)
-    print(f"{len(days)} active days ({ds[0]}..{ds[-1]}) | ${tc:,.2f} | {tm:,} turns | "
+    span = f"({ds[0]}..{ds[-1]})" if ds else "(none)"
+    print(f"Machine: {machine_id()} -> {MACHINE_DIR}")
+    print(f"{len(days)} active days {span} | ${tc:,.2f} | {tm:,} turns | "
           f"{te}/{tr} tool errors ({te/max(tr,1)*100:.1f}%)")
     if sessions:
         top = max(sessions.values(), key=lambda s: s["cost"])
@@ -503,7 +524,27 @@ const fmtUSD = v => "$"+(v>=1000? v.toLocaleString(undefined,{maximumFractionDig
 const fmtTok = v => v>=1e9?(v/1e9).toFixed(2)+"B":v>=1e6?(v/1e6).toFixed(1)+"M":v>=1e3?(v/1e3).toFixed(0)+"K":Math.round(v);
 const fmtInt = v => Math.round(v).toLocaleString();
 const esc = s => String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-const clean = p => p.replace("C--Users-charl-source-repos-","").replace("C--Users-charl-source-repos","(root)")||"(root)";
+// Claude Code encodes a project's absolute path as its dir name (path
+// separators → "-"), so every project on a machine shares a long, machine-
+// specific root (e.g. "C--Users-charl-source-repos-"). Compute the common
+// leading path SEGMENTS across all projects and strip them, so labels read as
+// just the repo name on ANY machine (no hardcoded prefix). Segment-wise (split
+// on "-") avoids cutting a name mid-word and handles the bare-root project.
+const PROJ_STRIP = (function(){
+  const lists=[];
+  const push=p=>{if(p)lists.push(p.split("-"));};
+  for(const dk in DATA.days){const bp=DATA.days[dk].by_project||{};for(const p in bp)push(p);}
+  (DATA.sessions||[]).forEach(s=>push(s.project));
+  if(lists.length<2)return 0;               // can't infer a shared root from one project
+  const n=Math.min(...lists.map(l=>l.length));
+  let common=0;
+  for(let i=0;i<n;i++){
+    const seg=lists[0][i];
+    if(lists.every(l=>l[i]===seg))common=i+1; else break;
+  }
+  return common;
+})();
+const clean = p => p ? (p.split("-").slice(PROJ_STRIP).join("-")||"(root)") : "(root)";
 const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 const dayKeys = Object.keys(DATA.days).sort();
@@ -700,4 +741,10 @@ rebuild(true);
 </body></html>"""
 
 if __name__ == "__main__":
-    main()
+    # `--machine-dir` prints the resolved per-machine directory and exits, so the
+    # run.cmd wrapper can target its run.log there without re-implementing the
+    # hostname sanitization in batch.
+    if "--machine-dir" in sys.argv:
+        print(MACHINE_DIR)
+    else:
+        main()

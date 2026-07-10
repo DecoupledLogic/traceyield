@@ -6,12 +6,19 @@ Because every transcript line is timestamped, a single run reconstructs your **e
 
 ```
 python report.py
+# Machine: dt-6cpyln3 -> .../machines/dt-6cpyln3
 # 30 active days (2026-05-28..2026-07-10) | $5,409.92 | 36,622 turns | 662/18524 tool errors (3.6%)
 # 117 sessions | priciest $353.90 (kinderos)
-# Report: report.html
+# Report: machines/dt-6cpyln3/report.html
 ```
 
-Open `report.html` in any browser.
+Open the `report.html` in your machine's folder under `machines/` in any browser.
+
+### Per-machine data
+
+Each machine has its own `~/.claude/projects`, so every machine's generated artifacts — `daily_metrics.json`, `session_metrics.json`, `report.html`, `run.log` — are written under **`machines/<machine-id>/`**, keyed by the sanitized hostname, so runs on different machines never overwrite each other. Set the `TOKENLENS_MACHINE` env var to override the folder name (e.g. to make a machine merge into an existing folder).
+
+**`machines/` is git-ignored** — your report and metrics stay local to your machine and are never committed, so cloning this repo never carries anyone else's usage data. Just clone and run; you get your own report. `pricing_history.json` is the one generated file that *is* committed: it's non-personal (dates + Anthropic's public rates) and shared at the repo root so the pricing-over-time chart has history on a fresh clone.
 
 ## What it shows
 
@@ -36,11 +43,11 @@ cd tokenlens
 python report.py
 ```
 
-It reads transcripts from `~/.claude/projects` and writes `report.html` next to the script.
+It reads transcripts from `~/.claude/projects` and writes this machine's `report.html` under `machines/<machine-id>/`.
 
 ### Run it daily (Windows)
 
-`run.cmd` is a Task Scheduler wrapper that runs the report and appends a one-line summary to `run.log`. Point a daily scheduled task at it (edit the interpreter path and directory inside to match your machine):
+`run.cmd` is a Task Scheduler wrapper that runs the report and appends a one-line summary to this machine's `run.log`. It's portable — it locates the repo from its own path and the per-machine folder via `report.py --machine-dir`, so no editing is needed. If `python` isn't on PATH, set `PYTHON` to your interpreter (e.g. `set PYTHON=C:\Users\you\anaconda3\python.exe`) before scheduling. Point a daily scheduled task at it:
 
 ```
 schtasks /create /tn "TokenLens" /tr "C:\path\to\tokenlens\run.cmd" /sc daily /st 09:00
@@ -54,7 +61,7 @@ Each run:
 
 1. **Parses** every `*.jsonl` under `~/.claude/projects`, bucketing metrics by the UTC activity date of each message/tool-result. Malformed lines and files are skipped so one bad transcript can't abort a run.
 2. **Merges** new day-buckets into `daily_metrics.json` and sessions into `session_metrics.json` — the newest parse is authoritative per date/session, and dates/sessions whose transcripts have since rotated away are preserved.
-3. **Records** today's model pricing into `pricing_history.json`.
+3. **Records** today's model pricing into the shared `pricing_history.json` at the repo root.
 4. **Emits** `report.html` — the full dataset is inlined into a single self-contained file.
 
 Everything lives in one file, `report.py`: config, parser, persistence, and the entire HTML/CSS/JS template.
@@ -79,13 +86,14 @@ The suite builds fixture transcripts with hand-computable token counts and check
 |------|------|
 | `report.py` | The whole tool — parser, persistence, and HTML template |
 | `test_report.py` | Test suite |
-| `report.html` | Generated dashboard (open this) |
-| `daily_metrics.json` | Durable per-day metrics store |
-| `session_metrics.json` | Durable per-session metrics store |
-| `pricing_history.json` | Daily snapshots of model pricing |
-| `run.cmd` / `run.log` | Windows daily-runner wrapper and its log |
+| `run.cmd` | Portable Windows daily-runner wrapper |
+| `pricing_history.json` | Daily snapshots of model pricing — **committed** (shared, non-personal) |
+| `machines/<id>/report.html` | Generated dashboard for that machine (open this) — *git-ignored* |
+| `machines/<id>/daily_metrics.json` | That machine's durable per-day metrics store — *git-ignored* |
+| `machines/<id>/session_metrics.json` | That machine's durable per-session metrics store — *git-ignored* |
+| `machines/<id>/run.log` | That machine's daily-runner log — *git-ignored* |
 
-The JSON files and `report.html` are generated artifacts, committed alongside the code — regenerating them is expected.
+Everything under `machines/` is generated and **git-ignored** — it stays local to each machine (see [Per-machine data](#per-machine-data)). Only `pricing_history.json` is a committed generated artifact. Each machine gets its own `machines/<machine-id>/` folder on first run.
 
 ---
 
