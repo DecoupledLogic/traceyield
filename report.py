@@ -13,10 +13,12 @@ Each run:
      dates kept even if their transcripts get rotated away).
   3. Records today's model pricing in pricing_history.json.
   4. Regenerates report.html (self-contained interactive app; no dependencies).
+  5. Checks PRICING against Anthropic's published rates and warns on drift
+     (best-effort; never overwrites PRICING or fails the run).
 
 Run daily:  python report.py       (wire to a scheduled task; see README note)
 """
-import json, os, glob, html, datetime
+import json, os, glob, html, datetime, re, urllib.request
 from collections import defaultdict, Counter
 
 # ---------------------------------------------------------------- config
@@ -31,11 +33,19 @@ OUT_HTML = os.path.join(HERE, "report.html")
 # Cache multipliers fixed by the API: read=0.1x, write-5m=1.25x, write-1h=2x.
 # Cost across all history is computed at THESE (current) rates for apples-to-
 # apples comparison; the pricing trend chart shows how rates themselves moved.
+# These are the authoritative source of truth (hand-verified against the
+# Anthropic pricing page); check_pricing_drift() below re-verifies them each
+# run and warns on mismatch — it never overwrites, since a bad scrape would
+# retroactively distort every day's reported cost.
 PRICING = {
     "opus":   (5.00, 25.00),
     "sonnet": (2.00, 10.00),   # Sonnet 5 intro pricing thru 2026-08-31 (std 3/15)
     "haiku":  (1.00,  5.00),
 }
+# Anthropic's published pricing page (Markdown). Anthropic exposes no pricing
+# API — the Models API returns capabilities but no rates — so this doc page is
+# the authoritative live source for the drift check.
+PRICING_URL = "https://platform.claude.com/docs/en/docs/about-claude/pricing.md"
 def cache_rates(inp): return dict(read=inp*0.10, w5m=inp*1.25, w1h=inp*2.0)
 def tier(model):
     if not model: return None
@@ -233,6 +243,68 @@ def record_pricing(path=PRICING_FILE):
     json.dump(hist, open(path, "w", encoding="utf-8"), indent=2)
     return hist
 
+# ------------------------------------------------------- pricing drift check
+def _fetch_pricing_page(url=PRICING_URL, timeout=15):
+    """Fetch the Anthropic pricing page as text. Raises on any network error."""
+    req = urllib.request.Request(url, headers={"User-Agent": "tokenlens-pricing-check"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read().decode("utf-8", "replace")
+
+def parse_pricing_page(md):
+    """Scrape {tier: (input, output)} from the page's 'Model pricing' table.
+
+    Columns are: Model | Base Input | 5m write | 1h write | cache hit | Output,
+    so input is cell 1 and output is cell 5. Scoped to the Model pricing section
+    only — the Batch and Fast-mode tables below it list the same tiers at other
+    rates. For each tier we take the first non-deprecated/-retired row whose
+    model name contains the tier keyword (the current flagship for that tier).
+    """
+    m = re.search(r"##\s*Model pricing(.*?)(?:\n##\s|\Z)", md, re.S)
+    if not m: return {}
+    out = {}
+    for ln in m.group(1).splitlines():
+        ln = ln.strip()
+        if not ln.startswith("|"): continue
+        cells = [c.strip() for c in ln.strip("|").split("|")]
+        if len(cells) < 6: continue
+        name = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", cells[0]).lower()  # drop md links
+        if "deprecated" in name or "retired" in name: continue
+        ip, op = re.search(r"\$([0-9.]+)", cells[1]), re.search(r"\$([0-9.]+)", cells[5])
+        if not (ip and op): continue          # skips header / separator rows (no $)
+        for t in ("opus", "sonnet", "haiku"):
+            if t in name and t not in out:
+                out[t] = (float(ip.group(1)), float(op.group(1)))
+    return out
+
+def check_pricing_drift(url=PRICING_URL):
+    """Warn (to stdout) if PRICING has drifted from Anthropic's published rates.
+
+    Best-effort and non-authoritative: it never raises and never mutates
+    PRICING. On any failure (offline, page moved, layout changed) it prints a
+    'skipped' note and returns []. Returns a list of human-readable drift lines.
+    """
+    try:
+        published = parse_pricing_page(_fetch_pricing_page(url))
+    except Exception as e:
+        print(f"  pricing drift check skipped ({type(e).__name__}: {e})")
+        return []
+    if not published:
+        print("  pricing drift check skipped (could not parse pricing page)")
+        return []
+    drift = []
+    for tier, (ci, co) in PRICING.items():
+        pub = published.get(tier)
+        if pub is None:
+            drift.append(f"{tier}: not found on pricing page")
+        elif (ci, co) != pub:
+            drift.append(f"{tier}: PRICING={ci}/{co} vs Anthropic={pub[0]}/{pub[1]} per 1M")
+    if drift:
+        print("  WARNING: PRICING drift vs Anthropic pricing page -- update PRICING in report.py:")
+        for d in drift: print(f"      {d}")
+    else:
+        print(f"  pricing verified against Anthropic pricing page ({len(published)} tiers match)")
+    return drift
+
 # ---------------------------------------------------------------- html
 def top_sessions(sessions, n=50):
     """Highest-cost sessions, id attached, for the report payload (full set is
@@ -274,6 +346,7 @@ def main():
         top = max(sessions.values(), key=lambda s: s["cost"])
         print(f"{len(sessions):,} sessions | priciest ${top['cost']:,.2f} ({top.get('project','?')})")
     print(f"Report: {OUT_HTML}")
+    check_pricing_drift()   # best-effort; report is already written above
 
 # ---------------------------------------------------------------- template
 HTML_TMPL = r"""<!doctype html><html><head><meta charset="utf-8">
