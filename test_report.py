@@ -94,6 +94,90 @@ class TestPureHelpers(unittest.TestCase):
         self.assertEqual(len(top), 3)                                 # capped
 
 
+# --------------------------------------------------------------- pricing drift
+# A trimmed fixture mirroring the real Anthropic pricing page: the Model pricing
+# table (with a deprecated and a retired row to skip), plus a Batch table below
+# it that lists the same tiers at HALF price — the parser must not read that one.
+PRICING_PAGE = """\
+# Pricing
+
+## Model pricing
+
+| Model | Base Input Tokens | 5m Cache Writes | 1h Cache Writes | Cache Hits & Refreshes | Output Tokens |
+| ----- | ----------------- | --------------- | --------------- | ---------------------- | ------------- |
+| Claude Opus 4.8 | $5 / MTok | $6.25 / MTok | $10 / MTok | $0.50 / MTok | $25 / MTok |
+| Claude Opus 4.1 ([deprecated](/x)) | $15 / MTok | $18.75 / MTok | $30 / MTok | $1.50 / MTok | $75 / MTok |
+| Claude Sonnet 5 [through August 31, 2026](/y) | $2 / MTok | $2.50 / MTok | $4 / MTok | $0.20 / MTok | $10 / MTok |
+| Claude Sonnet 5 starting September 1, 2026 | $3 / MTok | $3.75 / MTok | $6 / MTok | $0.30 / MTok | $15 / MTok |
+| Claude Haiku 4.5 | $1 / MTok | $1.25 / MTok | $2 / MTok | $0.10 / MTok | $5 / MTok |
+| Claude Haiku 3.5 ([retired](/z)) | $0.80 / MTok | $1 / MTok | $1.60 / MTok | $0.08 / MTok | $4 / MTok |
+
+## Batch processing
+
+| Model | Batch input | Batch output |
+| ----- | ----------- | ------------ |
+| Claude Opus 4.8 | $2.50 / MTok | $12.50 / MTok |
+| Claude Haiku 4.5 | $0.50 / MTok | $2.50 / MTok |
+"""
+
+
+class TestPricingDrift(unittest.TestCase):
+    def test_parse_reads_input_and_output_columns(self):
+        p = report.parse_pricing_page(PRICING_PAGE)
+        self.assertEqual(p["opus"], (5.0, 25.0))
+        self.assertEqual(p["haiku"], (1.0, 5.0))      # not the $0.50 batch row
+
+    def test_parse_takes_first_nondeprecated_row_per_tier(self):
+        p = report.parse_pricing_page(PRICING_PAGE)
+        self.assertEqual(p["opus"], (5.0, 25.0))      # 4.8, not deprecated 4.1 ($15)
+        self.assertEqual(p["sonnet"], (2.0, 10.0))    # intro row, not the Sept-1 $3 row
+
+    def test_parse_ignores_tables_outside_model_pricing(self):
+        # The Batch table lists Opus at $2.50/$12.50; the Model pricing value wins.
+        self.assertEqual(report.parse_pricing_page(PRICING_PAGE)["opus"], (5.0, 25.0))
+
+    def test_parse_returns_empty_when_section_absent(self):
+        self.assertEqual(report.parse_pricing_page("# Pricing\n\nno table here"), {})
+
+    def _drift(self, page):
+        orig = report._fetch_pricing_page
+        report._fetch_pricing_page = lambda url=None, timeout=15: page
+        try:
+            return report.check_pricing_drift()
+        finally:
+            report._fetch_pricing_page = orig
+
+    def _page_from(self, rates):
+        """Build a minimal Model pricing table from a {tier: (in, out)} dict."""
+        rows = "\n".join(f"| Claude {t.title()} X | ${i} / MTok | ${i*1.25} / MTok "
+                         f"| ${i*2} / MTok | ${i*0.1} / MTok | ${o} / MTok |"
+                         for t, (i, o) in rates.items())
+        return ("## Model pricing\n\n| Model | Base Input | 5m | 1h | hit | Output |\n"
+                "| - | - | - | - | - | - |\n" + rows + "\n\n## Batch\n")
+
+    def test_drift_empty_when_pricing_matches_page(self):
+        # Generated from the live PRICING dict, so this stays green across
+        # legitimate rate edits (e.g. Sonnet intro pricing lapsing).
+        self.assertEqual(self._drift(self._page_from(report.PRICING)), [])
+
+    def test_drift_reports_changed_tier(self):
+        bumped = dict(report.PRICING)
+        oi, oo = bumped["opus"]
+        bumped["opus"] = (oi + 1, oo)                       # page says opus costs $1 more
+        drift = self._drift(self._page_from(bumped))
+        self.assertTrue(any(d.startswith("opus:") for d in drift))
+        self.assertFalse(any(d.startswith("haiku:") for d in drift))
+
+    def test_drift_never_raises_on_fetch_failure(self):
+        orig = report._fetch_pricing_page
+        def boom(url=None, timeout=15): raise OSError("offline")
+        report._fetch_pricing_page = boom
+        try:
+            self.assertEqual(report.check_pricing_drift(), [])   # swallowed, not raised
+        finally:
+            report._fetch_pricing_page = orig
+
+
 # --------------------------------------------------------------- analyze()
 class TestAnalyze(unittest.TestCase):
     """
