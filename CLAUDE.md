@@ -8,6 +8,30 @@ A single-file Python tool that parses Claude Code's own transcript logs and prod
 
 **Per-machine data.** The repo is shared across machines, but every machine has its own `~/.claude/projects`, so each machine's derived artifacts (`daily_metrics.json`, `session_metrics.json`, `report.html`, `run.log`) live under `machines/<machine_id>/` — never at the repo root — so one machine's run can't clobber another's data. `machine_id()` returns the sanitized hostname by default; the `TOKENLENS_MACHINE` env var overrides it (to point a machine at a pre-existing directory whose name doesn't match its hostname). `pricing_history.json` is the one durable store that stays **shared at the repo root**, because it's stamped from the `PRICING` table (code), not derived from any machine's transcripts.
 
+**Canonical usage store (in progress).** Alongside `report.py`, a second module `canonical.py` builds a provider-blind SQLite store (`usage.db`) that every coding-assistant provider ingests into as one neutral record stream (`Session`/`Turn`/`ToolCall`/`Segment`/`RawEvent`), keyed by a `provider` column. `ClaudeProvider` has shipped; `CodexProvider` is next. This is the MVP tracked by epic **E1** below and is intended to become the source of truth the report's aggregates are derived from. See `docs/canonical-data-model.md` and `docs/handoff-codexprovider.md`.
+
+## Work tracking & delivery (Tempo & Flow)
+
+Work in this repo is planned and delivered with the **Tempo & Flow (`tempo`) skills** — the `/workflow:*` and `/domain:*` commands backed by `~/.claude/skills/lib`. The substrate is file-based and lives on `main` (the control plane, Decision 0025):
+
+- **`roadmap.csv`** (repo root) — the 14-column work-item table (`Id,Type,Key,ParentId,SliceId,Title,Status,DependsOn,Priority,StartedAt,DeliveredAt,ReleasedAt,PR,Notes`). Never reorder or omit columns; write it only via the lib (`workitemCreate`/`roadmapSetField`), never by hand, and only on `main`.
+- **`docs/delivery/{epics,features,stories,requests}/{Key}.md`** — one companion doc per work item, carrying the front-matter (status, estimate, assignee…) plus Goal / Definition of Done / Acceptance Criteria / Test Plan / Activity Log. `/workflow:deliver`'s review-gate checks the ACs with evidence, so keep them real.
+- **`.claude/tempo-project.yaml`** — repo→project binding (`project.name: cc-usage-analytics`); resolves through the central `~/source/repos/tempo/config/tempo.yaml` `repoRoots` chain.
+
+**Lifecycle:** `/workflow:plan` (decompose into rows) → `/workflow:design` (approach + plan into the companion) → `/workflow:deliver <Key>` (worktree → TDD via `dev-agent` → QA → review-gate → PR → auto-merge, stamping the row). `/workflow:queue` shows what's selectable; dependency-readiness honors the `DependsOn` ULID edges.
+
+**Current roadmap** (epic = MVP, features = functional groups):
+
+| Key | Item | Status |
+|---|---|---|
+| **E1** | Canonical usage store (MVP) | planned |
+| E1-F1 | Multi-provider ingest | planned |
+| E1-F1-S1 | CodexProvider — parse `~/.codex` rollout logs | **planned (ready)** |
+| E1-F2 | Canonical-backed aggregation | planned |
+| E1-F2-S1 | Aggregate flip — metrics via `GROUP BY` over `usage.db` | planned (blocked on E1-F1-S1) |
+| E1-F3 | Retention & storage hygiene | planned |
+| E1-F3-S1 | `raw_event` age-out — null raw payloads > 90d | planned (blocked on E1-F1-S1) |
+
 ## Commands
 
 ```bash
