@@ -8,3 +8,4 @@ __pycache__/
 # (pricing_history.json is intentionally NOT ignored — it's the shared,
 # non-personal price-history store at the repo root.)
 machines/
+.worktrees/
