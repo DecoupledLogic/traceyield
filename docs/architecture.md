@@ -1,0 +1,240 @@
+# Architecture — how the tool is built
+
+*Living document. Update it whenever the tool changes — a new data source, a new
+panel, a schema change, a new provider. Last updated 2026-07-10 (Claude Code only;
+per-machine artifact namespacing landed).*
+
+> Background: [`claude-usage-data-research.md`](./claude-usage-data-research.md)
+> is why the tool is shaped this way (parse local transcripts, five-line cost
+> model, durable derived store). [`openai-usage-data-research.md`](./openai-usage-data-research.md)
+> and [`adding-openai-support.md`](./adding-openai-support.md) are the forward
+> plan for a second provider. This doc describes what exists **today**.
+
+## What it is
+
+A **single-file, stdlib-only Python tool** (`report.py`) that parses Claude
+Code's own transcript logs and emits a **self-contained interactive HTML
+dashboard** (`report.html`) of usage and health. No dependencies, no build step,
+no framework, no server. One command does everything:
+
+```bash
+python report.py                       # parse → merge → record pricing → emit report → drift check
+python -m unittest test_report         # tests (stdlib; also runs under pytest)
+python report.py --machine-dir         # print this machine's artifact dir and exit (used by run.cmd)
+```
+
+## The whole system on one page
+
+```
+~/.claude/projects/**/*.jsonl                     PRICING (in report.py)
+        │                                               │
+        ▼  analyze()                                    ▼  record_pricing()
+  per-day buckets  +  per-session buckets         pricing_history.json  (shared, repo root)
+        │                    │
+        ▼ merge_daily()      ▼ merge_sessions()
+  daily_metrics.json   session_metrics.json        (durable, per-machine, git-ignored)
+        │                    │
+        └──────────┬─────────┘
+                   ▼  build_html()  (inline payload into HTML_TMPL)
+              report.html   (self-contained; day/week/month + all charts computed client-side)
+                   │
+                   ▼  check_pricing_drift()  (best-effort warn vs published rates; never mutates)
+```
+
+Everything — config, parser, persistence, and the entire HTML/CSS/JS template —
+lives in `report.py`. There is no templating engine; the dashboard is a raw
+string literal (`HTML_TMPL`) with two placeholders (`__PAYLOAD__`,
+`__PRICEROWS__`). Edits to the dashboard are string edits inside that literal.
+
+## Data flow (one `python report.py` run)
+
+`main()` (`report.py`) runs five steps in order:
+
+1. **Parse** — `analyze()` globs every `*.jsonl` under `CLAUDE_PROJECTS`
+   (`~/.claude/projects`). Each transcript line is timestamped; metrics are
+   bucketed by the UTC **activity date** (`timestamp[:10]`), *not* the run date.
+   That's why one run reconstructs the whole history still on disk. It returns
+   two dicts: per-day buckets and per-session buckets.
+2. **Merge** — `merge_daily()` folds new day-buckets into `daily_metrics.json`
+   with `dict.update` semantics: **newest parse is authoritative per date, but
+   dates whose transcripts have since rotated away are preserved.**
+   `merge_sessions()` does the same keyed by `sessionId` into
+   `session_metrics.json`. Both are durable stores — never regenerated from
+   scratch.
+3. **Record pricing** — `record_pricing()` stamps today's `PRICING` table into
+   `pricing_history.json` keyed by today's date, building a time series of the
+   *rates themselves*.
+4. **Emit** — `build_html()` inlines the full payload (`days`, top `sessions`,
+   `pricing`, error `meta`, `pricing_history`) into `HTML_TMPL` and writes
+   `report.html`.
+5. **Check pricing drift** — `check_pricing_drift()` fetches Anthropic's
+   published pricing page and warns to stdout if any tier in `PRICING` no longer
+   matches. Runs *after* the report is written, is fully best-effort (never
+   raises, never mutates `PRICING`), and degrades to a "skipped" note offline.
+
+**All day / week / month aggregation happens client-side** in the emitted HTML's
+JS (`aggregate()`). The Python side only ever produces per-day buckets — so
+adding a granularity or trend metric is a JS change in `HTML_TMPL`, not a Python
+change.
+
+## Parser internals (`analyze()`)
+
+For each `*.jsonl` file, for each line:
+
+- Skip lines with no `timestamp` or no dict `message` (guards, `except:
+  continue` around per-line parse). The parse loop swallows per-line and
+  per-file exceptions **by design** — one malformed transcript can't abort a run.
+- **Bucket key** = `timestamp[:10]`. **Project** = the transcript's first
+  path-segment under the root (`project_of()`), i.e. the `-`-encoded absolute
+  path Claude Code uses as the folder name. **Session** = `sessionId`.
+- **Content blocks** (`message.content[]`):
+  - `tool_use` → increment `by_tool[name].calls`; remember `id → name` for the
+    error join.
+  - `tool_result` → increment `tool_results`; if `is_error`, increment
+    `tool_errors`, `classify()` the result text into the error taxonomy, and
+    attribute the error back to the originating tool via the `id → name` map.
+- **Usage** (`message.usage`) → tier via `tier(message.model)`; unrecognized
+  tier ⇒ the row is skipped (no cost attributed). Five token line-items are read
+  and costed (below), then folded into the day, `by_model[tier]`,
+  `by_project[proj]`, and the session accumulator.
+- **Per-tool cost** — a turn's whole cost+output is attributed to its single
+  `tool_use` (Claude Code serializes tool calls). Zero/multiple-tool turns land
+  in pseudo-rows `(final response)` / `(multi-tool turn)`.
+
+`new_day()`, `new_session()`, `new_model()`, `new_tool()` define the bucket
+shapes; the serialize tail rounds costs and converts the session-id set to a
+count. **Any new parser (e.g. a second provider) must emit this exact shape** so
+the merge/HTML layers don't care where a bucket came from.
+
+## Key domain logic (all in `report.py`)
+
+- **`PRICING`** — hand-verified per-1M base rates (`opus`/`sonnet`/`haiku`), the
+  source of truth. **All historical cost is recomputed at the *current* rates**
+  for apples-to-apples comparison, so editing `PRICING` retroactively changes
+  every day's reported cost — intentional. The pricing-history chart is the only
+  place that shows how rates actually moved.
+- **`cache_rates(inp)`** — cache multipliers fixed by the API: read `0.1×`,
+  write-5m `1.25×`, write-1h `2×` the input rate.
+- **Five token line-items** — fresh input (1×), cache write-5m (1.25×), cache
+  write-1h (2×), cache read (0.1×), output. When the transcript gives only the
+  aggregate `cache_creation_input_tokens` with no 5m/1h split, it's attributed to
+  5m.
+- **`tier(model)`** — maps a raw model id to `opus`/`sonnet`/`haiku`; `fable` →
+  `opus`; anything unrecognized → `None` (row skipped).
+- **`ERROR_RULES` / `classify()`** — the error taxonomy. An ordered list of
+  `(name, substrings, title, fix)`; `classify()` lowercases the tool-result text
+  and returns the first rule whose substrings match, else `"other"`. `ERROR_META`
+  and the report's "errors & fixes" table derive from it automatically. Order
+  matters (matched top-to-bottom).
+- **`check_pricing_drift()` / `parse_pricing_page()`** — best-effort scrape of the
+  published pricing page's **Model pricing** table (regex-scoped so the Batch and
+  Fast-mode tables are ignored). A **drift alarm, not a live price source** — it
+  warns on mismatch but never edits `PRICING`.
+
+## Two analyses beyond a plain cost report
+
+- **Per-session cost analysis** — sessions accumulate **globally** by `sessionId`
+  (separate pass from day buckets) because one conversation's cost is split
+  across the dates it touched. `build_html` embeds the top 50 by cost
+  (`top_sessions()`); the full set persists to `session_metrics.json`. The report's
+  "Top sessions by cost" table catches a single **runaway conversation** (usually
+  a long, uncleared context re-read every turn).
+- **Model-routing savings estimator** — this is why `by_model[tier]` carries the
+  full five-part `tok` breakdown, not just cost. The client's `renderRoute()` /
+  `costAtRates()` recompute the period's **Opus** tokens at Sonnet/Haiku rates
+  (from the embedded `pricing` block) and scale by a user-set "routable share" to
+  estimate `/model`-routing savings. It's an **upper bound**, framed as such.
+
+## The emitted report (`HTML_TMPL`)
+
+One self-contained page. The Python payload (`build_html`) carries `generated`,
+`days`, top `sessions`, `pricing`, error `meta`, and `pricing_history`. Client-side
+JS renders:
+
+- **KPI cards** — cost, tokens, turns, sessions, tool-error rate, each with a
+  delta vs. the previous period.
+- **Trend chart** — day/week/month stepper (`aggregate()`), switchable metric.
+- **Breakdowns** — cost by project, cost by model tier, five-line **token
+  composition**, tool usage.
+- **Model-routing savings estimator**, **tokens & cost per tool** (with an
+  est-waste column), **errors & fixes** table (from the taxonomy), **top sessions
+  by cost**, and **pricing over time**.
+- **`clean()` project labels** — machine-agnostic: `PROJ_STRIP` derives the common
+  leading path-segments across all project ids in the payload and strips them, so
+  "Cost by project" reads as just the repo name on any machine (no hardcoded
+  prefix).
+
+## Persistence & files
+
+| File | Scope | Tracked? | Written by |
+|---|---|---|---|
+| `machines/<id>/daily_metrics.json` | per-machine, durable | git-ignored | `merge_daily()` |
+| `machines/<id>/session_metrics.json` | per-machine, durable | git-ignored | `merge_sessions()` |
+| `machines/<id>/report.html` | per-machine output | git-ignored | `build_html()` |
+| `machines/<id>/run.log` | per-machine | git-ignored | `run.cmd` |
+| `pricing_history.json` | **shared, repo root** | **tracked** | `record_pricing()` |
+
+**Per-machine namespacing.** The repo is shared across machines, but every machine
+has its own `~/.claude/projects`, so each machine's *derived* artifacts live under
+`machines/<machine_id>/` — never at the repo root — so one machine's run can't
+clobber another's. `machine_id()` returns the sanitized hostname by default;
+`TOKENLENS_MACHINE` overrides it. `pricing_history.json` is the one durable store
+that stays **shared at the repo root**, because it's stamped from the `PRICING`
+table (code), not derived from any machine's transcripts — so it's identical
+everywhere and non-personal (dates + public rates).
+
+**The sharp edge — the durable store has no git backup.** `machines/` is
+git-ignored, so each machine's `daily_metrics.json` / `session_metrics.json` is the
+*only* copy of dates whose transcripts have since rotated away. `analyze()` only
+reconstructs what transcripts still hold; the merge functions only *preserve* what's
+already on disk. Lose that local store after transcripts rotate and the pre-rotation
+history is **gone**. Back it up out-of-band.
+
+## Scheduling (`run.cmd`)
+
+`run.cmd` is the Windows Task Scheduler wrapper. It's machine-agnostic: resolves
+the repo dir from its own location (`%~dp0`), asks `report.py --machine-dir` where
+this machine's folder is, and appends a one-line summary to
+`machines\<machine_id>\run.log`. Interpreter is `python` on PATH unless `PYTHON`
+is set. On macOS/Linux, wire `python report.py` into cron/launchd.
+
+## Tests (`test_report.py`)
+
+Stdlib `unittest` (also runs under pytest), no dependencies. It builds fixture
+transcripts in a temp dir with **hand-computable token counts** and asserts exact
+costs. The parametrized `analyze(root=…)`, `merge_daily(…, path=…)`,
+`merge_sessions(…, path=…)`, and `record_pricing(path=…)` seams exist so tests
+never touch the real `~/.claude` or a machine's real data under `machines/`. If
+you change the cost formula, cache multipliers, error taxonomy, or the
+session/`by_model` shapes, update the fixtures' expected numbers.
+
+## Conventions & gotchas
+
+- **Everything is one file.** Keep `__PAYLOAD__` / `__PRICEROWS__` intact.
+- **Resilient parsing by design.** The parse loop swallows per-line/per-file
+  exceptions — don't add logic that assumes every line succeeds.
+- **Windows-first, multi-machine.** `run.cmd` is portable; artifacts are namespaced
+  per machine; `clean()` derives the project-label prefix from data.
+- **History was purged.** Earlier commits contained personal usage data; it was
+  removed from the entire history with a `git filter-branch` rewrite. If the repo
+  is re-shared, that rewrite must be force-pushed.
+
+## Extending it
+
+- **New trend metric / granularity / panel** → JS change in `HTML_TMPL` (the
+  Python side only emits per-day buckets).
+- **New error category** → add a tuple to `ERROR_RULES`; the table updates itself.
+- **Pricing change** → edit `PRICING`; the drift check re-verifies each run.
+- **New provider (e.g. OpenAI Codex)** → write a second parser that emits the same
+  per-day/per-session dict shape, then generalize the few Anthropic-specific
+  assumptions. Full plan in [`adding-openai-support.md`](./adding-openai-support.md);
+  source research in [`openai-usage-data-research.md`](./openai-usage-data-research.md).
+
+## Change log
+
+- **2026-07-10** — Per-machine artifact namespacing (`machines/<id>/`);
+  machine-agnostic `run.cmd` and `clean()` project labels; `machines/` git-ignored,
+  `pricing_history.json` kept shared. Pricing drift check added.
+- **2026-07-10** — Initial tool: transcript parser, five-line cost model, daily
+  metrics, per-session analysis, model-routing estimator, error taxonomy,
+  self-contained HTML report.
