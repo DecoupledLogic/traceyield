@@ -9,20 +9,31 @@ A single-file Python tool that parses Claude Code's own transcript logs and prod
 ## Commands
 
 ```bash
-python report.py          # parse transcripts, merge data, regenerate report.html
+python report.py                          # parse transcripts, merge data, regenerate report.html
+python -m unittest test_report            # run the test suite (stdlib only, no deps)
+python -m pytest test_report.py -q        # same tests under pytest, if installed
 ```
 
 - `run.cmd` is the scheduled-task wrapper (uses the Anaconda Python at `C:\Users\charl\anaconda3\python.exe`) and appends a one-line summary to `run.log` each run. It runs daily via Windows Task Scheduler.
-- There are no tests, no linter, and no package manifest. The only "check" is running the script and confirming the printed summary line (active days, total cost, turns, tool-error rate) looks sane and `report.html` opens.
+- No linter or package manifest. Beyond the tests, the smoke check is running the script and confirming the printed summary line (active days, total cost, turns, tool-error rate, session count) looks sane and `report.html` opens.
+
+## Tests
+
+`test_report.py` is stdlib `unittest` (runs under pytest too) so it needs no dependencies. It builds fixture transcripts in a temp dir with hand-computable token counts and asserts exact costs — the parametrized `analyze(root=...)`, `merge_daily(..., path=...)`, `merge_sessions(..., path=...)`, and `record_pricing(path=...)` signatures exist specifically so tests never touch the real `~/.claude` dir or the committed data files. If you change the cost formula, cache multipliers, error taxonomy, or the session/by_model shapes, update the fixtures' expected numbers. Note: `report.py`'s terse `json.load(open(...))` idiom leaks file handles, so tests silence `ResourceWarning` — that's deliberate, not a masked bug.
 
 ## Data flow (one `python report.py` run)
 
 1. **Parse** — glob every `*.jsonl` under `~/.claude/projects` (`CLAUDE_PROJECTS`). Each transcript line is timestamped; metrics are bucketed by the UTC **activity date** (`timestamp[:10]`), not by run date. This is why a single run can reconstruct the entire history.
-2. **Merge** — `merge_daily()` folds new day-buckets into `daily_metrics.json` with `dict.update` semantics: **the newest parse is authoritative per date, but dates whose transcripts have since been rotated away are preserved.** This file is the durable store; never regenerate it from scratch expecting old dates to survive if the source transcripts are gone.
+2. **Merge** — `merge_daily()` folds new day-buckets into `daily_metrics.json` with `dict.update` semantics: **the newest parse is authoritative per date, but dates whose transcripts have since been rotated away are preserved.** `merge_sessions()` does the same, keyed by `sessionId`, into `session_metrics.json`. Both are durable stores; never regenerate them from scratch expecting old dates/sessions to survive if the source transcripts are gone.
 3. **Record pricing** — `record_pricing()` stamps today's `PRICING` table into `pricing_history.json` (keyed by today's date), building a time series of the rates themselves.
 4. **Emit** — `build_html()` inlines the full payload (`days`, error `meta`, `pricing_history`) into the `HTML_TMPL` string via `__PAYLOAD__` / `__PRICEROWS__` placeholders and writes `report.html`.
 
 All aggregation into **day / week / month** views happens **client-side** in the emitted HTML's JavaScript (`aggregate()`), so the Python side only ever produces per-day buckets. Adding a new time granularity or trend metric is a JS change in `HTML_TMPL`, not a Python change.
+
+### Two analyses that go beyond description
+
+- **Per-session cost analysis** — sessions are accumulated **globally** (across all days, keyed by `sessionId`) in a separate pass, not inside the day buckets, because a single conversation's cost is split across the dates it touched. `build_html` embeds only the top 50 by cost (`top_sessions()`) into the payload; the full set persists to `session_metrics.json`. The report's "Top sessions by cost" table exists to catch a single runaway conversation (usually a long, uncleared context re-read every turn).
+- **Model-routing savings estimator** — this is why `by_model[tier]` carries a full five-part `tok` breakdown (not just cost). The client's `renderRoute()` / `costAtRates()` recompute the selected period's **Opus** tokens at Sonnet/Haiku rates (pulled from the embedded `pricing` block) and scale by a user-set "routable share" to estimate `/model`-routing savings. It's an **upper bound**, deliberately framed as such in the UI. The `pricing` payload key mirrors the current `PRICING` table so the JS can recost without hardcoding rates.
 
 ## Key domain logic (all in report.py)
 
@@ -37,4 +48,4 @@ All aggregation into **day / week / month** views happens **client-side** in the
 - **Windows-first.** Paths, the `run.cmd` launcher, and the hardcoded Anaconda interpreter path all assume this specific Windows machine. The `clean()` JS helper strips the `C--Users-charl-source-repos-` project-dir prefix for display.
 - **Everything is one file.** `report.py` holds config, parser, persistence, and the entire HTML/CSS/JS template (`HTML_TMPL`, a raw string). There is no templating engine — edits to the dashboard are string edits inside that literal. Keep the `__PAYLOAD__` / `__PRICEROWS__` placeholders intact.
 - **Resilient parsing by design.** The parse loop swallows per-line and per-file exceptions (`except: continue`) so one malformed transcript can't abort a run. Be careful adding logic that depends on every line succeeding.
-- `daily_metrics.json`, `pricing_history.json`, `report.html`, and `run.log` are **generated artifacts** committed alongside the code — regenerating them is expected, not a mistake.
+- `daily_metrics.json`, `session_metrics.json`, `pricing_history.json`, `report.html`, and `run.log` are **generated artifacts** committed alongside the code — regenerating them is expected, not a mistake.

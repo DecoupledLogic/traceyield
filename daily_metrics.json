@@ -15,18 +15,33 @@
 "by_model": {
 "opus": {
 "cost": 287.447,
+"tok": {
+"input": 924736,
+"output": 1693938,
 "cache_read": 264923408,
-"output": 1693938
+"cache_write_5m": 7742235,
+"cache_write_1h": 5962420
+}
 },
 "sonnet": {
 "cost": 34.0864,
+"tok": {
+"input": 166001,
+"output": 302961,
 "cache_read": 116113613,
-"output": 302961
+"cache_write_5m": 3000826,
+"cache_write_1h": 0
+}
 },
 "haiku": {
 "cost": 0.2011,
+"tok": {
+"input": 250,
+"output": 5935,
 "cache_read": 488853,
-"output": 5935
+"cache_write_5m": 97802,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -229,13 +244,23 @@
 "by_model": {
 "opus": {
 "cost": 347.2423,
+"tok": {
+"input": 824309,
+"output": 3184069,
 "cache_read": 284895996,
-"output": 3184069
+"cache_write_5m": 780926,
+"cache_write_1h": 11619021
+}
 },
 "sonnet": {
 "cost": 18.21,
+"tok": {
+"input": 25900,
+"output": 317666,
 "cache_read": 41255937,
-"output": 317666
+"cache_write_5m": 439109,
+"cache_write_1h": 1408136
+}
 }
 },
 "by_project": {
@@ -541,18 +566,33 @@
 "by_model": {
 "opus": {
 "cost": 188.8517,
+"tok": {
+"input": 372003,
+"output": 1409281,
 "cache_read": 195485043,
-"output": 1409281
+"cache_write_5m": 0,
+"cache_write_1h": 5401709
+}
 },
 "sonnet": {
 "cost": 12.1223,
+"tok": {
+"input": 3147,
+"output": 102717,
 "cache_read": 46814570,
-"output": 102717
+"cache_write_5m": 690383,
+"cache_write_1h": 0
+}
 },
 "haiku": {
 "cost": 0.5337,
+"tok": {
+"input": 454,
+"output": 14487,
 "cache_read": 3252929,
-"output": 14487
+"cache_write_5m": 108398,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -691,13 +731,23 @@
 "by_model": {
 "opus": {
 "cost": 510.4667,
+"tok": {
+"input": 1727844,
+"output": 3253082,
 "cache_read": 564363222,
-"output": 3253082
+"cache_write_5m": 4515725,
+"cache_write_1h": 11009557
+}
 },
 "haiku": {
 "cost": 1.5681,
+"tok": {
+"input": 975,
+"output": 20569,
 "cache_read": 4496183,
-"output": 20569
+"cache_write_5m": 811755,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -880,13 +930,23 @@
 "by_model": {
 "opus": {
 "cost": 356.2498,
+"tok": {
+"input": 1081066,
+"output": 2750430,
 "cache_read": 357285114,
-"output": 2750430
+"cache_write_5m": 853229,
+"cache_write_1h": 9810845
+}
 },
 "haiku": {
 "cost": 1.3644,
+"tok": {
+"input": 6194,
+"output": 31093,
 "cache_read": 6690153,
-"output": 31093
+"cache_write_5m": 427017,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -1020,13 +1080,23 @@
 "by_model": {
 "opus": {
 "cost": 152.9052,
+"tok": {
+"input": 199400,
+"output": 925631,
 "cache_read": 168269082,
-"output": 925631
+"cache_write_5m": 0,
+"cache_write_1h": 4463289
+}
 },
 "haiku": {
 "cost": 0.6527,
+"tok": {
+"input": 420,
+"output": 12126,
 "cache_read": 4505041,
-"output": 12126
+"cache_write_5m": 112932,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -1144,8 +1214,13 @@
 "by_model": {
 "opus": {
 "cost": 39.2123,
+"tok": {
+"input": 129016,
+"output": 336250,
 "cache_read": 32985658,
-"output": 336250
+"cache_write_5m": 0,
+"cache_write_1h": 1366810
+}
 }
 },
 "by_project": {
@@ -1260,8 +1335,13 @@
 "by_model": {
 "opus": {
 "cost": 251.2456,
+"tok": {
+"input": 105307,
+"output": 1145667,
 "cache_read": 259359101,
-"output": 1145667
+"cache_write_5m": 0,
+"cache_write_1h": 9239788
+}
 }
 },
 "by_project": {
@@ -1376,8 +1456,13 @@
 "by_model": {
 "opus": {
 "cost": 40.9633,
+"tok": {
+"input": 45983,
+"output": 492180,
 "cache_read": 45430900,
-"output": 492180
+"cache_write_5m": 0,
+"cache_write_1h": 571340
+}
 }
 },
 "by_project": {
@@ -1451,8 +1536,13 @@
 "by_model": {
 "opus": {
 "cost": 5.3285,
+"tok": {
+"input": 200,
+"output": 21166,
 "cache_read": 3897029,
-"output": 21166
+"cache_write_5m": 0,
+"cache_write_1h": 284987
+}
 }
 },
 "by_project": {
@@ -1505,13 +1595,23 @@
 "by_model": {
 "opus": {
 "cost": 175.0512,
+"tok": {
+"input": 1589948,
+"output": 838595,
 "cache_read": 178602513,
-"output": 838595
+"cache_write_5m": 4165553,
+"cache_write_1h": 3080064
+}
 },
 "haiku": {
 "cost": 0.0304,
+"tok": {
+"input": 2,
+"output": 2635,
 "cache_read": 161179,
-"output": 2635
+"cache_write_5m": 909,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -1615,13 +1715,23 @@
 "by_model": {
 "opus": {
 "cost": 84.5768,
+"tok": {
+"input": 207698,
+"output": 477484,
 "cache_read": 79787097,
-"output": 477484
+"cache_write_5m": 0,
+"cache_write_1h": 3170767
+}
 },
 "haiku": {
 "cost": 0.5429,
+"tok": {
+"input": 443,
+"output": 12117,
 "cache_read": 3440976,
-"output": 12117
+"cache_write_5m": 110223,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -1738,18 +1848,33 @@
 "by_model": {
 "opus": {
 "cost": 257.2002,
+"tok": {
+"input": 609228,
+"output": 1515272,
 "cache_read": 327334815,
-"output": 1515272
+"cache_write_5m": 0,
+"cache_write_1h": 5260486
+}
 },
 "haiku": {
 "cost": 2.8714,
+"tok": {
+"input": 4587,
+"output": 62400,
 "cache_read": 17116221,
-"output": 62400
+"cache_write_5m": 674527,
+"cache_write_1h": 0
+}
 },
 "sonnet": {
 "cost": 3.3525,
+"tok": {
+"input": 197,
+"output": 30940,
 "cache_read": 9876838,
-"output": 30940
+"cache_write_5m": 426924,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -1879,13 +2004,23 @@
 "by_model": {
 "opus": {
 "cost": 65.1527,
+"tok": {
+"input": 186753,
+"output": 615555,
 "cache_read": 58808659,
-"output": 615555
+"cache_write_5m": 0,
+"cache_write_1h": 1942571
+}
 },
 "sonnet": {
 "cost": 4.8212,
+"tok": {
+"input": 2029,
+"output": 40452,
 "cache_read": 17788070,
-"output": 40452
+"cache_write_5m": 342014,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -2229,13 +2364,23 @@
 "by_model": {
 "opus": {
 "cost": 142.6757,
+"tok": {
+"input": 368895,
+"output": 1178323,
 "cache_read": 139751100,
-"output": 1178323
+"cache_write_5m": 0,
+"cache_write_1h": 4149761
+}
 },
 "haiku": {
 "cost": 3.476,
+"tok": {
+"input": 3137,
+"output": 67557,
 "cache_read": 16090962,
-"output": 67557
+"cache_write_5m": 1220825,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -2357,13 +2502,23 @@
 "by_model": {
 "opus": {
 "cost": 225.4628,
+"tok": {
+"input": 317323,
+"output": 1804147,
 "cache_read": 276569991,
-"output": 1804147
+"cache_write_5m": 0,
+"cache_write_1h": 4048749
+}
 },
 "haiku": {
 "cost": 1.8931,
+"tok": {
+"input": 25346,
+"output": 23501,
 "cache_read": 6334396,
-"output": 23501
+"cache_write_5m": 893436,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -2500,13 +2655,23 @@
 "by_model": {
 "opus": {
 "cost": 112.9566,
+"tok": {
+"input": 434600,
+"output": 960223,
 "cache_read": 109430788,
-"output": 960223
+"cache_write_5m": 365253,
+"cache_write_1h": 2977976
+}
 },
 "haiku": {
 "cost": 2.6224,
+"tok": {
+"input": 13104,
+"output": 42325,
 "cache_read": 7979457,
-"output": 42325
+"cache_write_5m": 1279743,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -2627,18 +2792,33 @@
 "by_model": {
 "opus": {
 "cost": 126.2603,
+"tok": {
+"input": 381576,
+"output": 817654,
 "cache_read": 139941621,
-"output": 817654
+"cache_write_5m": 0,
+"cache_write_1h": 3394026
+}
 },
 "sonnet": {
 "cost": 14.5385,
+"tok": {
+"input": 712,
+"output": 238940,
 "cache_read": 44065696,
-"output": 238940
+"cache_write_5m": 1333817,
+"cache_write_1h": 0
+}
 },
 "haiku": {
 "cost": 0.1838,
+"tok": {
+"input": 2004,
+"output": 7201,
 "cache_read": 26806,
-"output": 7201
+"cache_write_5m": 114462,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -2762,8 +2942,13 @@
 "by_model": {
 "opus": {
 "cost": 397.556,
+"tok": {
+"input": 865267,
+"output": 1757036,
 "cache_read": 225057017,
-"output": 1757036
+"cache_write_5m": 0,
+"cache_write_1h": 23677528
+}
 }
 },
 "by_project": {
@@ -2871,13 +3056,23 @@
 "by_model": {
 "opus": {
 "cost": 152.3608,
+"tok": {
+"input": 480054,
+"output": 1089185,
 "cache_read": 144173186,
-"output": 1089185
+"cache_write_5m": 211,
+"cache_write_1h": 5064297
+}
 },
 "sonnet": {
 "cost": 1.8267,
+"tok": {
+"input": 87,
+"output": 14815,
 "cache_read": 5726126,
-"output": 14815
+"cache_write_5m": 213255,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -2994,18 +3189,33 @@
 "by_model": {
 "opus": {
 "cost": 73.1718,
+"tok": {
+"input": 266237,
+"output": 649667,
 "cache_read": 46327140,
-"output": 649667
+"cache_write_5m": 0,
+"cache_write_1h": 3243535
+}
 },
 "haiku": {
 "cost": 2.4544,
+"tok": {
+"input": 4250,
+"output": 74113,
 "cache_read": 12872590,
-"output": 74113
+"cache_write_5m": 633900,
+"cache_write_1h": 0
+}
 },
 "sonnet": {
 "cost": 2.6981,
+"tok": {
+"input": 40536,
+"output": 46220,
 "cache_read": 6626287,
-"output": 46220
+"cache_write_5m": 331832,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -3129,13 +3339,23 @@
 "by_model": {
 "opus": {
 "cost": 307.5058,
+"tok": {
+"input": 711894,
+"output": 2332655,
 "cache_read": 330539968,
-"output": 2332655
+"cache_write_5m": 1540945,
+"cache_write_1h": 7072907
+}
 },
 "sonnet": {
 "cost": 24.2703,
+"tok": {
+"input": 256615,
+"output": 206419,
 "cache_read": 79125775,
-"output": 206419
+"cache_write_5m": 2347109,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -3279,13 +3499,23 @@
 "by_model": {
 "opus": {
 "cost": 99.2058,
+"tok": {
+"input": 514090,
+"output": 717058,
 "cache_read": 69681375,
-"output": 717058
+"cache_write_5m": 1293285,
+"cache_write_1h": 3578523
+}
 },
 "sonnet": {
 "cost": 13.1153,
+"tok": {
+"input": 56958,
+"output": 156313,
 "cache_read": 42840401,
-"output": 156313
+"cache_write_5m": 1148066,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -3418,13 +3648,23 @@
 "by_model": {
 "opus": {
 "cost": 187.4052,
+"tok": {
+"input": 243053,
+"output": 1185420,
 "cache_read": 266929653,
-"output": 1185420
+"cache_write_5m": 399698,
+"cache_write_1h": 2059152
+}
 },
 "sonnet": {
 "cost": 9.4183,
+"tok": {
+"input": 26156,
+"output": 65061,
 "cache_read": 28984854,
-"output": 65061
+"cache_write_5m": 1167380,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -3532,13 +3772,23 @@
 "by_model": {
 "opus": {
 "cost": 192.7013,
+"tok": {
+"input": 220499,
+"output": 557316,
 "cache_read": 258621803,
-"output": 557316
+"cache_write_5m": 718090,
+"cache_write_1h": 4386696
+}
 },
 "sonnet": {
 "cost": 4.2927,
+"tok": {
+"input": 13127,
+"output": 41259,
 "cache_read": 10443435,
-"output": 41259
+"cache_write_5m": 706068,
+"cache_write_1h": 0
+}
 }
 },
 "by_project": {
@@ -3636,21 +3886,68 @@
 }
 },
 "2026-07-10": {
-"cost": 0.0,
+"cost": 6.2008,
 "tok": {
-"input": 0,
-"output": 0,
-"cache_read": 0,
+"input": 28207,
+"output": 80765,
+"cache_read": 4411339,
 "cache_write_5m": 0,
-"cache_write_1h": 0
+"cache_write_1h": 183498
 },
-"msgs": 0,
-"tool_results": 0,
+"msgs": 61,
+"tool_results": 32,
 "tool_errors": 0,
-"sessions": 1,
-"by_model": {},
-"by_project": {},
-"by_tool": {},
+"sessions": 2,
+"by_model": {
+"opus": {
+"cost": 6.2008,
+"tok": {
+"input": 28207,
+"output": 80765,
+"cache_read": 4411339,
+"cache_write_5m": 0,
+"cache_write_1h": 183498
+}
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-cc-usage-analytics": {
+"cost": 6.2008,
+"msgs": 61
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 48577,
+"cost": 3.0629,
+"err": 0
+},
+"Bash": {
+"calls": 6,
+"out": 2455,
+"cost": 0.3846,
+"err": 0
+},
+"Read": {
+"calls": 4,
+"out": 1220,
+"cost": 0.6609,
+"err": 0
+},
+"Write": {
+"calls": 1,
+"out": 2124,
+"cost": 0.2608,
+"err": 0
+},
+"Edit": {
+"calls": 21,
+"out": 26389,
+"cost": 1.8316,
+"err": 0
+}
+},
 "errors": {}
 }
 }

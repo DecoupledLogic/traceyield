@@ -1,0 +1,2263 @@
+{
+"378a3088-5315-47e1-be94-3ac65aa0f965": {
+"cost": 46.5731,
+"tok": {
+"input": 61079,
+"output": 269739,
+"cache_read": 55223733,
+"cache_write_5m": 0,
+"cache_write_1h": 1191235
+},
+"msgs": 148,
+"tool_results": 62,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos",
+"start": "2026-07-05T19:02:12.920Z",
+"end": "2026-07-05T20:24:00.168Z",
+"by_model": {
+"opus": 46.5731
+}
+},
+"4c1f1e98-8360-4f0b-aa9a-d5d276794cce": {
+"cost": 4.8107,
+"tok": {
+"input": 91387,
+"output": 56823,
+"cache_read": 2514326,
+"cache_write_5m": 0,
+"cache_write_1h": 167606
+},
+"msgs": 50,
+"tool_results": 20,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos",
+"start": "2026-07-03T23:26:03.499Z",
+"end": "2026-07-03T23:34:26.760Z",
+"by_model": {
+"opus": 4.8107
+}
+},
+"7d1652b6-2c4e-49f6-9164-a0249e22c3ce": {
+"cost": 6.2008,
+"tok": {
+"input": 28207,
+"output": 80765,
+"cache_read": 4411339,
+"cache_write_5m": 0,
+"cache_write_1h": 183498
+},
+"msgs": 61,
+"tool_results": 32,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-cc-usage-analytics",
+"start": "2026-07-10T13:24:25.451Z",
+"end": "2026-07-10T13:36:20.771Z",
+"by_model": {
+"opus": 6.2008
+}
+},
+"010d75c5-8502-4dcc-b031-5c897e9a7855": {
+"cost": 5.5892,
+"tok": {
+"input": 38607,
+"output": 44495,
+"cache_read": 4940137,
+"cache_write_5m": 0,
+"cache_write_1h": 181374
+},
+"msgs": 72,
+"tool_results": 31,
+"tool_errors": 3,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-23T21:10:37.023Z",
+"end": "2026-06-23T21:24:16.305Z",
+"by_model": {
+"opus": 5.5892
+}
+},
+"0e76fb5a-cc29-4493-804c-53f3cbcd34a0": {
+"cost": 4.9036,
+"tok": {
+"input": 41489,
+"output": 55163,
+"cache_read": 2633084,
+"cache_write_5m": 0,
+"cache_write_1h": 200050
+},
+"msgs": 46,
+"tool_results": 20,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-15T15:02:33.350Z",
+"end": "2026-06-15T16:59:30.231Z",
+"by_model": {
+"opus": 4.9036
+}
+},
+"13e7bda2-10d4-4387-ae41-725b4db6b752": {
+"cost": 46.8061,
+"tok": {
+"input": 80785,
+"output": 439383,
+"cache_read": 39931749,
+"cache_write_5m": 0,
+"cache_write_1h": 1545170
+},
+"msgs": 238,
+"tool_results": 106,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-20T19:25:59.298Z",
+"end": "2026-06-21T01:51:29.906Z",
+"by_model": {
+"opus": 46.8061
+}
+},
+"14a3c6bf-296c-423c-8ad9-11b13907e6d2": {
+"cost": 84.6669,
+"tok": {
+"input": 102601,
+"output": 506407,
+"cache_read": 65988067,
+"cache_write_5m": 0,
+"cache_write_1h": 3849973
+},
+"msgs": 370,
+"tool_results": 143,
+"tool_errors": 4,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-13T17:54:00.226Z",
+"end": "2026-06-15T14:56:22.083Z",
+"by_model": {
+"opus": 84.6669
+}
+},
+"1de277dc-871d-435b-be9b-a3d683b9eef5": {
+"cost": 17.862,
+"tok": {
+"input": 56050,
+"output": 278280,
+"cache_read": 9331867,
+"cache_write_5m": 0,
+"cache_write_1h": 595882
+},
+"msgs": 80,
+"tool_results": 38,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-20T14:02:57.599Z",
+"end": "2026-06-20T14:55:41.691Z",
+"by_model": {
+"opus": 17.862
+}
+},
+"297a1f4a-ee02-4424-8c42-03f7e673d80f": {
+"cost": 125.8059,
+"tok": {
+"input": 151734,
+"output": 947419,
+"cache_read": 124252323,
+"cache_write_5m": 364473,
+"cache_write_1h": 3695765
+},
+"msgs": 508,
+"tool_results": 210,
+"tool_errors": 4,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-18T15:56:28.410Z",
+"end": "2026-06-20T13:40:37.207Z",
+"by_model": {
+"opus": 125.8059
+}
+},
+"3dd58264-30b3-4008-a742-f788badb21d9": {
+"cost": 51.0146,
+"tok": {
+"input": 39779,
+"output": 376877,
+"cache_read": 58329250,
+"cache_write_5m": 0,
+"cache_write_1h": 1222914
+},
+"msgs": 361,
+"tool_results": 166,
+"tool_errors": 4,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-15T21:51:03.792Z",
+"end": "2026-06-16T00:33:46.803Z",
+"by_model": {
+"opus": 51.0146
+}
+},
+"4845871c-bb2c-4f71-8e6d-e48dff188265": {
+"cost": 58.0992,
+"tok": {
+"input": 98985,
+"output": 423262,
+"cache_read": 54064271,
+"cache_write_5m": 0,
+"cache_write_1h": 1999062
+},
+"msgs": 304,
+"tool_results": 139,
+"tool_errors": 3,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-23T21:21:39.729Z",
+"end": "2026-06-24T01:32:30.469Z",
+"by_model": {
+"opus": 58.0992
+}
+},
+"8169450a-0838-487d-9f57-fa9c6778ee91": {
+"cost": 14.3712,
+"tok": {
+"input": 41325,
+"output": 93651,
+"cache_read": 10279425,
+"cache_write_5m": 63493,
+"cache_write_1h": 628680
+},
+"msgs": 120,
+"tool_results": 63,
+"tool_errors": 5,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-16T00:36:28.632Z",
+"end": "2026-06-16T00:45:38.009Z",
+"by_model": {
+"opus": 14.3712
+}
+},
+"8175d83a-22b1-40fd-aa10-dd59377ac7aa": {
+"cost": 57.8615,
+"tok": {
+"input": 295411,
+"output": 574523,
+"cache_read": 51922690,
+"cache_write_5m": 658141,
+"cache_write_1h": 1194664
+},
+"msgs": 330,
+"tool_results": 178,
+"tool_errors": 5,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-15T14:35:31.293Z",
+"end": "2026-06-15T17:40:45.715Z",
+"by_model": {
+"opus": 57.8615
+}
+},
+"b5e0f51f-ead2-4e35-b96e-145ab7086076": {
+"cost": 1.4991,
+"tok": {
+"input": 49808,
+"output": 5720,
+"cache_read": 152848,
+"cache_write_5m": 0,
+"cache_write_1h": 103066
+},
+"msgs": 6,
+"tool_results": 2,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-24T00:42:04.018Z",
+"end": "2026-06-24T00:42:50.254Z",
+"by_model": {
+"opus": 1.4991
+}
+},
+"bd2fb86c-827d-4eeb-bea0-0edb27d28bb0": {
+"cost": 21.2391,
+"tok": {
+"input": 98146,
+"output": 194070,
+"cache_read": 22656789,
+"cache_write_5m": 0,
+"cache_write_1h": 456822
+},
+"msgs": 184,
+"tool_results": 84,
+"tool_errors": 3,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-15T17:33:54.057Z",
+"end": "2026-06-15T19:14:34.041Z",
+"by_model": {
+"opus": 21.2391
+}
+},
+"e8b3dfd0-cac1-40af-9822-016648f787ba": {
+"cost": 30.1912,
+"tok": {
+"input": 73320,
+"output": 235188,
+"cache_read": 23808947,
+"cache_write_5m": 0,
+"cache_write_1h": 1204039
+},
+"msgs": 178,
+"tool_results": 93,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-23T21:21:39.729Z",
+"end": "2026-06-24T00:37:18.393Z",
+"by_model": {
+"opus": 30.1912
+}
+},
+"f7f06e0d-63fb-4c0d-9db0-474470535a0c": {
+"cost": 7.8589,
+"tok": {
+"input": 359348,
+"output": 40714,
+"cache_read": 1118471,
+"cache_write_5m": 488756,
+"cache_write_1h": 143032
+},
+"msgs": 46,
+"tool_results": 32,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-20T03:53:15.039Z",
+"end": "2026-06-20T04:10:13.114Z",
+"by_model": {
+"opus": 7.8589
+}
+},
+"febec270-ed6f-4be0-9509-09cf73986157": {
+"cost": 3.5442,
+"tok": {
+"input": 34455,
+"output": 27716,
+"cache_read": 1984440,
+"cache_write_5m": 0,
+"cache_write_1h": 168684
+},
+"msgs": 42,
+"tool_results": 18,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-decoupledlogic",
+"start": "2026-06-13T17:48:49.064Z",
+"end": "2026-06-13T17:54:49.093Z",
+"by_model": {
+"opus": 3.5442
+}
+},
+"0489d021-1b5a-4776-ac8b-4ba11095a588": {
+"cost": 136.6035,
+"tok": {
+"input": 49672,
+"output": 511957,
+"cache_read": 142189383,
+"cache_write_5m": 0,
+"cache_write_1h": 5246148
+},
+"msgs": 586,
+"tool_results": 298,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-13T16:33:36.357Z",
+"end": "2026-06-14T14:18:49.053Z",
+"by_model": {
+"opus": 136.6035
+}
+},
+"05e72be7-78ae-4e75-8847-a1c712f949bc": {
+"cost": 32.1743,
+"tok": {
+"input": 45302,
+"output": 222005,
+"cache_read": 36873450,
+"cache_write_5m": 0,
+"cache_write_1h": 796091
+},
+"msgs": 277,
+"tool_results": 160,
+"tool_errors": 14,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-20T13:41:11.283Z",
+"end": "2026-06-20T14:47:13.671Z",
+"by_model": {
+"opus": 32.1743
+}
+},
+"07225211-e40f-49dc-8fc7-6dbff06342bb": {
+"cost": 0.9269,
+"tok": {
+"input": 50144,
+"output": 1620,
+"cache_read": 141648,
+"cache_write_5m": 0,
+"cache_write_1h": 56488
+},
+"msgs": 6,
+"tool_results": 2,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-22T17:59:49.844Z",
+"end": "2026-06-22T18:00:48.070Z",
+"by_model": {
+"opus": 0.9269
+}
+},
+"08c0ba0f-21a2-4eec-9781-a54d5d4da665": {
+"cost": 2.861,
+"tok": {
+"input": 53241,
+"output": 23468,
+"cache_read": 1823247,
+"cache_write_5m": 0,
+"cache_write_1h": 109650
+},
+"msgs": 36,
+"tool_results": 12,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-28T01:13:54.764Z",
+"end": "2026-06-28T01:22:24.971Z",
+"by_model": {
+"opus": 2.861
+}
+},
+"110c99c9-9c8c-4b2a-9a4e-a242ac8924a3": {
+"cost": 55.3458,
+"tok": {
+"input": 49832,
+"output": 369835,
+"cache_read": 59098876,
+"cache_write_5m": 143541,
+"cache_write_1h": 1743054
+},
+"msgs": 434,
+"tool_results": 256,
+"tool_errors": 7,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-20T19:11:31.021Z",
+"end": "2026-06-20T23:21:19.518Z",
+"by_model": {
+"opus": 54.8392,
+"haiku": 0.5066
+}
+},
+"13a002ac-508c-41b9-9e35-47dd80222b87": {
+"cost": 32.6624,
+"tok": {
+"input": 141631,
+"output": 311440,
+"cache_read": 37380581,
+"cache_write_5m": 0,
+"cache_write_1h": 547793
+},
+"msgs": 254,
+"tool_results": 107,
+"tool_errors": 6,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-25T22:38:54.132Z",
+"end": "2026-06-26T01:33:24.708Z",
+"by_model": {
+"opus": 32.6624
+}
+},
+"16748af0-08cb-402a-b60e-deaf978ad065": {
+"cost": 17.003,
+"tok": {
+"input": 33042,
+"output": 139672,
+"cache_read": 19641351,
+"cache_write_5m": 0,
+"cache_write_1h": 352535
+},
+"msgs": 170,
+"tool_results": 82,
+"tool_errors": 6,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-25T22:04:33.616Z",
+"end": "2026-06-25T22:35:09.944Z",
+"by_model": {
+"opus": 17.003
+}
+},
+"1a45551d-b5d4-4788-9ac5-8c700b30c4bd": {
+"cost": 32.6626,
+"tok": {
+"input": 96835,
+"output": 344053,
+"cache_read": 33977773,
+"cache_write_5m": 0,
+"cache_write_1h": 658817
+},
+"msgs": 238,
+"tool_results": 104,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-25T01:01:18.169Z",
+"end": "2026-06-25T02:19:03.317Z",
+"by_model": {
+"opus": 32.6626
+}
+},
+"2014ce87-1ff5-4792-8051-20ed0cc3b80a": {
+"cost": 1.5041,
+"tok": {
+"input": 32311,
+"output": 3495,
+"cache_read": 65172,
+"cache_write_5m": 0,
+"cache_write_1h": 122260
+},
+"msgs": 5,
+"tool_results": 1,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-09T23:36:57.831Z",
+"end": "2026-06-09T23:38:22.835Z",
+"by_model": {
+"opus": 1.5041
+}
+},
+"2a55797b-a394-4766-a2b9-06f3546cf67c": {
+"cost": 2.0496,
+"tok": {
+"input": 36774,
+"output": 13266,
+"cache_read": 1519706,
+"cache_write_5m": 0,
+"cache_write_1h": 77426
+},
+"msgs": 36,
+"tool_results": 15,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-27T11:33:54.112Z",
+"end": "2026-06-27T11:39:11.421Z",
+"by_model": {
+"opus": 2.0496
+}
+},
+"2b4404e7-d344-48fd-a42f-7e8d88e88b3b": {
+"cost": 51.82,
+"tok": {
+"input": 49489,
+"output": 259336,
+"cache_read": 58106350,
+"cache_write_5m": 0,
+"cache_write_1h": 1603600
+},
+"msgs": 333,
+"tool_results": 183,
+"tool_errors": 8,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-21T01:09:02.566Z",
+"end": "2026-06-21T01:46:33.456Z",
+"by_model": {
+"opus": 51.82
+}
+},
+"2b928e55-b720-433b-a5e6-a8ab814d703e": {
+"cost": 144.7927,
+"tok": {
+"input": 151227,
+"output": 848682,
+"cache_read": 211941143,
+"cache_write_5m": 0,
+"cache_write_1h": 1684898
+},
+"msgs": 762,
+"tool_results": 369,
+"tool_errors": 21,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-21T20:12:46.449Z",
+"end": "2026-06-22T02:41:21.510Z",
+"by_model": {
+"opus": 144.7927
+}
+},
+"2fa634cb-6e42-4cbe-b39a-5062de36b1e4": {
+"cost": 79.2065,
+"tok": {
+"input": 120567,
+"output": 466805,
+"cache_read": 92892482,
+"cache_write_5m": 252063,
+"cache_write_1h": 2317145
+},
+"msgs": 583,
+"tool_results": 313,
+"tool_errors": 5,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-22T03:53:42.595Z",
+"end": "2026-06-22T17:47:56.128Z",
+"by_model": {
+"opus": 78.1417,
+"haiku": 1.0649
+}
+},
+"31f4e20b-117d-4757-87ef-9a4b8fb95d48": {
+"cost": 53.1466,
+"tok": {
+"input": 53942,
+"output": 315692,
+"cache_read": 65871501,
+"cache_write_5m": 328027,
+"cache_write_1h": 1450755
+},
+"msgs": 507,
+"tool_results": 286,
+"tool_errors": 3,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-25T02:37:14.184Z",
+"end": "2026-06-25T03:21:19.388Z",
+"by_model": {
+"opus": 52.0194,
+"haiku": 1.1272
+}
+},
+"353ef07b-cc81-40fa-847e-8301f9f70724": {
+"cost": 102.5994,
+"tok": {
+"input": 210834,
+"output": 812890,
+"cache_read": 147494178,
+"cache_write_5m": 1933543,
+"cache_write_1h": 2174176
+},
+"msgs": 1190,
+"tool_results": 680,
+"tool_errors": 18,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-26T23:31:23.178Z",
+"end": "2026-06-27T12:24:31.880Z",
+"by_model": {
+"opus": 88.1875,
+"sonnet": 12.5188,
+"haiku": 1.8931
+}
+},
+"38abe190-d1fd-42b7-bd7d-1d2f27019bbb": {
+"cost": 24.3319,
+"tok": {
+"input": 86530,
+"output": 197006,
+"cache_read": 15256062,
+"cache_write_5m": 0,
+"cache_write_1h": 1134611
+},
+"msgs": 143,
+"tool_results": 64,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-23T21:32:31.802Z",
+"end": "2026-06-24T00:30:55.368Z",
+"by_model": {
+"opus": 24.3319
+}
+},
+"3bbb986b-aebe-4d48-ae7d-791e503bb436": {
+"cost": 4.0924,
+"tok": {
+"input": 40886,
+"output": 41455,
+"cache_read": 2812271,
+"cache_write_5m": 0,
+"cache_write_1h": 144548
+},
+"msgs": 52,
+"tool_results": 23,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-20T15:31:33.255Z",
+"end": "2026-06-20T15:37:57.336Z",
+"by_model": {
+"opus": 4.0924
+}
+},
+"44e4bfd3-b5ae-4710-994d-7259565d6773": {
+"cost": 353.8965,
+"tok": {
+"input": 628058,
+"output": 1614504,
+"cache_read": 172084674,
+"cache_write_5m": 1211934,
+"cache_write_1h": 22585306
+},
+"msgs": 645,
+"tool_results": 389,
+"tool_errors": 22,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-09T23:07:07.314Z",
+"end": "2026-06-10T02:37:21.996Z",
+"by_model": {
+"opus": 351.6275,
+"haiku": 2.2691
+}
+},
+"47e37b3d-20ad-4eba-930d-d6a26666afc2": {
+"cost": 26.9195,
+"tok": {
+"input": 55021,
+"output": 265491,
+"cache_read": 29339904,
+"cache_write_5m": 0,
+"cache_write_1h": 533715
+},
+"msgs": 241,
+"tool_results": 113,
+"tool_errors": 6,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-09T22:30:29.344Z",
+"end": "2026-06-09T23:04:43.940Z",
+"by_model": {
+"opus": 26.9195
+}
+},
+"4b09f9f1-4a49-437b-8df6-d8af941b30cc": {
+"cost": 25.6542,
+"tok": {
+"input": 40338,
+"output": 237054,
+"cache_read": 30025683,
+"cache_write_5m": 0,
+"cache_write_1h": 451335
+},
+"msgs": 243,
+"tool_results": 106,
+"tool_errors": 9,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-20T23:21:37.050Z",
+"end": "2026-06-21T01:03:31.068Z",
+"by_model": {
+"opus": 25.6542
+}
+},
+"57556273-0e8a-40f2-ad86-08255e8c317d": {
+"cost": 109.9976,
+"tok": {
+"input": 133870,
+"output": 709482,
+"cache_read": 154662949,
+"cache_write_5m": 1264379,
+"cache_write_1h": 3224214
+},
+"msgs": 1230,
+"tool_results": 762,
+"tool_errors": 19,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-22T23:11:00.369Z",
+"end": "2026-06-23T04:18:44.337Z",
+"by_model": {
+"opus": 94.7234,
+"sonnet": 14.0848,
+"haiku": 1.1894
+}
+},
+"59a14901-e43f-4544-8e40-9495cfef6391": {
+"cost": 51.3535,
+"tok": {
+"input": 122838,
+"output": 399352,
+"cache_read": 61942915,
+"cache_write_5m": 0,
+"cache_write_1h": 978405
+},
+"msgs": 380,
+"tool_results": 167,
+"tool_errors": 12,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-17T14:55:32.362Z",
+"end": "2026-06-17T21:26:02.174Z",
+"by_model": {
+"opus": 51.3535
+}
+},
+"5c1d5ea7-088b-4b2c-8bb5-1273f995d979": {
+"cost": 23.201,
+"tok": {
+"input": 54770,
+"output": 318464,
+"cache_read": 18732145,
+"cache_write_5m": 0,
+"cache_write_1h": 559950
+},
+"msgs": 177,
+"tool_results": 73,
+"tool_errors": 3,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-28T01:25:02.952Z",
+"end": "2026-06-28T02:16:28.588Z",
+"by_model": {
+"opus": 23.201
+}
+},
+"66cddf69-a7a0-4b2d-9cf6-c0a7d33d7fa1": {
+"cost": 15.4089,
+"tok": {
+"input": 57927,
+"output": 119552,
+"cache_read": 20093237,
+"cache_write_5m": 293710,
+"cache_write_1h": 327779
+},
+"msgs": 227,
+"tool_results": 107,
+"tool_errors": 3,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-27T19:12:33.072Z",
+"end": "2026-06-27T19:45:10.365Z",
+"by_model": {
+"opus": 13.3892,
+"sonnet": 2.0197
+}
+},
+"6e596aca-85a2-47cb-9c26-2de69a206a1b": {
+"cost": 65.5035,
+"tok": {
+"input": 242173,
+"output": 472781,
+"cache_read": 66558117,
+"cache_write_5m": 433062,
+"cache_write_1h": 1790046
+},
+"msgs": 498,
+"tool_results": 271,
+"tool_errors": 16,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-09T02:11:32.168Z",
+"end": "2026-06-09T22:30:02.174Z",
+"by_model": {
+"opus": 65.1502,
+"haiku": 0.3533
+}
+},
+"6e5f6d87-247d-4087-a59f-e66e3346f426": {
+"cost": 15.4885,
+"tok": {
+"input": 62324,
+"output": 132045,
+"cache_read": 16199341,
+"cache_write_5m": 0,
+"cache_write_1h": 377605
+},
+"msgs": 161,
+"tool_results": 79,
+"tool_errors": 4,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-20T18:00:46.826Z",
+"end": "2026-06-20T18:19:56.534Z",
+"by_model": {
+"opus": 15.4885
+}
+},
+"719c9322-85f9-4b2c-895d-4b97c402d0d8": {
+"cost": 60.9301,
+"tok": {
+"input": 54869,
+"output": 383211,
+"cache_read": 81314733,
+"cache_write_5m": 100419,
+"cache_write_1h": 1186958
+},
+"msgs": 504,
+"tool_results": 242,
+"tool_errors": 9,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-25T23:45:19.586Z",
+"end": "2026-06-26T01:14:44.739Z",
+"by_model": {
+"opus": 60.4104,
+"haiku": 0.5198
+}
+},
+"7351f45d-a49f-459e-8b06-35f86847b315": {
+"cost": 63.1741,
+"tok": {
+"input": 312306,
+"output": 398940,
+"cache_read": 74237345,
+"cache_write_5m": 0,
+"cache_write_1h": 1452040
+},
+"msgs": 370,
+"tool_results": 168,
+"tool_errors": 10,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-10T00:39:49.773Z",
+"end": "2026-06-10T03:28:04.283Z",
+"by_model": {
+"opus": 63.1741
+}
+},
+"759fb976-0390-41ee-afbc-d0e40ffb943d": {
+"cost": 5.7908,
+"tok": {
+"input": 76777,
+"output": 42274,
+"cache_read": 4791352,
+"cache_write_5m": 0,
+"cache_write_1h": 195440
+},
+"msgs": 80,
+"tool_results": 35,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-22T19:54:17.252Z",
+"end": "2026-06-22T20:33:38.229Z",
+"by_model": {
+"opus": 5.7908
+}
+},
+"7636e3a8-e2cb-47d8-8b14-de24ec71af1b": {
+"cost": 11.544,
+"tok": {
+"input": 66248,
+"output": 128509,
+"cache_read": 10434409,
+"cache_write_5m": 0,
+"cache_write_1h": 278281
+},
+"msgs": 122,
+"tool_results": 59,
+"tool_errors": 3,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-17T14:22:14.044Z",
+"end": "2026-06-17T14:42:07.368Z",
+"by_model": {
+"opus": 11.544
+}
+},
+"7d5d0a42-64d4-4b42-9f07-a5216607c507": {
+"cost": 28.9292,
+"tok": {
+"input": 86681,
+"output": 264902,
+"cache_read": 32573018,
+"cache_write_5m": 76475,
+"cache_write_1h": 625823
+},
+"msgs": 294,
+"tool_results": 157,
+"tool_errors": 5,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-20T16:38:17.920Z",
+"end": "2026-06-20T17:23:04.888Z",
+"by_model": {
+"opus": 28.6419,
+"haiku": 0.2874
+}
+},
+"8e65169c-4b35-4f98-8d2c-43667b92f2e6": {
+"cost": 104.5002,
+"tok": {
+"input": 172083,
+"output": 750152,
+"cache_read": 129722897,
+"cache_write_5m": 638951,
+"cache_write_1h": 2056245
+},
+"msgs": 542,
+"tool_results": 262,
+"tool_errors": 8,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-15T12:20:41.588Z",
+"end": "2026-06-15T17:28:47.229Z",
+"by_model": {
+"opus": 103.3674,
+"haiku": 1.1328
+}
+},
+"99668395-6c29-4c1a-86c6-d3da529ceff4": {
+"cost": 23.6927,
+"tok": {
+"input": 72946,
+"output": 159305,
+"cache_read": 31269396,
+"cache_write_5m": 262104,
+"cache_write_1h": 621641
+},
+"msgs": 391,
+"tool_results": 218,
+"tool_errors": 14,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-22T02:47:58.328Z",
+"end": "2026-06-22T03:47:24.653Z",
+"by_model": {
+"opus": 21.788,
+"haiku": 0.5147,
+"sonnet": 1.39
+}
+},
+"9a3ee894-2544-4ae1-94fd-8a73911ee8b5": {
+"cost": 1.2161,
+"tok": {
+"input": 37677,
+"output": 4426,
+"cache_read": 264493,
+"cache_write_5m": 0,
+"cache_write_1h": 78479
+},
+"msgs": 9,
+"tool_results": 3,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-25T22:24:42.706Z",
+"end": "2026-06-25T22:25:37.443Z",
+"by_model": {
+"opus": 1.2161
+}
+},
+"9b4c87da-93cf-4400-8308-1066f5ae7a61": {
+"cost": 42.4169,
+"tok": {
+"input": 60378,
+"output": 338567,
+"cache_read": 35410429,
+"cache_write_5m": 114462,
+"cache_write_1h": 1596533
+},
+"msgs": 225,
+"tool_results": 99,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-27T12:10:57.979Z",
+"end": "2026-06-28T00:36:10.223Z",
+"by_model": {
+"opus": 42.2332,
+"haiku": 0.1838
+}
+},
+"9dca0579-3028-44f3-b8f7-e02f2ddc1122": {
+"cost": 33.1236,
+"tok": {
+"input": 80332,
+"output": 282010,
+"cache_read": 50135063,
+"cache_write_5m": 342014,
+"cache_write_1h": 569843
+},
+"msgs": 430,
+"tool_results": 223,
+"tool_errors": 6,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-28T00:42:23.445Z",
+"end": "2026-06-28T18:41:13.217Z",
+"by_model": {
+"opus": 28.3024,
+"sonnet": 4.8212
+}
+},
+"a4737b21-63ab-4170-8315-8bc5c6885a5f": {
+"cost": 23.0948,
+"tok": {
+"input": 69316,
+"output": 172601,
+"cache_read": 29794186,
+"cache_write_5m": 121686,
+"cache_write_1h": 531987
+},
+"msgs": 317,
+"tool_results": 173,
+"tool_errors": 4,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-22T17:50:27.387Z",
+"end": "2026-06-22T20:04:22.381Z",
+"by_model": {
+"opus": 22.4588,
+"haiku": 0.6361
+}
+},
+"ac916aa9-82ba-4348-9cde-2792b76a4e2f": {
+"cost": 2.4952,
+"tok": {
+"input": 53370,
+"output": 13618,
+"cache_read": 1311998,
+"cache_write_5m": 0,
+"cache_write_1h": 123192
+},
+"msgs": 31,
+"tool_results": 12,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-27T19:36:14.489Z",
+"end": "2026-06-27T19:39:43.313Z",
+"by_model": {
+"opus": 2.4952
+}
+},
+"afb7e1be-7d12-43e9-8a41-2e4ca2277782": {
+"cost": 92.5343,
+"tok": {
+"input": 104099,
+"output": 669362,
+"cache_read": 101359088,
+"cache_write_5m": 0,
+"cache_write_1h": 2460023
+},
+"msgs": 476,
+"tool_results": 243,
+"tool_errors": 11,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-26T01:30:53.659Z",
+"end": "2026-06-26T23:27:56.495Z",
+"by_model": {
+"opus": 92.5343
+}
+},
+"b2038d86-02fa-4f95-8f7d-195a71e610b1": {
+"cost": 105.04,
+"tok": {
+"input": 87406,
+"output": 577264,
+"cache_read": 113130394,
+"cache_write_5m": 0,
+"cache_write_1h": 3360617
+},
+"msgs": 478,
+"tool_results": 196,
+"tool_errors": 9,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-14T14:52:58.950Z",
+"end": "2026-06-15T12:20:19.296Z",
+"by_model": {
+"opus": 105.04
+}
+},
+"b6473978-aa8f-495c-b496-d43478e0982b": {
+"cost": 32.6919,
+"tok": {
+"input": 51140,
+"output": 183830,
+"cache_read": 45840407,
+"cache_write_5m": 0,
+"cache_write_1h": 492024
+},
+"msgs": 315,
+"tool_results": 166,
+"tool_errors": 7,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-20T15:41:22.871Z",
+"end": "2026-06-20T16:14:45.087Z",
+"by_model": {
+"opus": 32.6919
+}
+},
+"b6e436c2-6832-41e6-88f7-2ad351372ba0": {
+"cost": 1.4164,
+"tok": {
+"input": 21546,
+"output": 2979,
+"cache_read": 182050,
+"cache_write_5m": 0,
+"cache_write_1h": 114313
+},
+"msgs": 7,
+"tool_results": 2,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-10T03:31:56.548Z",
+"end": "2026-06-10T03:32:40.283Z",
+"by_model": {
+"opus": 1.4164
+}
+},
+"bab7a029-9b74-4603-aaa1-772c066d9268": {
+"cost": 0.7209,
+"tok": {
+"input": 21556,
+"output": 1394,
+"cache_read": 0,
+"cache_write_5m": 0,
+"cache_write_1h": 57824
+},
+"msgs": 2,
+"tool_results": 0,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-09T23:35:50.058Z",
+"end": "2026-06-09T23:35:59.958Z",
+"by_model": {
+"opus": 0.7209
+}
+},
+"c401298b-90d0-4343-a6bf-508070704814": {
+"cost": 14.2229,
+"tok": {
+"input": 66481,
+"output": 154517,
+"cache_read": 9481879,
+"cache_write_5m": 110223,
+"cache_write_1h": 676933
+},
+"msgs": 193,
+"tool_results": 108,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-24T01:25:43.443Z",
+"end": "2026-06-24T02:14:31.188Z",
+"by_model": {
+"opus": 13.68,
+"haiku": 0.5429
+}
+},
+"cf9981c9-1489-4517-a070-4f6968386bc9": {
+"cost": 0.6919,
+"tok": {
+"input": 25082,
+"output": 2546,
+"cache_read": 101568,
+"cache_write_5m": 0,
+"cache_write_1h": 45208
+},
+"msgs": 4,
+"tool_results": 1,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-20T18:20:06.521Z",
+"end": "2026-06-20T18:20:27.292Z",
+"by_model": {
+"opus": 0.6919
+}
+},
+"d3f0d0b3-7a22-46ea-a3cb-dfdea6bcd2bf": {
+"cost": 3.374,
+"tok": {
+"input": 39042,
+"output": 26036,
+"cache_read": 2506223,
+"cache_write_5m": 0,
+"cache_write_1h": 127482
+},
+"msgs": 44,
+"tool_results": 15,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-27T19:46:46.353Z",
+"end": "2026-06-27T21:23:52.924Z",
+"by_model": {
+"opus": 3.374
+}
+},
+"d72c6687-7018-4fbb-9711-4feefc1de27d": {
+"cost": 20.8211,
+"tok": {
+"input": 38643,
+"output": 163695,
+"cache_read": 26109781,
+"cache_write_5m": 0,
+"cache_write_1h": 348066
+},
+"msgs": 217,
+"tool_results": 107,
+"tool_errors": 9,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-20T14:48:07.107Z",
+"end": "2026-06-20T15:31:12.871Z",
+"by_model": {
+"opus": 20.8211
+}
+},
+"e33ad512-2e7b-4942-b4bf-abb771546632": {
+"cost": 62.2082,
+"tok": {
+"input": 74706,
+"output": 642137,
+"cache_read": 76953539,
+"cache_write_5m": 792379,
+"cache_write_1h": 966842
+},
+"msgs": 484,
+"tool_results": 243,
+"tool_errors": 23,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-25T22:23:07.412Z",
+"end": "2026-06-26T01:30:22.373Z",
+"by_model": {
+"opus": 60.3792,
+"haiku": 1.8291
+}
+},
+"e3ad406b-d2e0-4ede-a212-c943e6a80730": {
+"cost": 60.7071,
+"tok": {
+"input": 105305,
+"output": 397756,
+"cache_read": 83590906,
+"cache_write_5m": 0,
+"cache_write_1h": 844126
+},
+"msgs": 431,
+"tool_results": 184,
+"tool_errors": 16,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-23T21:00:52.104Z",
+"end": "2026-06-24T01:03:53.485Z",
+"by_model": {
+"opus": 60.7071
+}
+},
+"f1407bbe-4810-4210-8238-c58c666fb0a8": {
+"cost": 37.5655,
+"tok": {
+"input": 72392,
+"output": 239535,
+"cache_read": 46946753,
+"cache_write_5m": 112932,
+"cache_write_1h": 964683
+},
+"msgs": 426,
+"tool_results": 240,
+"tool_errors": 11,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-21T01:46:54.264Z",
+"end": "2026-06-21T03:11:02.494Z",
+"by_model": {
+"opus": 36.9128,
+"haiku": 0.6527
+}
+},
+"f3f2fe69-8034-42f5-830e-cb83b1f974a2": {
+"cost": 2.8236,
+"tok": {
+"input": 49371,
+"output": 26513,
+"cache_read": 2083061,
+"cache_write_5m": 0,
+"cache_write_1h": 87236
+},
+"msgs": 41,
+"tool_results": 14,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-22T02:55:55.128Z",
+"end": "2026-06-22T03:28:03.702Z",
+"by_model": {
+"opus": 2.8236
+}
+},
+"f69b2dd0-d259-4730-be5e-3ba114a30822": {
+"cost": 18.9412,
+"tok": {
+"input": 77740,
+"output": 150064,
+"cache_read": 20992633,
+"cache_write_5m": 207001,
+"cache_write_1h": 529277
+},
+"msgs": 250,
+"tool_results": 156,
+"tool_errors": 7,
+"project": "C--Users-charl-source-repos-kinderos",
+"start": "2026-06-20T17:34:13.208Z",
+"end": "2026-06-20T17:58:38.307Z",
+"by_model": {
+"opus": 18.3707,
+"haiku": 0.5705
+}
+},
+"0b966b71-dd30-4db1-b4b7-cce1e68fea8c": {
+"cost": 7.5931,
+"tok": {
+"input": 40940,
+"output": 52880,
+"cache_read": 6945672,
+"cache_write_5m": 0,
+"cache_write_1h": 259359
+},
+"msgs": 94,
+"tool_results": 38,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-04T19:17:00.755Z",
+"end": "2026-07-04T19:37:40.819Z",
+"by_model": {
+"opus": 7.5931
+}
+},
+"17877ab5-5448-4e3e-8ff4-c037ed20c0e7": {
+"cost": 4.2708,
+"tok": {
+"input": 53674,
+"output": 41494,
+"cache_read": 2433810,
+"cache_write_5m": 0,
+"cache_write_1h": 174815
+},
+"msgs": 33,
+"tool_results": 14,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-05T18:42:59.675Z",
+"end": "2026-07-05T20:10:07.819Z",
+"by_model": {
+"opus": 4.2708
+}
+},
+"1ba9a8a5-a222-4f17-aee6-39bd09cf3b9a": {
+"cost": 108.6749,
+"tok": {
+"input": 259468,
+"output": 859640,
+"cache_read": 117627675,
+"cache_write_5m": 1914120,
+"cache_write_1h": 4061635
+},
+"msgs": 1442,
+"tool_results": 788,
+"tool_errors": 16,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-04T19:28:08.074Z",
+"end": "2026-07-05T17:36:20.337Z",
+"by_model": {
+"opus": 96.0962,
+"haiku": 2.6555,
+"sonnet": 9.9232
+}
+},
+"1daaafe9-0db5-4338-9003-7a674738d985": {
+"cost": 36.0641,
+"tok": {
+"input": 192156,
+"output": 207276,
+"cache_read": 39158672,
+"cache_write_5m": 1424158,
+"cache_write_1h": 788015
+},
+"msgs": 473,
+"tool_results": 247,
+"tool_errors": 23,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-09T04:10:56.931Z",
+"end": "2026-07-10T10:00:04.286Z",
+"by_model": {
+"opus": 31.7714,
+"sonnet": 4.2927
+}
+},
+"1fc9c4e9-9f3f-4426-8e6e-640a591bbbcc": {
+"cost": 13.4634,
+"tok": {
+"input": 35849,
+"output": 121768,
+"cache_read": 10337893,
+"cache_write_5m": 0,
+"cache_write_1h": 507097
+},
+"msgs": 118,
+"tool_results": 53,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-06T20:47:13.474Z",
+"end": "2026-07-06T21:38:09.364Z",
+"by_model": {
+"opus": 13.4634
+}
+},
+"220edd4d-f3d8-4d47-929f-6043aebfc9ac": {
+"cost": 5.7585,
+"tok": {
+"input": 66299,
+"output": 65028,
+"cache_read": 3334454,
+"cache_write_5m": 0,
+"cache_write_1h": 213409
+},
+"msgs": 56,
+"tool_results": 28,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-05T20:10:30.302Z",
+"end": "2026-07-06T00:45:01.881Z",
+"by_model": {
+"opus": 5.7585
+}
+},
+"2856d38c-1be3-4928-b5ed-c5cd574b9261": {
+"cost": 25.8232,
+"tok": {
+"input": 36377,
+"output": 262100,
+"cache_read": 24804710,
+"cache_write_5m": 0,
+"cache_write_1h": 668644
+},
+"msgs": 270,
+"tool_results": 140,
+"tool_errors": 7,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-03T02:44:51.772Z",
+"end": "2026-07-03T03:17:56.178Z",
+"by_model": {
+"opus": 25.8232
+}
+},
+"3af9494d-d89f-48e1-9610-b52b3da88b46": {
+"cost": 65.365,
+"tok": {
+"input": 53437,
+"output": 467337,
+"cache_read": 81045362,
+"cache_write_5m": 0,
+"cache_write_1h": 1289166
+},
+"msgs": 439,
+"tool_results": 192,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-06T02:25:39.825Z",
+"end": "2026-07-06T12:05:53.487Z",
+"by_model": {
+"opus": 65.365
+}
+},
+"449580ca-31f4-45cd-9dcf-1fc971c86d28": {
+"cost": 11.9399,
+"tok": {
+"input": 63191,
+"output": 84913,
+"cache_read": 11642721,
+"cache_write_5m": 228696,
+"cache_write_1h": 586796
+},
+"msgs": 163,
+"tool_results": 87,
+"tool_errors": 4,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-07T22:13:21.819Z",
+"end": "2026-07-07T22:36:44.683Z",
+"by_model": {
+"opus": 9.5283,
+"sonnet": 2.4117
+}
+},
+"49dd431b-8b8f-40ae-b7b8-e9af6f33e020": {
+"cost": 235.7382,
+"tok": {
+"input": 150708,
+"output": 1980633,
+"cache_read": 218608624,
+"cache_write_5m": 263709,
+"cache_write_1h": 7697536
+},
+"msgs": 670,
+"tool_results": 334,
+"tool_errors": 4,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-03T19:21:32.045Z",
+"end": "2026-07-03T23:22:51.737Z",
+"by_model": {
+"opus": 234.0989,
+"sonnet": 1.6393
+}
+},
+"533decc3-cafe-42ad-aa8e-f8a656ac7eb3": {
+"cost": 21.9613,
+"tok": {
+"input": 54778,
+"output": 228487,
+"cache_read": 12931606,
+"cache_write_5m": 153585,
+"cache_write_1h": 854957
+},
+"msgs": 156,
+"tool_results": 79,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-03T23:31:46.716Z",
+"end": "2026-07-04T00:21:19.647Z",
+"by_model": {
+"opus": 21.9613
+}
+},
+"5b038c6b-a867-4cf6-ab94-579d93f5ef35": {
+"cost": 6.5973,
+"tok": {
+"input": 72423,
+"output": 68150,
+"cache_read": 4103110,
+"cache_write_5m": 0,
+"cache_write_1h": 247985
+},
+"msgs": 60,
+"tool_results": 32,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-07T22:42:58.923Z",
+"end": "2026-07-07T22:50:17.403Z",
+"by_model": {
+"opus": 6.5973
+}
+},
+"5ce8e49e-eced-4cb4-b743-f7508b58019d": {
+"cost": 49.6606,
+"tok": {
+"input": 339877,
+"output": 504676,
+"cache_read": 44271526,
+"cache_write_5m": 682589,
+"cache_write_1h": 894238
+},
+"msgs": 303,
+"tool_results": 127,
+"tool_errors": 5,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-05T17:57:36.384Z",
+"end": "2026-07-05T19:10:20.683Z",
+"by_model": {
+"opus": 49.6606
+}
+},
+"64467a74-f81d-4561-ac57-3a2f067fa49a": {
+"cost": 23.6481,
+"tok": {
+"input": 309783,
+"output": 324026,
+"cache_read": 19804865,
+"cache_write_5m": 802741,
+"cache_write_1h": 1172086
+},
+"msgs": 306,
+"tool_results": 167,
+"tool_errors": 5,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-03T01:17:40.385Z",
+"end": "2026-07-03T02:16:08.766Z",
+"by_model": {
+"opus": 15.2202,
+"sonnet": 8.4279
+}
+},
+"65a0d940-0241-4d3a-a452-b020d50481df": {
+"cost": 7.1138,
+"tok": {
+"input": 39563,
+"output": 73504,
+"cache_read": 3763334,
+"cache_write_5m": 0,
+"cache_write_1h": 319676
+},
+"msgs": 43,
+"tool_results": 17,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-07T02:40:17.426Z",
+"end": "2026-07-07T02:52:18.975Z",
+"by_model": {
+"opus": 7.1138
+}
+},
+"665a17af-7767-44f8-80c7-ec86ad953f9b": {
+"cost": 17.6681,
+"tok": {
+"input": 109059,
+"output": 154429,
+"cache_read": 21873888,
+"cache_write_5m": 513355,
+"cache_write_1h": 373767
+},
+"msgs": 264,
+"tool_results": 141,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-06T12:25:21.045Z",
+"end": "2026-07-06T13:58:28.410Z",
+"by_model": {
+"opus": 14.5875,
+"sonnet": 3.0807
+}
+},
+"82d48ca6-3f53-4b11-819e-14f16dcf1dad": {
+"cost": 37.0019,
+"tok": {
+"input": 67519,
+"output": 427236,
+"cache_read": 38906637,
+"cache_write_5m": 0,
+"cache_write_1h": 653005
+},
+"msgs": 237,
+"tool_results": 129,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-07T23:37:33.007Z",
+"end": "2026-07-08T01:16:46.230Z",
+"by_model": {
+"opus": 37.0019
+}
+},
+"99e81052-4cef-472f-834f-3cc56c4fcd97": {
+"cost": 2.1915,
+"tok": {
+"input": 38026,
+"output": 12982,
+"cache_read": 592003,
+"cache_write_5m": 0,
+"cache_write_1h": 138078
+},
+"msgs": 14,
+"tool_results": 5,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-03T00:38:09.767Z",
+"end": "2026-07-03T00:44:06.958Z",
+"by_model": {
+"opus": 2.1915
+}
+},
+"a11df438-8427-4315-ae4b-98aa343c49aa": {
+"cost": 6.4773,
+"tok": {
+"input": 14721,
+"output": 55982,
+"cache_read": 5209855,
+"cache_write_5m": 0,
+"cache_write_1h": 239925
+},
+"msgs": 82,
+"tool_results": 28,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-05T02:11:19.865Z",
+"end": "2026-07-05T17:33:43.290Z",
+"by_model": {
+"opus": 6.4773
+}
+},
+"a3f668c7-4b41-4707-b595-d59fd8629ebf": {
+"cost": 4.0587,
+"tok": {
+"input": 40577,
+"output": 28402,
+"cache_read": 2399864,
+"cache_write_5m": 0,
+"cache_write_1h": 194584
+},
+"msgs": 44,
+"tool_results": 18,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-04T15:26:21.696Z",
+"end": "2026-07-04T16:19:43.584Z",
+"by_model": {
+"opus": 4.0587
+}
+},
+"a41b3b11-01c7-41fe-b3ed-f5db45dd130f": {
+"cost": 48.6201,
+"tok": {
+"input": 171227,
+"output": 502212,
+"cache_read": 31662767,
+"cache_write_5m": 0,
+"cache_write_1h": 1937727
+},
+"msgs": 348,
+"tool_results": 181,
+"tool_errors": 9,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-03T04:00:05.307Z",
+"end": "2026-07-03T19:38:39.008Z",
+"by_model": {
+"opus": 48.6201
+}
+},
+"acb0b6ec-216c-4da1-89ed-e1eeb6cf30ea": {
+"cost": 9.9958,
+"tok": {
+"input": 58890,
+"output": 117735,
+"cache_read": 7745084,
+"cache_write_5m": 0,
+"cache_write_1h": 288546
+},
+"msgs": 110,
+"tool_results": 45,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-06T01:31:11.959Z",
+"end": "2026-07-06T02:23:08.091Z",
+"by_model": {
+"opus": 9.9958
+}
+},
+"c13f3372-8561-41c6-b964-e99e35c7f087": {
+"cost": 1.1437,
+"tok": {
+"input": 51790,
+"output": 4700,
+"cache_read": 452421,
+"cache_write_5m": 0,
+"cache_write_1h": 54104
+},
+"msgs": 13,
+"tool_results": 7,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-06T01:54:41.030Z",
+"end": "2026-07-06T01:55:44.575Z",
+"by_model": {
+"opus": 1.1437
+}
+},
+"c20ea8df-1a39-41bd-89c3-051781eae3cb": {
+"cost": 20.0361,
+"tok": {
+"input": 57751,
+"output": 161275,
+"cache_read": 21168377,
+"cache_write_5m": 172769,
+"cache_write_1h": 553782
+},
+"msgs": 215,
+"tool_results": 104,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-06T23:34:56.473Z",
+"end": "2026-07-07T02:40:05.147Z",
+"by_model": {
+"opus": 19.0452,
+"sonnet": 0.9909
+}
+},
+"c5c1e3fe-5750-4527-92a5-a7696bcd698e": {
+"cost": 42.5908,
+"tok": {
+"input": 133368,
+"output": 404091,
+"cache_read": 66994766,
+"cache_write_5m": 481985,
+"cache_write_1h": 595745
+},
+"msgs": 453,
+"tool_results": 225,
+"tool_errors": 3,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-06T21:41:11.856Z",
+"end": "2026-07-06T23:33:35.974Z",
+"by_model": {
+"opus": 35.4937,
+"sonnet": 7.0971
+}
+},
+"cc4717c7-0900-41ab-be87-bb909dcfc893": {
+"cost": 8.1427,
+"tok": {
+"input": 235,
+"output": 185670,
+"cache_read": 21840813,
+"cache_write_5m": 0,
+"cache_write_1h": 479342
+},
+"msgs": 207,
+"tool_results": 148,
+"tool_errors": 15,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-03T02:18:29.847Z",
+"end": "2026-07-03T02:44:12.063Z",
+"by_model": {
+"sonnet": 8.1427
+}
+},
+"cf0ed7e4-603d-4adf-9262-6821231e768e": {
+"cost": 4.1478,
+"tok": {
+"input": 27929,
+"output": 72979,
+"cache_read": 1904178,
+"cache_write_5m": 0,
+"cache_write_1h": 123160
+},
+"msgs": 29,
+"tool_results": 13,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-07T22:15:50.176Z",
+"end": "2026-07-07T22:30:30.227Z",
+"by_model": {
+"opus": 4.1478
+}
+},
+"d0d527bd-f01c-4b83-9b52-83fcf0ba0b56": {
+"cost": 9.2477,
+"tok": {
+"input": 50528,
+"output": 63607,
+"cache_read": 10257889,
+"cache_write_5m": 0,
+"cache_write_1h": 227595
+},
+"msgs": 115,
+"tool_results": 47,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-07T22:39:52.225Z",
+"end": "2026-07-07T23:22:10.338Z",
+"by_model": {
+"opus": 9.2477
+}
+},
+"d3bf1ccb-781c-492f-ba61-de7c89f4fe49": {
+"cost": 278.6925,
+"tok": {
+"input": 182445,
+"output": 1029636,
+"cache_read": 408895403,
+"cache_write_5m": 0,
+"cache_write_1h": 4759165
+},
+"msgs": 1036,
+"tool_results": 476,
+"tool_errors": 16,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-08T01:28:24.086Z",
+"end": "2026-07-09T04:06:52.559Z",
+"by_model": {
+"opus": 278.6925
+}
+},
+"d412c973-a73a-4a82-b65d-a4f8ebf9f6db": {
+"cost": 1.0874,
+"tok": {
+"input": 28014,
+"output": 6055,
+"cache_read": 309347,
+"cache_write_5m": 0,
+"cache_write_1h": 64130
+},
+"msgs": 9,
+"tool_results": 1,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-07T23:12:48.323Z",
+"end": "2026-07-07T23:20:14.106Z",
+"by_model": {
+"opus": 1.0874
+}
+},
+"de04cc2d-438f-40b1-b946-dd9bdd3ff891": {
+"cost": 51.6687,
+"tok": {
+"input": 77593,
+"output": 381698,
+"cache_read": 50958855,
+"cache_write_5m": 0,
+"cache_write_1h": 1625890
+},
+"msgs": 288,
+"tool_results": 102,
+"tool_errors": 3,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-06T16:03:10.293Z",
+"end": "2026-07-06T20:45:03.545Z",
+"by_model": {
+"opus": 51.6687
+}
+},
+"e3c82cf3-9a0f-40f4-8836-8968a4d15b48": {
+"cost": 58.5996,
+"tok": {
+"input": 231202,
+"output": 427949,
+"cache_read": 86720934,
+"cache_write_5m": 954110,
+"cache_write_1h": 1504629
+},
+"msgs": 614,
+"tool_results": 329,
+"tool_errors": 7,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-06T14:01:49.179Z",
+"end": "2026-07-06T21:29:09.062Z",
+"by_model": {
+"opus": 46.8495,
+"sonnet": 11.7501
+}
+},
+"eb14c9c5-a50d-4ba4-b7d1-85261b724b14": {
+"cost": 16.7402,
+"tok": {
+"input": 66641,
+"output": 182025,
+"cache_read": 19372931,
+"cache_write_5m": 218339,
+"cache_write_1h": 376023
+},
+"msgs": 229,
+"tool_results": 109,
+"tool_errors": 4,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-04T00:22:14.780Z",
+"end": "2026-07-04T01:10:22.555Z",
+"by_model": {
+"opus": 14.7702,
+"sonnet": 1.97
+}
+},
+"f397cca6-3cfd-4b84-8f47-ec95c7b62f2b": {
+"cost": 195.8905,
+"tok": {
+"input": 526411,
+"output": 963582,
+"cache_read": 250984491,
+"cache_write_5m": 10757382,
+"cache_write_1h": 1580747
+},
+"msgs": 2065,
+"tool_results": 974,
+"tool_errors": 54,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-05T17:36:53.463Z",
+"end": "2026-07-06T01:27:17.361Z",
+"by_model": {
+"opus": 169.6475,
+"sonnet": 26.243
+}
+},
+"f74877c4-6539-4345-8b82-da1e8f208f6d": {
+"cost": 71.5138,
+"tok": {
+"input": 228439,
+"output": 455878,
+"cache_read": 118798410,
+"cache_write_5m": 2665799,
+"cache_write_1h": 778900
+},
+"msgs": 895,
+"tool_results": 490,
+"tool_errors": 9,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-07T23:25:13.203Z",
+"end": "2026-07-08T02:27:34.100Z",
+"by_model": {
+"opus": 54.9306,
+"sonnet": 16.5832
+}
+},
+"f9ebd6fa-12c8-42c3-ab09-362f612e7b4d": {
+"cost": 35.92,
+"tok": {
+"input": 120041,
+"output": 187974,
+"cache_read": 31833052,
+"cache_write_5m": 1113934,
+"cache_write_1h": 1304995
+},
+"msgs": 343,
+"tool_results": 196,
+"tool_errors": 3,
+"project": "C--Users-charl-source-repos-signal",
+"start": "2026-07-07T02:42:10.065Z",
+"end": "2026-07-07T08:08:45.690Z",
+"by_model": {
+"opus": 32.3812,
+"sonnet": 3.5388
+}
+},
+"0cd3fc19-5598-46c5-9943-1f90a6b0ba58": {
+"cost": 11.1184,
+"tok": {
+"input": 37040,
+"output": 66648,
+"cache_read": 10932799,
+"cache_write_5m": 0,
+"cache_write_1h": 380063
+},
+"msgs": 94,
+"tool_results": 42,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-tempo",
+"start": "2026-06-17T13:21:29.174Z",
+"end": "2026-06-17T13:50:35.536Z",
+"by_model": {
+"opus": 11.1184
+}
+},
+"18178230-3495-40f4-87ba-5bde2c08fdcc": {
+"cost": 3.9031,
+"tok": {
+"input": 39222,
+"output": 28075,
+"cache_read": 1951932,
+"cache_write_5m": 0,
+"cache_write_1h": 202917
+},
+"msgs": 30,
+"tool_results": 14,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-tempo",
+"start": "2026-07-04T00:49:05.338Z",
+"end": "2026-07-04T00:54:01.635Z",
+"by_model": {
+"opus": 3.9031
+}
+},
+"1cd74c3f-b6e7-4de5-a3c5-4e80fb4daec9": {
+"cost": 3.0319,
+"tok": {
+"input": 51994,
+"output": 13424,
+"cache_read": 1285098,
+"cache_write_5m": 0,
+"cache_write_1h": 179379
+},
+"msgs": 22,
+"tool_results": 12,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-tempo",
+"start": "2026-07-05T18:47:21.017Z",
+"end": "2026-07-05T18:49:17.587Z",
+"by_model": {
+"opus": 3.0319
+}
+},
+"2eb2c8c0-445e-4024-8f09-7dcb5f838b8f": {
+"cost": 4.5709,
+"tok": {
+"input": 44306,
+"output": 35466,
+"cache_read": 3588016,
+"cache_write_5m": 0,
+"cache_write_1h": 166874
+},
+"msgs": 51,
+"tool_results": 19,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos-tempo",
+"start": "2026-06-27T19:22:51.666Z",
+"end": "2026-06-27T19:57:36.125Z",
+"by_model": {
+"opus": 4.5709
+}
+},
+"6947b071-4dfc-4dbe-93a4-145a3b9c17be": {
+"cost": 350.994,
+"tok": {
+"input": 2409435,
+"output": 1663885,
+"cache_read": 399561277,
+"cache_write_5m": 8133357,
+"cache_write_1h": 4859856
+},
+"msgs": 1839,
+"tool_results": 982,
+"tool_errors": 15,
+"project": "C--Users-charl-source-repos-tempo",
+"start": "2026-06-15T20:13:18.868Z",
+"end": "2026-06-16T13:50:57.767Z",
+"by_model": {
+"opus": 350.5283,
+"haiku": 0.4657
+}
+},
+"7ead05e7-5ed2-4dd2-b219-c187bb8971c4": {
+"cost": 20.9923,
+"tok": {
+"input": 81014,
+"output": 137554,
+"cache_read": 24992700,
+"cache_write_5m": 0,
+"cache_write_1h": 465206
+},
+"msgs": 218,
+"tool_results": 106,
+"tool_errors": 6,
+"project": "C--Users-charl-source-repos-tempo",
+"start": "2026-06-15T18:01:57.540Z",
+"end": "2026-06-15T19:20:09.140Z",
+"by_model": {
+"opus": 20.9923
+}
+},
+"b1f9b9ac-68a9-4b7f-9120-87af2233f296": {
+"cost": 15.3383,
+"tok": {
+"input": 65620,
+"output": 79044,
+"cache_read": 13142217,
+"cache_write_5m": 0,
+"cache_write_1h": 646303
+},
+"msgs": 109,
+"tool_results": 42,
+"tool_errors": 2,
+"project": "C--Users-charl-source-repos-tempo",
+"start": "2026-06-15T20:20:01.287Z",
+"end": "2026-06-15T23:38:31.435Z",
+"by_model": {
+"opus": 15.3383
+}
+},
+"bb1964ee-e01c-4341-b429-ba1a68bccae1": {
+"cost": 18.3427,
+"tok": {
+"input": 50202,
+"output": 133550,
+"cache_read": 21741771,
+"cache_write_5m": 213255,
+"cache_write_1h": 528923
+},
+"msgs": 228,
+"tool_results": 117,
+"tool_errors": 3,
+"project": "C--Users-charl-source-repos-tempo",
+"start": "2026-06-17T14:07:37.689Z",
+"end": "2026-06-17T21:34:42.227Z",
+"by_model": {
+"opus": 16.516,
+"sonnet": 1.8267
+}
+},
+"c46e204b-e607-4e8a-94cf-530ce617f899": {
+"cost": 6.5048,
+"tok": {
+"input": 34656,
+"output": 48535,
+"cache_read": 3435243,
+"cache_write_5m": 0,
+"cache_write_1h": 340057
+},
+"msgs": 39,
+"tool_results": 14,
+"tool_errors": 0,
+"project": "C--Users-charl-source-repos-tempo",
+"start": "2026-06-15T20:03:37.076Z",
+"end": "2026-06-15T20:12:49.516Z",
+"by_model": {
+"opus": 6.5048
+}
+},
+"de049049-50b5-4cf2-a5ab-e3d5a7f0b2de": {
+"cost": 47.68,
+"tok": {
+"input": 100640,
+"output": 246676,
+"cache_read": 35956349,
+"cache_write_5m": 81,
+"cache_write_1h": 2303125
+},
+"msgs": 157,
+"tool_results": 65,
+"tool_errors": 1,
+"project": "C--Users-charl-source-repos-tempo",
+"start": "2026-06-17T01:03:31.435Z",
+"end": "2026-06-17T14:03:23.775Z",
+"by_model": {
+"opus": 47.68
+}
+},
+"f1c0800d-82f5-4a99-804a-f3d50f101307": {
+"cost": 14.1488,
+"tok": {
+"input": 103173,
+"output": 129265,
+"cache_read": 8891069,
+"cache_write_5m": 130,
+"cache_write_1h": 595500
+},
+"msgs": 92,
+"tool_results": 37,
+"tool_errors": 3,
+"project": "C--Users-charl-source-repos-tempo",
+"start": "2026-06-17T02:54:04.869Z",
+"end": "2026-06-17T11:58:07.324Z",
+"by_model": {
+"opus": 14.1488
+}
+}
+}
