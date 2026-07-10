@@ -1,0 +1,3656 @@
+{
+"2026-07-05": {
+"cost": 321.7345,
+"tok": {
+"input": 1090987,
+"output": 2002834,
+"cache_read": 381525874,
+"cache_write_5m": 10840863,
+"cache_write_1h": 5962420
+},
+"msgs": 3005,
+"tool_results": 1481,
+"tool_errors": 56,
+"sessions": 8,
+"by_model": {
+"opus": {
+"cost": 287.447,
+"cache_read": 264923408,
+"output": 1693938
+},
+"sonnet": {
+"cost": 34.0864,
+"cache_read": 116113613,
+"output": 302961
+},
+"haiku": {
+"cost": 0.2011,
+"cache_read": 488853,
+"output": 5935
+}
+},
+"by_project": {
+"C--Users-charl-source-repos": {
+"cost": 46.5731,
+"msgs": 148
+},
+"C--Users-charl-source-repos-signal": {
+"cost": 272.1295,
+"msgs": 2835
+},
+"C--Users-charl-source-repos-tempo": {
+"cost": 3.0319,
+"msgs": 22
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 1018221,
+"cost": 183.7691,
+"err": 0
+},
+"ToolSearch": {
+"calls": 8,
+"out": 11416,
+"cost": 3.1392,
+"err": 0
+},
+"Glob": {
+"calls": 38,
+"out": 12001,
+"cost": 1.4001,
+"err": 0
+},
+"Bash": {
+"calls": 752,
+"out": 455451,
+"cost": 68.4934,
+"err": 44
+},
+"Skill": {
+"calls": 11,
+"out": 8027,
+"cost": 1.1838,
+"err": 0
+},
+"Write": {
+"calls": 65,
+"out": 154988,
+"cost": 9.9122,
+"err": 0
+},
+"Edit": {
+"calls": 114,
+"out": 86655,
+"cost": 10.2774,
+"err": 3
+},
+"Read": {
+"calls": 337,
+"out": 96782,
+"cost": 20.2479,
+"err": 2
+},
+"mcp__Claude_Preview__preview_start": {
+"calls": 2,
+"out": 377,
+"cost": 0.4678,
+"err": 0
+},
+"mcp__Claude_Preview__preview_eval": {
+"calls": 8,
+"out": 3613,
+"cost": 1.888,
+"err": 0
+},
+"mcp__Claude_Preview__preview_console_logs": {
+"calls": 2,
+"out": 222,
+"cost": 0.445,
+"err": 0
+},
+"mcp__Claude_Preview__preview_screenshot": {
+"calls": 3,
+"out": 270,
+"cost": 0.6879,
+"err": 0
+},
+"mcp__Claude_Preview__preview_stop": {
+"calls": 2,
+"out": 974,
+"cost": 0.482,
+"err": 0
+},
+"PowerShell": {
+"calls": 4,
+"out": 3391,
+"cost": 1.0181,
+"err": 0
+},
+"Grep": {
+"calls": 64,
+"out": 23633,
+"cost": 2.517,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 17,
+"out": 21232,
+"cost": 3.0384,
+"err": 0
+},
+"Agent": {
+"calls": 16,
+"out": 58394,
+"cost": 3.3541,
+"err": 0
+},
+"TaskCreate": {
+"calls": 1,
+"out": 3164,
+"cost": 0.194,
+"err": 0
+},
+"(multi-tool turn)": {
+"calls": 0,
+"out": 6976,
+"cost": 3.0485,
+"err": 0
+},
+"EnterPlanMode": {
+"calls": 1,
+"out": 3583,
+"cost": 0.1535,
+"err": 0
+},
+"AskUserQuestion": {
+"calls": 6,
+"out": 13015,
+"cost": 0.8733,
+"err": 1
+},
+"ExitPlanMode": {
+"calls": 1,
+"out": 705,
+"cost": 0.1388,
+"err": 1
+},
+"Artifact": {
+"calls": 1,
+"out": 521,
+"cost": 0.1168,
+"err": 0
+},
+"SendMessage": {
+"calls": 5,
+"out": 10413,
+"cost": 1.7683,
+"err": 0
+},
+"Monitor": {
+"calls": 17,
+"out": 7814,
+"cost": 2.7306,
+"err": 1
+},
+"TaskStop": {
+"calls": 5,
+"out": 996,
+"cost": 0.3891,
+"err": 4
+}
+},
+"errors": {
+"other": 38,
+"stale_edit": 1,
+"user_rejected": 3,
+"file_not_found": 8,
+"git_error": 1,
+"shell_syntax": 1,
+"read_before_write": 2,
+"shell_cmd_not_found": 1,
+"input_validation": 1
+}
+},
+"2026-07-03": {
+"cost": 365.4522,
+"tok": {
+"input": 850209,
+"output": 3501735,
+"cache_read": 326151933,
+"cache_write_5m": 1220035,
+"cache_write_1h": 13027157
+},
+"msgs": 1968,
+"tool_results": 1057,
+"tool_errors": 42,
+"sessions": 8,
+"by_model": {
+"opus": {
+"cost": 347.2423,
+"cache_read": 284895996,
+"output": 3184069
+},
+"sonnet": {
+"cost": 18.21,
+"cache_read": 41255937,
+"output": 317666
+}
+},
+"by_project": {
+"C--Users-charl-source-repos": {
+"cost": 4.8107,
+"msgs": 50
+},
+"C--Users-charl-source-repos-signal": {
+"cost": 360.6415,
+"msgs": 1918
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 1488678,
+"cost": 160.0217,
+"err": 0
+},
+"Glob": {
+"calls": 40,
+"out": 39236,
+"cost": 5.1608,
+"err": 0
+},
+"Bash": {
+"calls": 195,
+"out": 149834,
+"cost": 18.4513,
+"err": 6
+},
+"Grep": {
+"calls": 16,
+"out": 12616,
+"cost": 1.56,
+"err": 0
+},
+"Read": {
+"calls": 236,
+"out": 276858,
+"cost": 25.8421,
+"err": 2
+},
+"AskUserQuestion": {
+"calls": 5,
+"out": 8089,
+"cost": 0.575,
+"err": 0
+},
+"Edit": {
+"calls": 209,
+"out": 398181,
+"cost": 35.1742,
+"err": 5
+},
+"Write": {
+"calls": 213,
+"out": 988717,
+"cost": 99.6795,
+"err": 4
+},
+"PowerShell": {
+"calls": 112,
+"out": 44525,
+"cost": 10.227,
+"err": 25
+},
+"ToolSearch": {
+"calls": 2,
+"out": 1189,
+"cost": 0.2828,
+"err": 0
+},
+"WebFetch": {
+"calls": 5,
+"out": 3251,
+"cost": 3.9011,
+"err": 0
+},
+"Skill": {
+"calls": 10,
+"out": 6490,
+"cost": 1.4516,
+"err": 0
+},
+"Agent": {
+"calls": 13,
+"out": 83887,
+"cost": 2.8097,
+"err": 0
+},
+"ScheduleWakeup": {
+"calls": 1,
+"out": 184,
+"cost": 0.3155,
+"err": 0
+}
+},
+"errors": {
+"file_not_found": 8,
+"other": 21,
+"read_before_write": 7,
+"edit_no_match": 2,
+"shell_syntax": 3,
+"git_error": 1
+}
+},
+"2026-05-28": {
+"cost": 57.1995,
+"tok": {
+"input": 866,
+"output": 700817,
+"cache_read": 38930420,
+"cache_write_5m": 0,
+"cache_write_1h": 2020957
+},
+"msgs": 261,
+"tool_results": 182,
+"tool_errors": 1,
+"sessions": 1,
+"by_model": {
+"opus": {
+"cost": 57.1995,
+"cache_read": 38930420,
+"output": 700817
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-avatar-hub": {
+"cost": 57.1995,
+"msgs": 261
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 209107,
+"cost": 15.6763,
+"err": 0
+},
+"Bash": {
+"calls": 47,
+"out": 69737,
+"cost": 8.8182,
+"err": 0
+},
+"Grep": {
+"calls": 3,
+"out": 2200,
+"cost": 0.6013,
+"err": 0
+},
+"Read": {
+"calls": 32,
+"out": 27032,
+"cost": 4.1456,
+"err": 0
+},
+"Glob": {
+"calls": 5,
+"out": 8344,
+"cost": 0.5376,
+"err": 0
+},
+"AskUserQuestion": {
+"calls": 2,
+"out": 4664,
+"cost": 0.2503,
+"err": 0
+},
+"ToolSearch": {
+"calls": 2,
+"out": 5492,
+"cost": 0.851,
+"err": 0
+},
+"TaskCreate": {
+"calls": 10,
+"out": 27580,
+"cost": 8.8321,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 20,
+"out": 15919,
+"cost": 2.4913,
+"err": 0
+},
+"Edit": {
+"calls": 14,
+"out": 29462,
+"cost": 2.2834,
+"err": 0
+},
+"Write": {
+"calls": 47,
+"out": 301280,
+"cost": 12.7124,
+"err": 1
+}
+},
+"errors": {
+"read_before_write": 1
+}
+},
+"2026-06-06": {
+"cost": 46.2796,
+"tok": {
+"input": 8775,
+"output": 319707,
+"cache_read": 40186144,
+"cache_write_5m": 0,
+"cache_write_1h": 1814993
+},
+"msgs": 123,
+"tool_results": 79,
+"tool_errors": 0,
+"sessions": 1,
+"by_model": {
+"opus": {
+"cost": 46.2796,
+"cache_read": 40186144,
+"output": 319707
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-avatar-hub": {
+"cost": 46.2796,
+"msgs": 123
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 105959,
+"cost": 19.6413,
+"err": 0
+},
+"Skill": {
+"calls": 1,
+"out": 1868,
+"cost": 2.725,
+"err": 0
+},
+"Bash": {
+"calls": 23,
+"out": 48135,
+"cost": 8.7683,
+"err": 0
+},
+"PowerShell": {
+"calls": 8,
+"out": 13737,
+"cost": 1.9075,
+"err": 0
+},
+"Read": {
+"calls": 7,
+"out": 4761,
+"cost": 1.5411,
+"err": 0
+},
+"Write": {
+"calls": 10,
+"out": 53751,
+"cost": 3.1932,
+"err": 0
+},
+"Edit": {
+"calls": 18,
+"out": 80511,
+"cost": 5.8283,
+"err": 0
+},
+"TaskCreate": {
+"calls": 4,
+"out": 4504,
+"cost": 0.9129,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 8,
+"out": 6481,
+"cost": 1.762,
+"err": 0
+}
+},
+"errors": {}
+},
+"2026-06-23": {
+"cost": 201.5077,
+"tok": {
+"input": 375604,
+"output": 1526485,
+"cache_read": 245552542,
+"cache_write_5m": 798781,
+"cache_write_1h": 5401709
+},
+"msgs": 1780,
+"tool_results": 970,
+"tool_errors": 33,
+"sessions": 6,
+"by_model": {
+"opus": {
+"cost": 188.8517,
+"cache_read": 195485043,
+"output": 1409281
+},
+"sonnet": {
+"cost": 12.1223,
+"cache_read": 46814570,
+"output": 102717
+},
+"haiku": {
+"cost": 0.5337,
+"cache_read": 3252929,
+"output": 14487
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-decoupledlogic": {
+"cost": 54.9503,
+"msgs": 418
+},
+"C--Users-charl-source-repos-kinderos": {
+"cost": 146.5574,
+"msgs": 1362
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 796073,
+"cost": 98.5648,
+"err": 0
+},
+"Glob": {
+"calls": 21,
+"out": 27308,
+"cost": 2.5686,
+"err": 1
+},
+"Bash": {
+"calls": 218,
+"out": 54568,
+"cost": 9.5355,
+"err": 7
+},
+"Read": {
+"calls": 249,
+"out": 112683,
+"cost": 20.3659,
+"err": 2
+},
+"PowerShell": {
+"calls": 114,
+"out": 93683,
+"cost": 15.4047,
+"err": 13
+},
+"AskUserQuestion": {
+"calls": 12,
+"out": 23126,
+"cost": 1.5796,
+"err": 1
+},
+"Write": {
+"calls": 76,
+"out": 163931,
+"cost": 8.1673,
+"err": 3
+},
+"Grep": {
+"calls": 35,
+"out": 54275,
+"cost": 4.8716,
+"err": 0
+},
+"Edit": {
+"calls": 151,
+"out": 99598,
+"cost": 14.4724,
+"err": 6
+},
+"ToolSearch": {
+"calls": 6,
+"out": 15956,
+"cost": 1.1462,
+"err": 0
+},
+"EnterPlanMode": {
+"calls": 2,
+"out": 110,
+"cost": 1.2984,
+"err": 0
+},
+"ExitPlanMode": {
+"calls": 2,
+"out": 2048,
+"cost": 0.2596,
+"err": 0
+},
+"TaskCreate": {
+"calls": 26,
+"out": 31306,
+"cost": 15.2233,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 48,
+"out": 35120,
+"cost": 6.1999,
+"err": 0
+},
+"Skill": {
+"calls": 6,
+"out": 5278,
+"cost": 1.0569,
+"err": 0
+},
+"Agent": {
+"calls": 3,
+"out": 11422,
+"cost": 0.7929,
+"err": 0
+}
+},
+"errors": {
+"shell_cmd_not_found": 2,
+"is_directory": 3,
+"user_rejected": 5,
+"read_before_write": 8,
+"blocked_dangerous": 2,
+"other": 9,
+"edit_no_match": 1,
+"file_not_found": 2,
+"shell_syntax": 1
+}
+},
+"2026-06-15": {
+"cost": 512.0349,
+"tok": {
+"input": 1728819,
+"output": 3273651,
+"cache_read": 568859405,
+"cache_write_5m": 5327480,
+"cache_write_1h": 11009557
+},
+"msgs": 2970,
+"tool_results": 1507,
+"tool_errors": 36,
+"sessions": 11,
+"by_model": {
+"opus": {
+"cost": 510.4667,
+"cache_read": 564363222,
+"output": 3253082
+},
+"haiku": {
+"cost": 1.5681,
+"cache_read": 4496183,
+"output": 20569
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-decoupledlogic": {
+"cost": 144.8964,
+"msgs": 940
+},
+"C--Users-charl-source-repos-kinderos": {
+"cost": 120.1425,
+"msgs": 580
+},
+"C--Users-charl-source-repos-tempo": {
+"cost": 239.8635,
+"msgs": 1405
+},
+"C--Users-charl-source-repos-tempo--worktree": {
+"cost": 7.1324,
+"msgs": 45
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 1838979,
+"cost": 265.7924,
+"err": 0
+},
+"Read": {
+"calls": 375,
+"out": 175417,
+"cost": 49.4216,
+"err": 1
+},
+"Grep": {
+"calls": 70,
+"out": 57862,
+"cost": 9.2139,
+"err": 2
+},
+"Bash": {
+"calls": 455,
+"out": 340062,
+"cost": 76.1013,
+"err": 21
+},
+"AskUserQuestion": {
+"calls": 23,
+"out": 72717,
+"cost": 4.9064,
+"err": 3
+},
+"WebSearch": {
+"calls": 4,
+"out": 2690,
+"cost": 3.1161,
+"err": 0
+},
+"WebFetch": {
+"calls": 3,
+"out": 3144,
+"cost": 0.4738,
+"err": 0
+},
+"Write": {
+"calls": 104,
+"out": 298895,
+"cost": 18.9885,
+"err": 0
+},
+"Edit": {
+"calls": 287,
+"out": 249439,
+"cost": 47.9979,
+"err": 8
+},
+"Glob": {
+"calls": 26,
+"out": 32798,
+"cost": 4.057,
+"err": 0
+},
+"ToolSearch": {
+"calls": 11,
+"out": 5147,
+"cost": 1.2522,
+"err": 0
+},
+"RemoteTrigger": {
+"calls": 1,
+"out": 392,
+"cost": 0.3438,
+"err": 0
+},
+"Agent": {
+"calls": 22,
+"out": 128022,
+"cost": 7.7543,
+"err": 0
+},
+"Skill": {
+"calls": 3,
+"out": 1954,
+"cost": 0.4079,
+"err": 0
+},
+"PowerShell": {
+"calls": 5,
+"out": 245,
+"cost": 0.0109,
+"err": 0
+},
+"TaskCreate": {
+"calls": 43,
+"out": 28826,
+"cost": 7.674,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 62,
+"out": 32181,
+"cost": 12.4192,
+"err": 0
+},
+"TaskStop": {
+"calls": 8,
+"out": 3339,
+"cost": 0.5725,
+"err": 0
+},
+"EnterWorktree": {
+"calls": 1,
+"out": 109,
+"cost": 0.3157,
+"err": 0
+},
+"ExitWorktree": {
+"calls": 1,
+"out": 912,
+"cost": 0.3128,
+"err": 0
+},
+"Monitor": {
+"calls": 1,
+"out": 108,
+"cost": 0.049,
+"err": 1
+},
+"TaskOutput": {
+"calls": 4,
+"out": 413,
+"cost": 0.8537,
+"err": 0
+}
+},
+"errors": {
+"user_rejected": 5,
+"stale_edit": 2,
+"other": 11,
+"file_not_found": 10,
+"edit_no_match": 1,
+"read_before_write": 4,
+"shell_cmd_not_found": 1,
+"input_validation": 1,
+"shell_syntax": 1
+}
+},
+"2026-06-20": {
+"cost": 357.6142,
+"tok": {
+"input": 1087260,
+"output": 2781523,
+"cache_read": 363975267,
+"cache_write_5m": 1280246,
+"cache_write_1h": 9810845
+},
+"msgs": 2688,
+"tool_results": 1412,
+"tool_errors": 65,
+"sessions": 14,
+"by_model": {
+"opus": {
+"cost": 356.2498,
+"cache_read": 357285114,
+"output": 2750430
+},
+"haiku": {
+"cost": 1.3644,
+"cache_read": 6690153,
+"output": 31093
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-decoupledlogic": {
+"cost": 129.9604,
+"msgs": 500
+},
+"C--Users-charl-source-repos-kinderos": {
+"cost": 227.6538,
+"msgs": 2188
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 1551610,
+"cost": 185.6018,
+"err": 0
+},
+"Read": {
+"calls": 436,
+"out": 237656,
+"cost": 39.7281,
+"err": 0
+},
+"Edit": {
+"calls": 213,
+"out": 261463,
+"cost": 29.8055,
+"err": 28
+},
+"Write": {
+"calls": 141,
+"out": 378467,
+"cost": 23.3055,
+"err": 1
+},
+"Bash": {
+"calls": 222,
+"out": 146168,
+"cost": 33.5396,
+"err": 3
+},
+"Skill": {
+"calls": 6,
+"out": 1998,
+"cost": 1.6228,
+"err": 0
+},
+"Grep": {
+"calls": 43,
+"out": 17241,
+"cost": 3.8153,
+"err": 1
+},
+"Glob": {
+"calls": 36,
+"out": 4615,
+"cost": 2.0298,
+"err": 0
+},
+"Agent": {
+"calls": 6,
+"out": 10475,
+"cost": 0.9878,
+"err": 0
+},
+"PowerShell": {
+"calls": 246,
+"out": 125359,
+"cost": 26.4484,
+"err": 29
+},
+"TaskCreate": {
+"calls": 20,
+"out": 13565,
+"cost": 4.3538,
+"err": 2
+},
+"ToolSearch": {
+"calls": 4,
+"out": 5462,
+"cost": 0.4018,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 36,
+"out": 22681,
+"cost": 5.6099,
+"err": 0
+},
+"AskUserQuestion": {
+"calls": 2,
+"out": 4631,
+"cost": 0.2777,
+"err": 0
+},
+"Monitor": {
+"calls": 1,
+"out": 132,
+"cost": 0.0863,
+"err": 1
+}
+},
+"errors": {
+"read_before_write": 26,
+"shell_cmd_not_found": 1,
+"other": 22,
+"input_validation": 3,
+"file_not_found": 4,
+"json_field": 2,
+"user_rejected": 1,
+"edit_no_match": 3,
+"git_error": 1,
+"shell_syntax": 2
+}
+},
+"2026-06-21": {
+"cost": 153.5579,
+"tok": {
+"input": 199820,
+"output": 937757,
+"cache_read": 172774123,
+"cache_write_5m": 112932,
+"cache_write_1h": 4463289
+},
+"msgs": 1197,
+"tool_results": 629,
+"tool_errors": 30,
+"sessions": 5,
+"by_model": {
+"opus": {
+"cost": 152.9052,
+"cache_read": 168269082,
+"output": 925631
+},
+"haiku": {
+"cost": 0.6527,
+"cache_read": 4505041,
+"output": 12126
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-decoupledlogic": {
+"cost": 22.0806,
+"msgs": 84
+},
+"C--Users-charl-source-repos-kinderos": {
+"cost": 131.4773,
+"msgs": 1113
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 523177,
+"cost": 74.3253,
+"err": 0
+},
+"Bash": {
+"calls": 82,
+"out": 52211,
+"cost": 8.7153,
+"err": 2
+},
+"Read": {
+"calls": 176,
+"out": 77577,
+"cost": 16.1653,
+"err": 3
+},
+"Edit": {
+"calls": 69,
+"out": 45244,
+"cost": 8.6363,
+"err": 3
+},
+"AskUserQuestion": {
+"calls": 5,
+"out": 9135,
+"cost": 0.7437,
+"err": 0
+},
+"Grep": {
+"calls": 19,
+"out": 12016,
+"cost": 2.0677,
+"err": 1
+},
+"PowerShell": {
+"calls": 157,
+"out": 85270,
+"cost": 17.3517,
+"err": 21
+},
+"Glob": {
+"calls": 26,
+"out": 13407,
+"cost": 2.8551,
+"err": 0
+},
+"ToolSearch": {
+"calls": 5,
+"out": 6972,
+"cost": 0.5945,
+"err": 0
+},
+"TaskCreate": {
+"calls": 17,
+"out": 16936,
+"cost": 13.1959,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 29,
+"out": 9745,
+"cost": 2.8784,
+"err": 0
+},
+"Write": {
+"calls": 43,
+"out": 84582,
+"cost": 5.9471,
+"err": 0
+},
+"Agent": {
+"calls": 1,
+"out": 1485,
+"cost": 0.0817,
+"err": 0
+}
+},
+"errors": {
+"read_before_write": 3,
+"json_field": 2,
+"other": 16,
+"file_not_found": 5,
+"blocked_dangerous": 2,
+"is_directory": 2
+}
+},
+"2026-06-13": {
+"cost": 39.2123,
+"tok": {
+"input": 129016,
+"output": 336250,
+"cache_read": 32985658,
+"cache_write_5m": 0,
+"cache_write_1h": 1366810
+},
+"msgs": 363,
+"tool_results": 169,
+"tool_errors": 4,
+"sessions": 3,
+"by_model": {
+"opus": {
+"cost": 39.2123,
+"cache_read": 32985658,
+"output": 336250
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-decoupledlogic": {
+"cost": 18.9682,
+"msgs": 180
+},
+"C--Users-charl-source-repos-kinderos": {
+"cost": 20.244,
+"msgs": 183
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 217298,
+"cost": 21.6521,
+"err": 0
+},
+"Bash": {
+"calls": 74,
+"out": 37758,
+"cost": 8.2575,
+"err": 1
+},
+"Read": {
+"calls": 27,
+"out": 8807,
+"cost": 1.7645,
+"err": 0
+},
+"Skill": {
+"calls": 2,
+"out": 715,
+"cost": 0.1324,
+"err": 0
+},
+"ToolSearch": {
+"calls": 3,
+"out": 2173,
+"cost": 0.1799,
+"err": 0
+},
+"WebSearch": {
+"calls": 2,
+"out": 282,
+"cost": 1.3876,
+"err": 0
+},
+"WebFetch": {
+"calls": 1,
+"out": 272,
+"cost": 0.0562,
+"err": 0
+},
+"Write": {
+"calls": 8,
+"out": 44329,
+"cost": 1.7196,
+"err": 0
+},
+"Edit": {
+"calls": 32,
+"out": 19100,
+"cost": 2.2692,
+"err": 3
+},
+"Glob": {
+"calls": 1,
+"out": 427,
+"cost": 0.0354,
+"err": 0
+},
+"TaskCreate": {
+"calls": 5,
+"out": 1284,
+"cost": 0.735,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 9,
+"out": 683,
+"cost": 0.5596,
+"err": 0
+},
+"Grep": {
+"calls": 5,
+"out": 3122,
+"cost": 0.4633,
+"err": 0
+}
+},
+"errors": {
+"file_not_found": 1,
+"read_before_write": 2,
+"stale_edit": 1
+}
+},
+"2026-06-14": {
+"cost": 251.2456,
+"tok": {
+"input": 105307,
+"output": 1145667,
+"cache_read": 259359101,
+"cache_write_5m": 0,
+"cache_write_1h": 9239788
+},
+"msgs": 1015,
+"tool_results": 449,
+"tool_errors": 10,
+"sessions": 3,
+"by_model": {
+"opus": {
+"cost": 251.2456,
+"cache_read": 259359101,
+"output": 1145667
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-decoupledlogic": {
+"cost": 45.4885,
+"msgs": 172
+},
+"C--Users-charl-source-repos-kinderos": {
+"cost": 205.7571,
+"msgs": 843
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 718504,
+"cost": 148.382,
+"err": 0
+},
+"Bash": {
+"calls": 168,
+"out": 165921,
+"cost": 39.7975,
+"err": 5
+},
+"Read": {
+"calls": 100,
+"out": 54886,
+"cost": 27.4368,
+"err": 0
+},
+"PowerShell": {
+"calls": 3,
+"out": 784,
+"cost": 0.4015,
+"err": 1
+},
+"Write": {
+"calls": 32,
+"out": 97292,
+"cost": 10.3587,
+"err": 0
+},
+"Edit": {
+"calls": 113,
+"out": 66599,
+"cost": 19.4091,
+"err": 4
+},
+"ToolSearch": {
+"calls": 1,
+"out": 98,
+"cost": 0.1289,
+"err": 0
+},
+"TaskStop": {
+"calls": 1,
+"out": 55,
+"cost": 0.1317,
+"err": 0
+},
+"TaskCreate": {
+"calls": 6,
+"out": 2036,
+"cost": 0.5958,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 12,
+"out": 3224,
+"cost": 2.1048,
+"err": 0
+},
+"Grep": {
+"calls": 2,
+"out": 511,
+"cost": 0.3479,
+"err": 0
+},
+"AskUserQuestion": {
+"calls": 10,
+"out": 32646,
+"cost": 1.9928,
+"err": 0
+},
+"Skill": {
+"calls": 1,
+"out": 3111,
+"cost": 0.1583,
+"err": 0
+}
+},
+"errors": {
+"read_before_write": 4,
+"file_not_found": 4,
+"other": 2
+}
+},
+"2026-06-18": {
+"cost": 40.9633,
+"tok": {
+"input": 45983,
+"output": 492180,
+"cache_read": 45430900,
+"cache_write_5m": 0,
+"cache_write_1h": 571340
+},
+"msgs": 274,
+"tool_results": 112,
+"tool_errors": 2,
+"sessions": 1,
+"by_model": {
+"opus": {
+"cost": 40.9633,
+"cache_read": 45430900,
+"output": 492180
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-decoupledlogic": {
+"cost": 40.9633,
+"msgs": 274
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 326331,
+"cost": 24.8756,
+"err": 0
+},
+"Bash": {
+"calls": 37,
+"out": 32742,
+"cost": 5.4285,
+"err": 0
+},
+"Write": {
+"calls": 17,
+"out": 54291,
+"cost": 3.167,
+"err": 0
+},
+"Read": {
+"calls": 17,
+"out": 13587,
+"cost": 1.5378,
+"err": 0
+},
+"Edit": {
+"calls": 35,
+"out": 60993,
+"cost": 5.5317,
+"err": 0
+},
+"Grep": {
+"calls": 5,
+"out": 3426,
+"cost": 0.3084,
+"err": 1
+},
+"AskUserQuestion": {
+"calls": 1,
+"out": 810,
+"cost": 0.1144,
+"err": 1
+}
+},
+"errors": {
+"file_not_found": 1,
+"user_rejected": 1
+}
+},
+"2026-06-19": {
+"cost": 5.3285,
+"tok": {
+"input": 200,
+"output": 21166,
+"cache_read": 3897029,
+"cache_write_5m": 0,
+"cache_write_1h": 284987
+},
+"msgs": 14,
+"tool_results": 6,
+"tool_errors": 0,
+"sessions": 1,
+"by_model": {
+"opus": {
+"cost": 5.3285,
+"cache_read": 3897029,
+"output": 21166
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-decoupledlogic": {
+"cost": 5.3285,
+"msgs": 14
+}
+},
+"by_tool": {
+"Read": {
+"calls": 1,
+"out": 107,
+"cost": 2.7134,
+"err": 0
+},
+"(final response)": {
+"calls": 0,
+"out": 15015,
+"cost": 1.6584,
+"err": 0
+},
+"Edit": {
+"calls": 4,
+"out": 5725,
+"cost": 0.7948,
+"err": 0
+},
+"Bash": {
+"calls": 1,
+"out": 319,
+"cost": 0.162,
+"err": 0
+}
+},
+"errors": {}
+},
+"2026-06-16": {
+"cost": 175.0816,
+"tok": {
+"input": 1589950,
+"output": 841230,
+"cache_read": 178763692,
+"cache_write_5m": 4166462,
+"cache_write_1h": 3080064
+},
+"msgs": 916,
+"tool_results": 447,
+"tool_errors": 15,
+"sessions": 3,
+"by_model": {
+"opus": {
+"cost": 175.0512,
+"cache_read": 178602513,
+"output": 838595
+},
+"haiku": {
+"cost": 0.0304,
+"cache_read": 161179,
+"output": 2635
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-decoupledlogic": {
+"cost": 28.248,
+"msgs": 161
+},
+"C--Users-charl-source-repos-tempo": {
+"cost": 146.8336,
+"msgs": 755
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 416401,
+"cost": 92.596,
+"err": 0
+},
+"Bash": {
+"calls": 122,
+"out": 116383,
+"cost": 29.4627,
+"err": 6
+},
+"Edit": {
+"calls": 108,
+"out": 85270,
+"cost": 13.5539,
+"err": 3
+},
+"Read": {
+"calls": 104,
+"out": 24509,
+"cost": 17.1013,
+"err": 4
+},
+"ToolSearch": {
+"calls": 4,
+"out": 794,
+"cost": 0.2361,
+"err": 0
+},
+"TaskCreate": {
+"calls": 11,
+"out": 8700,
+"cost": 5.2444,
+"err": 0
+},
+"Write": {
+"calls": 25,
+"out": 73205,
+"cost": 5.2168,
+"err": 2
+},
+"TaskUpdate": {
+"calls": 28,
+"out": 20483,
+"cost": 4.0137,
+"err": 0
+},
+"Agent": {
+"calls": 21,
+"out": 91066,
+"cost": 4.7347,
+"err": 0
+},
+"Grep": {
+"calls": 19,
+"out": 4217,
+"cost": 2.8008,
+"err": 0
+},
+"Glob": {
+"calls": 3,
+"out": 202,
+"cost": 0.1212,
+"err": 0
+}
+},
+"errors": {
+"file_not_found": 4,
+"other": 8,
+"stale_edit": 1,
+"read_before_write": 2
+}
+},
+"2026-06-24": {
+"cost": 85.1197,
+"tok": {
+"input": 208141,
+"output": 489601,
+"cache_read": 83228073,
+"cache_write_5m": 110223,
+"cache_write_1h": 3170767
+},
+"msgs": 491,
+"tool_results": 222,
+"tool_errors": 9,
+"sessions": 6,
+"by_model": {
+"opus": {
+"cost": 84.5768,
+"cache_read": 79787097,
+"output": 477484
+},
+"haiku": {
+"cost": 0.5429,
+"cache_read": 3440976,
+"output": 12117
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-decoupledlogic": {
+"cost": 40.4285,
+"msgs": 142
+},
+"C--Users-charl-source-repos-kinderos": {
+"cost": 44.6913,
+"msgs": 349
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 276058,
+"cost": 50.9749,
+"err": 0
+},
+"PowerShell": {
+"calls": 53,
+"out": 56747,
+"cost": 10.8841,
+"err": 4
+},
+"Bash": {
+"calls": 46,
+"out": 25502,
+"cost": 8.4658,
+"err": 3
+},
+"Grep": {
+"calls": 4,
+"out": 2188,
+"cost": 0.6651,
+"err": 0
+},
+"Read": {
+"calls": 59,
+"out": 25453,
+"cost": 6.0637,
+"err": 1
+},
+"Edit": {
+"calls": 24,
+"out": 27177,
+"cost": 4.1646,
+"err": 1
+},
+"Write": {
+"calls": 5,
+"out": 13615,
+"cost": 1.0474,
+"err": 0
+},
+"Agent": {
+"calls": 1,
+"out": 1079,
+"cost": 0.0821,
+"err": 0
+},
+"AskUserQuestion": {
+"calls": 1,
+"out": 3154,
+"cost": 0.1222,
+"err": 0
+},
+"ToolSearch": {
+"calls": 2,
+"out": 1284,
+"cost": 0.2141,
+"err": 0
+},
+"TaskCreate": {
+"calls": 9,
+"out": 55611,
+"cost": 2.2539,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 1,
+"out": 434,
+"cost": 0.1088,
+"err": 0
+},
+"Glob": {
+"calls": 16,
+"out": 1299,
+"cost": 0.0731,
+"err": 0
+}
+},
+"errors": {
+"shell_cmd_not_found": 2,
+"other": 3,
+"user_rejected": 1,
+"file_not_found": 2,
+"stale_edit": 1
+}
+},
+"2026-06-22": {
+"cost": 263.424,
+"tok": {
+"input": 614012,
+"output": 1608612,
+"cache_read": 354327874,
+"cache_write_5m": 1101451,
+"cache_write_1h": 5260486
+},
+"msgs": 2171,
+"tool_results": 1176,
+"tool_errors": 42,
+"sessions": 8,
+"by_model": {
+"opus": {
+"cost": 257.2002,
+"cache_read": 327334815,
+"output": 1515272
+},
+"haiku": {
+"cost": 2.8714,
+"cache_read": 17116221,
+"output": 62400
+},
+"sonnet": {
+"cost": 3.3525,
+"cache_read": 9876838,
+"output": 30940
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-kinderos": {
+"cost": 263.424,
+"msgs": 2171
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 865092,
+"cost": 132.6803,
+"err": 0
+},
+"PowerShell": {
+"calls": 126,
+"out": 67783,
+"cost": 20.5954,
+"err": 19
+},
+"Bash": {
+"calls": 293,
+"out": 124766,
+"cost": 23.254,
+"err": 6
+},
+"Write": {
+"calls": 60,
+"out": 133352,
+"cost": 11.1986,
+"err": 2
+},
+"Read": {
+"calls": 367,
+"out": 126193,
+"cost": 22.0792,
+"err": 3
+},
+"Edit": {
+"calls": 142,
+"out": 87065,
+"cost": 20.4724,
+"err": 9
+},
+"TaskCreate": {
+"calls": 32,
+"out": 98501,
+"cost": 14.3932,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 49,
+"out": 38781,
+"cost": 7.27,
+"err": 0
+},
+"Grep": {
+"calls": 35,
+"out": 12458,
+"cost": 3.719,
+"err": 2
+},
+"Glob": {
+"calls": 47,
+"out": 9556,
+"cost": 1.7216,
+"err": 0
+},
+"AskUserQuestion": {
+"calls": 4,
+"out": 19879,
+"cost": 0.9132,
+"err": 0
+},
+"Agent": {
+"calls": 7,
+"out": 18091,
+"cost": 1.2151,
+"err": 0
+},
+"ToolSearch": {
+"calls": 6,
+"out": 5177,
+"cost": 0.5046,
+"err": 0
+},
+"Skill": {
+"calls": 7,
+"out": 861,
+"cost": 3.0881,
+"err": 0
+},
+"Monitor": {
+"calls": 3,
+"out": 1057,
+"cost": 0.3193,
+"err": 1
+}
+},
+"errors": {
+"other": 10,
+"read_before_write": 8,
+"stale_edit": 3,
+"blocked_dangerous": 3,
+"git_error": 1,
+"shell_syntax": 3,
+"file_not_found": 8,
+"user_rejected": 3,
+"input_validation": 2,
+"is_directory": 1
+}
+},
+"2026-06-28": {
+"cost": 69.9739,
+"tok": {
+"input": 188782,
+"output": 656007,
+"cache_read": 76596729,
+"cache_write_5m": 342014,
+"cache_write_1h": 1942571
+},
+"msgs": 669,
+"tool_results": 321,
+"tool_errors": 9,
+"sessions": 4,
+"by_model": {
+"opus": {
+"cost": 65.1527,
+"cache_read": 58808659,
+"output": 615555
+},
+"sonnet": {
+"cost": 4.8212,
+"cache_read": 17788070,
+"output": 40452
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-kinderos": {
+"cost": 69.9739,
+"msgs": 669
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 405057,
+"cost": 42.721,
+"err": 0
+},
+"Bash": {
+"calls": 162,
+"out": 128614,
+"cost": 13.4568,
+"err": 3
+},
+"PowerShell": {
+"calls": 4,
+"out": 3158,
+"cost": 0.2332,
+"err": 0
+},
+"Grep": {
+"calls": 2,
+"out": 884,
+"cost": 0.2219,
+"err": 0
+},
+"Read": {
+"calls": 68,
+"out": 15481,
+"cost": 3.0937,
+"err": 0
+},
+"ToolSearch": {
+"calls": 1,
+"out": 655,
+"cost": 0.1864,
+"err": 0
+},
+"WebSearch": {
+"calls": 3,
+"out": 3646,
+"cost": 0.2591,
+"err": 0
+},
+"WebFetch": {
+"calls": 6,
+"out": 4605,
+"cost": 0.4317,
+"err": 0
+},
+"Write": {
+"calls": 20,
+"out": 28926,
+"cost": 1.1851,
+"err": 0
+},
+"AskUserQuestion": {
+"calls": 8,
+"out": 21272,
+"cost": 3.3677,
+"err": 2
+},
+"Edit": {
+"calls": 40,
+"out": 34920,
+"cost": 3.9587,
+"err": 3
+},
+"Skill": {
+"calls": 5,
+"out": 3648,
+"cost": 0.5101,
+"err": 0
+},
+"TaskCreate": {
+"calls": 1,
+"out": 683,
+"cost": 0.1288,
+"err": 1
+},
+"Agent": {
+"calls": 1,
+"out": 4458,
+"cost": 0.2196,
+"err": 0
+}
+},
+"errors": {
+"user_rejected": 2,
+"read_before_write": 2,
+"edit_no_match": 1,
+"other": 2,
+"input_validation": 1,
+"file_not_found": 1
+}
+},
+"2026-06-07": {
+"cost": 204.4945,
+"tok": {
+"input": 352960,
+"output": 1533173,
+"cache_read": 206938743,
+"cache_write_5m": 0,
+"cache_write_1h": 6093102
+},
+"msgs": 762,
+"tool_results": 373,
+"tool_errors": 9,
+"sessions": 3,
+"by_model": {
+"opus": {
+"cost": 204.4945,
+"cache_read": 206938743,
+"output": 1533173
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-kinderos": {
+"cost": 204.4945,
+"msgs": 762
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 848986,
+"cost": 108.4733,
+"err": 0
+},
+"Glob": {
+"calls": 13,
+"out": 10075,
+"cost": 2.179,
+"err": 0
+},
+"Read": {
+"calls": 48,
+"out": 36890,
+"cost": 9.1392,
+"err": 0
+},
+"Grep": {
+"calls": 26,
+"out": 46629,
+"cost": 3.675,
+"err": 0
+},
+"Write": {
+"calls": 94,
+"out": 390831,
+"cost": 33.7226,
+"err": 1
+},
+"Edit": {
+"calls": 34,
+"out": 59772,
+"cost": 7.1894,
+"err": 0
+},
+"Bash": {
+"calls": 118,
+"out": 85426,
+"cost": 30.9402,
+"err": 6
+},
+"AskUserQuestion": {
+"calls": 4,
+"out": 17761,
+"cost": 1.0505,
+"err": 0
+},
+"PowerShell": {
+"calls": 35,
+"out": 35300,
+"cost": 7.8569,
+"err": 2
+},
+"Skill": {
+"calls": 2,
+"out": 1503,
+"cost": 0.2684,
+"err": 0
+}
+},
+"errors": {
+"other": 4,
+"read_before_write": 1,
+"blocked_dangerous": 1,
+"file_not_found": 2,
+"shell_syntax": 1
+}
+},
+"2026-06-08": {
+"cost": 155.4398,
+"tok": {
+"input": 353196,
+"output": 1209275,
+"cache_read": 111705985,
+"cache_write_5m": 451878,
+"cache_write_1h": 6888524
+},
+"msgs": 1120,
+"tool_results": 544,
+"tool_errors": 30,
+"sessions": 10,
+"by_model": {
+"opus": {
+"cost": 154.4097,
+"cache_read": 107789038,
+"output": 1198870
+},
+"haiku": {
+"cost": 1.0301,
+"cache_read": 3916947,
+"output": 10405
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-kinderos": {
+"cost": 155.4398,
+"msgs": 1120
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 722147,
+"cost": 89.0299,
+"err": 0
+},
+"Glob": {
+"calls": 17,
+"out": 12349,
+"cost": 1.2928,
+"err": 0
+},
+"Read": {
+"calls": 130,
+"out": 81789,
+"cost": 9.1688,
+"err": 0
+},
+"AskUserQuestion": {
+"calls": 4,
+"out": 21258,
+"cost": 1.2639,
+"err": 2
+},
+"Write": {
+"calls": 64,
+"out": 151923,
+"cost": 9.3414,
+"err": 2
+},
+"Edit": {
+"calls": 65,
+"out": 57782,
+"cost": 6.8839,
+"err": 6
+},
+"Bash": {
+"calls": 100,
+"out": 72746,
+"cost": 20.8383,
+"err": 5
+},
+"PowerShell": {
+"calls": 107,
+"out": 62783,
+"cost": 8.0713,
+"err": 14
+},
+"Grep": {
+"calls": 18,
+"out": 3401,
+"cost": 0.4191,
+"err": 0
+},
+"TaskCreate": {
+"calls": 12,
+"out": 10850,
+"cost": 7.3944,
+"err": 1
+},
+"ToolSearch": {
+"calls": 4,
+"out": 1273,
+"cost": 0.2011,
+"err": 0
+},
+"Skill": {
+"calls": 5,
+"out": 1103,
+"cost": 0.3118,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 15,
+"out": 7656,
+"cost": 0.982,
+"err": 0
+},
+"Agent": {
+"calls": 2,
+"out": 2215,
+"cost": 0.241,
+"err": 0
+}
+},
+"errors": {
+"user_rejected": 2,
+"shell_cmd_not_found": 1,
+"input_validation": 1,
+"file_not_found": 3,
+"other": 15,
+"read_before_write": 5,
+"git_error": 2,
+"json_field": 1
+}
+},
+"2026-06-25": {
+"cost": 146.1518,
+"tok": {
+"input": 372032,
+"output": 1245880,
+"cache_read": 155842062,
+"cache_write_5m": 1220825,
+"cache_write_1h": 4149761
+},
+"msgs": 1489,
+"tool_results": 782,
+"tool_errors": 23,
+"sessions": 7,
+"by_model": {
+"opus": {
+"cost": 142.6757,
+"cache_read": 139751100,
+"output": 1178323
+},
+"haiku": {
+"cost": 3.476,
+"cache_read": 16090962,
+"output": 67557
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-kinderos": {
+"cost": 146.1518,
+"msgs": 1489
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 700337,
+"cost": 72.9542,
+"err": 0
+},
+"Glob": {
+"calls": 47,
+"out": 23427,
+"cost": 2.74,
+"err": 0
+},
+"Read": {
+"calls": 284,
+"out": 147526,
+"cost": 17.9795,
+"err": 2
+},
+"Grep": {
+"calls": 32,
+"out": 6075,
+"cost": 1.0743,
+"err": 0
+},
+"AskUserQuestion": {
+"calls": 6,
+"out": 19176,
+"cost": 1.1136,
+"err": 0
+},
+"Bash": {
+"calls": 202,
+"out": 121074,
+"cost": 17.5063,
+"err": 11
+},
+"Write": {
+"calls": 33,
+"out": 86168,
+"cost": 5.4234,
+"err": 0
+},
+"Edit": {
+"calls": 65,
+"out": 44791,
+"cost": 7.5323,
+"err": 3
+},
+"PowerShell": {
+"calls": 59,
+"out": 41114,
+"cost": 6.3072,
+"err": 7
+},
+"ToolSearch": {
+"calls": 6,
+"out": 2128,
+"cost": 0.6854,
+"err": 0
+},
+"TaskCreate": {
+"calls": 16,
+"out": 16523,
+"cost": 9.2133,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 24,
+"out": 19051,
+"cost": 2.6828,
+"err": 0
+},
+"Agent": {
+"calls": 7,
+"out": 18434,
+"cost": 0.7931,
+"err": 0
+},
+"TaskStop": {
+"calls": 1,
+"out": 56,
+"cost": 0.1463,
+"err": 0
+}
+},
+"errors": {
+"file_not_found": 1,
+"other": 4,
+"read_before_write": 3,
+"blocked_dangerous": 1,
+"json_field": 1,
+"shell_cmd_not_found": 10,
+"is_directory": 2,
+"shell_syntax": 1
+}
+},
+"2026-06-26": {
+"cost": 227.3559,
+"tok": {
+"input": 342669,
+"output": 1827648,
+"cache_read": 282904387,
+"cache_write_5m": 893436,
+"cache_write_1h": 4048749
+},
+"msgs": 1465,
+"tool_results": 698,
+"tool_errors": 40,
+"sessions": 5,
+"by_model": {
+"opus": {
+"cost": 225.4628,
+"cache_read": 276569991,
+"output": 1804147
+},
+"haiku": {
+"cost": 1.8931,
+"cache_read": 6334396,
+"output": 23501
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-kinderos": {
+"cost": 227.3559,
+"msgs": 1465
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 1029861,
+"cost": 123.1901,
+"err": 0
+},
+"Bash": {
+"calls": 100,
+"out": 138607,
+"cost": 17.5119,
+"err": 12
+},
+"Grep": {
+"calls": 17,
+"out": 11578,
+"cost": 1.7585,
+"err": 0
+},
+"Edit": {
+"calls": 137,
+"out": 139674,
+"cost": 20.1611,
+"err": 6
+},
+"Read": {
+"calls": 151,
+"out": 101612,
+"cost": 17.9441,
+"err": 0
+},
+"Write": {
+"calls": 40,
+"out": 101653,
+"cost": 8.0932,
+"err": 0
+},
+"Glob": {
+"calls": 36,
+"out": 16096,
+"cost": 1.6306,
+"err": 0
+},
+"Skill": {
+"calls": 3,
+"out": 1409,
+"cost": 0.3981,
+"err": 0
+},
+"AskUserQuestion": {
+"calls": 4,
+"out": 9626,
+"cost": 0.8736,
+"err": 1
+},
+"Agent": {
+"calls": 4,
+"out": 23224,
+"cost": 0.8105,
+"err": 0
+},
+"PowerShell": {
+"calls": 154,
+"out": 123815,
+"cost": 22.7773,
+"err": 20
+},
+"TaskUpdate": {
+"calls": 29,
+"out": 54405,
+"cost": 5.4392,
+"err": 0
+},
+"ToolSearch": {
+"calls": 2,
+"out": 1692,
+"cost": 0.205,
+"err": 0
+},
+"TaskStop": {
+"calls": 1,
+"out": 58,
+"cost": 0.1307,
+"err": 0
+},
+"TaskCreate": {
+"calls": 19,
+"out": 74259,
+"cost": 6.3381,
+"err": 0
+},
+"Monitor": {
+"calls": 1,
+"out": 79,
+"cost": 0.0937,
+"err": 1
+}
+},
+"errors": {
+"read_before_write": 5,
+"git_error": 4,
+"shell_cmd_not_found": 5,
+"other": 15,
+"user_rejected": 2,
+"file_not_found": 3,
+"json_field": 1,
+"edit_no_match": 1,
+"input_validation": 1,
+"blocked_dangerous": 2,
+"shell_syntax": 1
+}
+},
+"2026-06-09": {
+"cost": 115.5789,
+"tok": {
+"input": 447704,
+"output": 1002548,
+"cache_read": 117410245,
+"cache_write_5m": 1644996,
+"cache_write_1h": 2977976
+},
+"msgs": 1001,
+"tool_results": 544,
+"tool_errors": 40,
+"sessions": 5,
+"by_model": {
+"opus": {
+"cost": 112.9566,
+"cache_read": 109430788,
+"output": 960223
+},
+"haiku": {
+"cost": 2.6224,
+"cache_read": 7979457,
+"output": 42325
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-kinderos": {
+"cost": 115.5789,
+"msgs": 1001
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 594330,
+"cost": 61.181,
+"err": 0
+},
+"PowerShell": {
+"calls": 89,
+"out": 45993,
+"cost": 7.9283,
+"err": 12
+},
+"Bash": {
+"calls": 50,
+"out": 19384,
+"cost": 4.2056,
+"err": 18
+},
+"Glob": {
+"calls": 31,
+"out": 16002,
+"cost": 1.6612,
+"err": 0
+},
+"Agent": {
+"calls": 5,
+"out": 6852,
+"cost": 0.702,
+"err": 0
+},
+"Read": {
+"calls": 212,
+"out": 97271,
+"cost": 13.025,
+"err": 2
+},
+"Grep": {
+"calls": 11,
+"out": 8539,
+"cost": 0.844,
+"err": 0
+},
+"Write": {
+"calls": 50,
+"out": 105382,
+"cost": 7.6981,
+"err": 4
+},
+"Edit": {
+"calls": 68,
+"out": 75061,
+"cost": 9.2595,
+"err": 4
+},
+"AskUserQuestion": {
+"calls": 2,
+"out": 3340,
+"cost": 0.2984,
+"err": 0
+},
+"ToolSearch": {
+"calls": 1,
+"out": 584,
+"cost": 0.0497,
+"err": 0
+},
+"TaskCreate": {
+"calls": 8,
+"out": 9979,
+"cost": 3.5081,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 14,
+"out": 17080,
+"cost": 1.9204,
+"err": 0
+},
+"Skill": {
+"calls": 3,
+"out": 2751,
+"cost": 3.2976,
+"err": 0
+}
+},
+"errors": {
+"shell_cmd_not_found": 13,
+"edit_no_match": 2,
+"read_before_write": 6,
+"file_not_found": 4,
+"other": 13,
+"is_directory": 1,
+"shell_syntax": 1
+}
+},
+"2026-06-27": {
+"cost": 140.9826,
+"tok": {
+"input": 384292,
+"output": 1063795,
+"cache_read": 184034123,
+"cache_write_5m": 1448279,
+"cache_write_1h": 3394026
+},
+"msgs": 1466,
+"tool_results": 764,
+"tool_errors": 20,
+"sessions": 7,
+"by_model": {
+"opus": {
+"cost": 126.2603,
+"cache_read": 139941621,
+"output": 817654
+},
+"sonnet": {
+"cost": 14.5385,
+"cache_read": 44065696,
+"output": 238940
+},
+"haiku": {
+"cost": 0.1838,
+"cache_read": 26806,
+"output": 7201
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-kinderos": {
+"cost": 136.4116,
+"msgs": 1415
+},
+"C--Users-charl-source-repos-tempo": {
+"cost": 4.5709,
+"msgs": 51
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 551630,
+"cost": 83.9495,
+"err": 0
+},
+"Bash": {
+"calls": 397,
+"out": 286704,
+"cost": 37.1661,
+"err": 9
+},
+"AskUserQuestion": {
+"calls": 5,
+"out": 13243,
+"cost": 0.8572,
+"err": 0
+},
+"Grep": {
+"calls": 10,
+"out": 4006,
+"cost": 0.5715,
+"err": 0
+},
+"Read": {
+"calls": 186,
+"out": 48788,
+"cost": 6.256,
+"err": 6
+},
+"Edit": {
+"calls": 75,
+"out": 56853,
+"cost": 6.6864,
+"err": 5
+},
+"Skill": {
+"calls": 7,
+"out": 6286,
+"cost": 0.7423,
+"err": 0
+},
+"Agent": {
+"calls": 6,
+"out": 21018,
+"cost": 1.4883,
+"err": 0
+},
+"ToolSearch": {
+"calls": 2,
+"out": 567,
+"cost": 0.1212,
+"err": 0
+},
+"TaskCreate": {
+"calls": 5,
+"out": 928,
+"cost": 0.2629,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 9,
+"out": 940,
+"cost": 0.583,
+"err": 0
+},
+"PowerShell": {
+"calls": 2,
+"out": 873,
+"cost": 0.1069,
+"err": 0
+},
+"Write": {
+"calls": 54,
+"out": 70944,
+"cost": 2.0705,
+"err": 0
+},
+"Glob": {
+"calls": 6,
+"out": 1015,
+"cost": 0.1209,
+"err": 0
+}
+},
+"errors": {
+"other": 7,
+"read_before_write": 4,
+"edit_no_match": 1,
+"file_not_found": 1,
+"is_directory": 5,
+"shell_cmd_not_found": 2
+}
+},
+"2026-06-10": {
+"cost": 397.556,
+"tok": {
+"input": 865267,
+"output": 1757036,
+"cache_read": 225057017,
+"cache_write_5m": 0,
+"cache_write_1h": 23677528
+},
+"msgs": 767,
+"tool_results": 400,
+"tool_errors": 14,
+"sessions": 3,
+"by_model": {
+"opus": {
+"cost": 397.556,
+"cache_read": 225057017,
+"output": 1757036
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-kinderos": {
+"cost": 397.556,
+"msgs": 767
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 710638,
+"cost": 133.5434,
+"err": 0
+},
+"Glob": {
+"calls": 8,
+"out": 11013,
+"cost": 1.2903,
+"err": 0
+},
+"Bash": {
+"calls": 9,
+"out": 7409,
+"cost": 1.2765,
+"err": 7
+},
+"Read": {
+"calls": 106,
+"out": 193629,
+"cost": 78.1485,
+"err": 0
+},
+"AskUserQuestion": {
+"calls": 3,
+"out": 14020,
+"cost": 0.7532,
+"err": 0
+},
+"Write": {
+"calls": 10,
+"out": 65348,
+"cost": 3.7888,
+"err": 0
+},
+"Edit": {
+"calls": 172,
+"out": 640593,
+"cost": 135.8491,
+"err": 4
+},
+"Grep": {
+"calls": 31,
+"out": 39597,
+"cost": 29.7285,
+"err": 1
+},
+"PowerShell": {
+"calls": 45,
+"out": 54329,
+"cost": 10.486,
+"err": 2
+},
+"ToolSearch": {
+"calls": 2,
+"out": 3820,
+"cost": 0.2894,
+"err": 0
+},
+"TaskCreate": {
+"calls": 6,
+"out": 10293,
+"cost": 0.8809,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 8,
+"out": 6347,
+"cost": 1.5213,
+"err": 0
+}
+},
+"errors": {
+"shell_cmd_not_found": 7,
+"git_error": 1,
+"read_before_write": 2,
+"file_not_found": 1,
+"stale_edit": 2,
+"blocked_dangerous": 1
+}
+},
+"2026-06-17": {
+"cost": 154.1875,
+"tok": {
+"input": 480141,
+"output": 1104000,
+"cache_read": 149899312,
+"cache_write_5m": 213466,
+"cache_write_1h": 5064297
+},
+"msgs": 1073,
+"tool_results": 487,
+"tool_errors": 22,
+"sessions": 6,
+"by_model": {
+"opus": {
+"cost": 152.3608,
+"cache_read": 144173186,
+"output": 1089185
+},
+"sonnet": {
+"cost": 1.8267,
+"cache_read": 5726126,
+"output": 14815
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-kinderos": {
+"cost": 62.8975,
+"msgs": 502
+},
+"C--Users-charl-source-repos-tempo": {
+"cost": 91.29,
+"msgs": 571
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 686131,
+"cost": 89.3674,
+"err": 0
+},
+"PowerShell": {
+"calls": 66,
+"out": 38016,
+"cost": 6.9974,
+"err": 10
+},
+"Glob": {
+"calls": 20,
+"out": 9799,
+"cost": 1.6737,
+"err": 0
+},
+"Read": {
+"calls": 112,
+"out": 67674,
+"cost": 14.487,
+"err": 0
+},
+"Grep": {
+"calls": 6,
+"out": 3228,
+"cost": 0.5023,
+"err": 0
+},
+"Write": {
+"calls": 25,
+"out": 72523,
+"cost": 4.1462,
+"err": 1
+},
+"Skill": {
+"calls": 17,
+"out": 11033,
+"cost": 2.6349,
+"err": 1
+},
+"Edit": {
+"calls": 49,
+"out": 37146,
+"cost": 7.8202,
+"err": 4
+},
+"AskUserQuestion": {
+"calls": 7,
+"out": 10199,
+"cost": 1.0008,
+"err": 0
+},
+"Bash": {
+"calls": 182,
+"out": 162117,
+"cost": 25.1518,
+"err": 4
+},
+"Agent": {
+"calls": 1,
+"out": 2667,
+"cost": 0.1374,
+"err": 0
+},
+"Monitor": {
+"calls": 1,
+"out": 499,
+"cost": 0.0798,
+"err": 1
+},
+"TaskCreate": {
+"calls": 1,
+"out": 2968,
+"cost": 0.1886,
+"err": 1
+}
+},
+"errors": {
+"other": 10,
+"file_not_found": 3,
+"read_before_write": 5,
+"git_error": 2,
+"input_validation": 2
+}
+},
+"2026-07-04": {
+"cost": 78.3243,
+"tok": {
+"input": 311023,
+"output": 770000,
+"cache_read": 65826017,
+"cache_write_5m": 965732,
+"cache_write_1h": 3243535
+},
+"msgs": 1164,
+"tool_results": 566,
+"tool_errors": 18,
+"sessions": 6,
+"by_model": {
+"opus": {
+"cost": 73.1718,
+"cache_read": 46327140,
+"output": 649667
+},
+"haiku": {
+"cost": 2.4544,
+"cache_read": 12872590,
+"output": 74113
+},
+"sonnet": {
+"cost": 2.6981,
+"cache_read": 6626287,
+"output": 46220
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-signal": {
+"cost": 74.4212,
+"msgs": 1134
+},
+"C--Users-charl-source-repos-tempo": {
+"cost": 3.9031,
+"msgs": 30
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 342106,
+"cost": 36.2292,
+"err": 0
+},
+"Bash": {
+"calls": 268,
+"out": 144023,
+"cost": 13.2205,
+"err": 11
+},
+"AskUserQuestion": {
+"calls": 9,
+"out": 23719,
+"cost": 1.577,
+"err": 1
+},
+"Skill": {
+"calls": 10,
+"out": 5016,
+"cost": 1.2021,
+"err": 0
+},
+"Glob": {
+"calls": 37,
+"out": 7205,
+"cost": 1.0083,
+"err": 0
+},
+"Read": {
+"calls": 153,
+"out": 45559,
+"cost": 3.1734,
+"err": 5
+},
+"Edit": {
+"calls": 28,
+"out": 62803,
+"cost": 3.4811,
+"err": 0
+},
+"Agent": {
+"calls": 10,
+"out": 78958,
+"cost": 2.9448,
+"err": 0
+},
+"ToolSearch": {
+"calls": 1,
+"out": 4016,
+"cost": 0.2196,
+"err": 0
+},
+"TaskCreate": {
+"calls": 10,
+"out": 23790,
+"cost": 13.5041,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 5,
+"out": 6381,
+"cost": 0.6294,
+"err": 0
+},
+"Grep": {
+"calls": 30,
+"out": 13174,
+"cost": 0.4317,
+"err": 0
+},
+"Write": {
+"calls": 4,
+"out": 10508,
+"cost": 0.3428,
+"err": 0
+},
+"PowerShell": {
+"calls": 2,
+"out": 2742,
+"cost": 0.3604,
+"err": 1
+}
+},
+"errors": {
+"other": 7,
+"shell_cmd_not_found": 1,
+"user_rejected": 1,
+"shell_syntax": 3,
+"is_directory": 3,
+"file_not_found": 3
+}
+},
+"2026-07-06": {
+"cost": 331.7762,
+"tok": {
+"input": 968509,
+"output": 2539074,
+"cache_read": 409665743,
+"cache_write_5m": 3888054,
+"cache_write_1h": 7072907
+},
+"msgs": 2895,
+"tool_results": 1363,
+"tool_errors": 32,
+"sessions": 11,
+"by_model": {
+"opus": {
+"cost": 307.5058,
+"cache_read": 330539968,
+"output": 2332655
+},
+"sonnet": {
+"cost": 24.2703,
+"cache_read": 79125775,
+"output": 206419
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-signal": {
+"cost": 331.7762,
+"msgs": 2895
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 1501419,
+"cost": 192.3306,
+"err": 0
+},
+"Skill": {
+"calls": 18,
+"out": 15402,
+"cost": 1.8933,
+"err": 0
+},
+"Bash": {
+"calls": 738,
+"out": 542062,
+"cost": 80.3671,
+"err": 23
+},
+"Read": {
+"calls": 295,
+"out": 80205,
+"cost": 18.1573,
+"err": 5
+},
+"Write": {
+"calls": 70,
+"out": 117626,
+"cost": 7.0603,
+"err": 0
+},
+"Edit": {
+"calls": 156,
+"out": 154700,
+"cost": 16.4442,
+"err": 2
+},
+"AskUserQuestion": {
+"calls": 11,
+"out": 35627,
+"cost": 1.8892,
+"err": 1
+},
+"ToolSearch": {
+"calls": 4,
+"out": 3175,
+"cost": 0.5438,
+"err": 0
+},
+"WebFetch": {
+"calls": 3,
+"out": 599,
+"cost": 3.4415,
+"err": 0
+},
+"WebSearch": {
+"calls": 1,
+"out": 222,
+"cost": 1.0633,
+"err": 0
+},
+"Glob": {
+"calls": 18,
+"out": 8758,
+"cost": 1.3646,
+"err": 0
+},
+"Grep": {
+"calls": 31,
+"out": 32331,
+"cost": 1.7022,
+"err": 1
+},
+"TaskCreate": {
+"calls": 4,
+"out": 4863,
+"cost": 0.6146,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 4,
+"out": 1147,
+"cost": 0.5156,
+"err": 0
+},
+"Agent": {
+"calls": 8,
+"out": 36448,
+"cost": 1.7055,
+"err": 0
+},
+"SendMessage": {
+"calls": 1,
+"out": 3726,
+"cost": 0.2476,
+"err": 0
+},
+"TaskStop": {
+"calls": 3,
+"out": 397,
+"cost": 1.6353,
+"err": 0
+},
+"Monitor": {
+"calls": 1,
+"out": 367,
+"cost": 0.8001,
+"err": 0
+}
+},
+"errors": {
+"stale_edit": 2,
+"other": 19,
+"user_rejected": 2,
+"file_not_found": 6,
+"is_directory": 2,
+"git_error": 1
+}
+},
+"2026-07-07": {
+"cost": 112.3211,
+"tok": {
+"input": 571048,
+"output": 873371,
+"cache_read": 112521776,
+"cache_write_5m": 2441351,
+"cache_write_1h": 3578523
+},
+"msgs": 1229,
+"tool_results": 652,
+"tool_errors": 14,
+"sessions": 10,
+"by_model": {
+"opus": {
+"cost": 99.2058,
+"cache_read": 69681375,
+"output": 717058
+},
+"sonnet": {
+"cost": 13.1153,
+"cache_read": 42840401,
+"output": 156313
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-signal": {
+"cost": 112.3211,
+"msgs": 1229
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 454022,
+"cost": 56.1758,
+"err": 0
+},
+"Bash": {
+"calls": 250,
+"out": 111583,
+"cost": 20.6898,
+"err": 10
+},
+"Read": {
+"calls": 226,
+"out": 65288,
+"cost": 13.7923,
+"err": 3
+},
+"ToolSearch": {
+"calls": 4,
+"out": 2400,
+"cost": 0.4987,
+"err": 0
+},
+"TaskCreate": {
+"calls": 9,
+"out": 6557,
+"cost": 7.3737,
+"err": 0
+},
+"Agent": {
+"calls": 5,
+"out": 23575,
+"cost": 0.96,
+"err": 0
+},
+"AskUserQuestion": {
+"calls": 2,
+"out": 3311,
+"cost": 0.373,
+"err": 0
+},
+"Edit": {
+"calls": 76,
+"out": 104841,
+"cost": 5.9946,
+"err": 1
+},
+"Write": {
+"calls": 21,
+"out": 89481,
+"cost": 2.5276,
+"err": 0
+},
+"Grep": {
+"calls": 16,
+"out": 4844,
+"cost": 0.9367,
+"err": 0
+},
+"Skill": {
+"calls": 6,
+"out": 1157,
+"cost": 0.631,
+"err": 0
+},
+"Artifact": {
+"calls": 1,
+"out": 263,
+"cost": 0.2515,
+"err": 0
+},
+"TaskUpdate": {
+"calls": 9,
+"out": 1739,
+"cost": 0.8108,
+"err": 0
+},
+"Monitor": {
+"calls": 1,
+"out": 365,
+"cost": 0.089,
+"err": 0
+},
+"TaskStop": {
+"calls": 1,
+"out": 57,
+"cost": 0.1012,
+"err": 0
+},
+"Glob": {
+"calls": 26,
+"out": 3888,
+"cost": 1.1154,
+"err": 0
+}
+},
+"errors": {
+"other": 6,
+"file_not_found": 3,
+"user_rejected": 1,
+"shell_syntax": 1,
+"git_error": 1,
+"is_directory": 1,
+"read_before_write": 1
+}
+},
+"2026-07-08": {
+"cost": 196.8236,
+"tok": {
+"input": 269209,
+"output": 1250481,
+"cache_read": 295914507,
+"cache_write_5m": 1567078,
+"cache_write_1h": 2059152
+},
+"msgs": 1383,
+"tool_results": 685,
+"tool_errors": 15,
+"sessions": 3,
+"by_model": {
+"opus": {
+"cost": 187.4052,
+"cache_read": 266929653,
+"output": 1185420
+},
+"sonnet": {
+"cost": 9.4183,
+"cache_read": 28984854,
+"output": 65061
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-signal": {
+"cost": 196.8236,
+"msgs": 1383
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 727432,
+"cost": 106.0034,
+"err": 0
+},
+"Edit": {
+"calls": 152,
+"out": 127786,
+"cost": 21.1358,
+"err": 2
+},
+"Grep": {
+"calls": 17,
+"out": 11670,
+"cost": 1.6426,
+"err": 0
+},
+"Write": {
+"calls": 49,
+"out": 113381,
+"cost": 9.4743,
+"err": 4
+},
+"Read": {
+"calls": 138,
+"out": 64577,
+"cost": 13.9907,
+"err": 2
+},
+"AskUserQuestion": {
+"calls": 3,
+"out": 6532,
+"cost": 0.4816,
+"err": 0
+},
+"Bash": {
+"calls": 310,
+"out": 182121,
+"cost": 41.192,
+"err": 6
+},
+"Skill": {
+"calls": 1,
+"out": 218,
+"cost": 0.0493,
+"err": 0
+},
+"SendMessage": {
+"calls": 2,
+"out": 5876,
+"cost": 1.5692,
+"err": 1
+},
+"ToolSearch": {
+"calls": 1,
+"out": 131,
+"cost": 0.1219,
+"err": 0
+},
+"Agent": {
+"calls": 2,
+"out": 7066,
+"cost": 0.4749,
+"err": 0
+},
+"Glob": {
+"calls": 10,
+"out": 3691,
+"cost": 0.6877,
+"err": 0
+}
+},
+"errors": {
+"edit_no_match": 2,
+"read_before_write": 4,
+"other": 6,
+"file_not_found": 1,
+"input_validation": 1,
+"is_directory": 1
+}
+},
+"2026-07-09": {
+"cost": 196.994,
+"tok": {
+"input": 233626,
+"output": 598575,
+"cache_read": 269065238,
+"cache_write_5m": 1424158,
+"cache_write_1h": 4386696
+},
+"msgs": 842,
+"tool_results": 415,
+"tool_errors": 31,
+"sessions": 2,
+"by_model": {
+"opus": {
+"cost": 192.7013,
+"cache_read": 258621803,
+"output": 557316
+},
+"sonnet": {
+"cost": 4.2927,
+"cache_read": 10443435,
+"output": 41259
+}
+},
+"by_project": {
+"C--Users-charl-source-repos-signal": {
+"cost": 196.994,
+"msgs": 842
+}
+},
+"by_tool": {
+"(final response)": {
+"calls": 0,
+"out": 342035,
+"cost": 111.3679,
+"err": 0
+},
+"Bash": {
+"calls": 215,
+"out": 131221,
+"cost": 52.5722,
+"err": 29
+},
+"Skill": {
+"calls": 6,
+"out": 2111,
+"cost": 5.9383,
+"err": 0
+},
+"Read": {
+"calls": 98,
+"out": 23882,
+"cost": 8.2,
+"err": 0
+},
+"Agent": {
+"calls": 3,
+"out": 8561,
+"cost": 0.5318,
+"err": 0
+},
+"Monitor": {
+"calls": 3,
+"out": 1409,
+"cost": 0.2555,
+"err": 1
+},
+"ToolSearch": {
+"calls": 2,
+"out": 899,
+"cost": 0.152,
+"err": 0
+},
+"TaskStop": {
+"calls": 1,
+"out": 58,
+"cost": 0.0897,
+"err": 0
+},
+"AskUserQuestion": {
+"calls": 3,
+"out": 6936,
+"cost": 0.872,
+"err": 0
+},
+"Write": {
+"calls": 26,
+"out": 48953,
+"cost": 7.9537,
+"err": 0
+},
+"Edit": {
+"calls": 25,
+"out": 24662,
+"cost": 7.3857,
+"err": 0
+},
+"Glob": {
+"calls": 16,
+"out": 2577,
+"cost": 0.7217,
+"err": 0
+},
+"Grep": {
+"calls": 17,
+"out": 5271,
+"cost": 0.9536,
+"err": 1
+}
+},
+"errors": {
+"input_validation": 1,
+"shell_cmd_not_found": 16,
+"other": 9,
+"file_not_found": 4,
+"git_error": 1
+}
+},
+"2026-07-10": {
+"cost": 0.0,
+"tok": {
+"input": 0,
+"output": 0,
+"cache_read": 0,
+"cache_write_5m": 0,
+"cache_write_1h": 0
+},
+"msgs": 0,
+"tool_results": 0,
+"tool_errors": 0,
+"sessions": 1,
+"by_model": {},
+"by_project": {},
+"by_tool": {},
+"errors": {}
+}
+}
