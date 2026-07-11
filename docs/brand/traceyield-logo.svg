@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="200" viewBox="0 0 920 200" fill="none">
+  <title>TraceYield</title>
+  <defs>
+    <!-- Brand gradient sampled from the original mark: emerald -> cyan/blue -> violet -->
+    <linearGradient id="ty-grad" x1="40" y1="30" x2="170" y2="176" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#06B78D"/>
+      <stop offset="0.45" stop-color="#22A6D6"/>
+      <stop offset="0.72" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#7C5CFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ===== MARK (unchanged from original brand): rounded hexagon + 3 bars ===== -->
+  <g stroke="url(#ty-grad)" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <!-- pointy-top hexagon, centered (100,100), r=64 -->
+    <path d="M100 36 L155.4 68 L155.4 132 L100 164 L44.6 132 L44.6 68 Z" stroke-width="13"/>
+  </g>
+  <g fill="url(#ty-grad)">
+    <rect x="73"  y="104" width="14" height="30" rx="7"/>
+    <rect x="93"  y="74"  width="14" height="60" rx="7"/>
+    <rect x="113" y="92"  width="14" height="42" rx="7"/>
+  </g>
+
+  <!-- ===== WORDMARK: "Trace" navy + "Yield" emerald ===== -->
+  <text x="212" y="132" font-family="'Poppins','Montserrat','Gilroy','Segoe UI',system-ui,sans-serif"
+        font-size="112" font-weight="600" letter-spacing="-2">
+    <tspan fill="#02112B">Trace</tspan><tspan fill="#06B78D">Yield</tspan>
+  </text>
+</svg>

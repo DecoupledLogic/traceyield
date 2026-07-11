@@ -2,7 +2,7 @@
 
 *How to extend `report.py` to parse OpenAI Codex CLI logs and emit the same
 dashboard, alongside (or instead of) Claude Code. Read
-[`openai-usage-data-research.md`](./openai-usage-data-research.md) first — this
+[`openai-usage-data-research.md`](./openai-usage-data-research.md) first. This
 doc assumes the schema and cost model established there.*
 
 > **Status update (2026-07-10).** The **canonical store** already has a Codex
@@ -10,20 +10,20 @@ doc assumes the schema and cost model established there.*
 > shared `Session`/`Turn`/`ToolCall`/`Segment`/`RawEvent` stream keyed
 > `provider='codex'` (see [`codexprovider.md`](./codexprovider.md) and the
 > canonical [change log](./architecture.md#change-log)). This document covers the
-> **other** integration path — teaching the `report.py` aggregate/HTML pipeline
+> **other** integration path: teaching the `report.py` aggregate/HTML pipeline
 > to *emit a Codex dashboard*. The two are complementary: the canonical path
 > captures the raw neutral records; the aggregate flip (roadmap E1-F2-S1) will
 > derive the report from that store rather than re-parsing.
 
 ## Goal & scope
 
-Produce the **same `report.html`** — same day/week/month stepper, KPI cards,
-per-project/per-model/per-tool breakdowns, session table, routing estimator —
+Produce the **same `report.html`**, same day/week/month stepper, KPI cards,
+per-project/per-model/per-tool breakdowns, session table, routing estimator,
 driven by **Codex CLI rollout logs** (`~/.codex/sessions/**/*.jsonl`) instead of
 (or in addition to) Claude Code transcripts.
 
 In scope: the Codex CLI path (high fidelity). Out of scope for v1: the OpenAI
-Costs API and ChatGPT `conversations.json` (both are cost-blind or org-level —
+Costs API and ChatGPT `conversations.json` (both are cost-blind or org-level,
 see the research doc §2–3). Design the seam so they can slot in later.
 
 ## Why this is mostly a parser change
@@ -53,8 +53,8 @@ Everything that must change or generalize, with current line references:
 | `renderRoute()` JS (`:666`) | assumes `opus → sonnet/haiku` | generalize "expensive tier → cheaper tier" |
 | `check_pricing_drift()` (`:297`) | scrapes Anthropic page | second scraper for OpenAI rates (optional) |
 
-Note the `by_model` / `by_project` / session rendering is **already generic** —
-it renders whatever tier and project keys exist. That's the leverage.
+Note the `by_model` / `by_project` / session rendering is **already generic**.
+It renders whatever tier and project keys exist. That's the leverage.
 
 ## Recommended architecture: a provider seam
 
@@ -74,7 +74,7 @@ PROVIDERS = {
     },
     "codex": {
         "root": os.path.expanduser("~/.codex/sessions"),
-        "pricing": {           # verify at ship time — see research §1.6
+        "pricing": {           # verify at ship time: see research §1.6
             "gpt-5-codex":   (1.25, 10.00),
             "gpt-5.3-codex": (1.75, 14.00),
             "gpt-5.5":       (5.00, 30.00),
@@ -85,7 +85,7 @@ PROVIDERS = {
 ```
 
 Cost model stays "fresh-input ×1 + cache-read ×0.1 + writes + output". For Codex,
-`cache_write` is off so the two write line-items are just zero — the existing
+`cache_write` is off so the two write line-items are just zero. The existing
 5-field `tok` dict is a **superset** and needs no shape change. That's deliberate:
 `daily_metrics.json` keeps one schema across providers.
 
@@ -128,11 +128,11 @@ differences from the Claude parser (all grounded in research §1.3–1.5):
   (same id→name trick the Claude parser already uses). Tool names are Codex's
   (`shell`, `apply_patch`, `read_file`, …).
 - **Per-tool cost attribution** pairs a turn's `last_token_usage` with the
-  `function_call` in that turn — because usage is a *separate line*, not attached
+  `function_call` in that turn, because usage is a *separate line*, not attached
   to the tool call. Single-tool-turn assumption still mostly holds; keep the
   `(multi-tool turn)` / `(final response)` pseudo-rows.
 
-Skeleton (illustrative — mirror `analyze()`'s bucketing exactly):
+Skeleton (illustrative: mirror `analyze()`'s bucketing exactly):
 
 ```python
 def analyze_codex(root=PROVIDERS["codex"]["root"]):
@@ -193,12 +193,12 @@ def analyze_codex(root=PROVIDERS["codex"]["root"]):
 ```
 
 Reuse `new_day()`, `new_session()`, `new_tool()`, `new_model()`, and the
-serialize tail verbatim — the output must be byte-compatible with the Claude
+serialize tail verbatim. The output must be byte-compatible with the Claude
 path so `merge_daily()` / `merge_sessions()` / `build_html()` don't care which
 parser produced a bucket.
 
 Helpers to add: `codex_is_error(output)` (heuristic: `success == False`,
-non-zero exit, stderr-looking text — research §1.7) and `classify_codex()` with
+non-zero exit, stderr-looking text, research §1.7) and `classify_codex()` with
 a Codex-specific `ERROR_RULES_CODEX`.
 
 ### 4. Storage: keep providers side-by-side, don't merge blindly
@@ -236,7 +236,7 @@ parse and which stores to write.
 
 Everything else in the template (KPI cards, trend, by-project, by-model,
 by-tool, sessions, token composition) already renders whatever keys the payload
-carries — no change.
+carries, no change.
 
 ### 6. Pricing drift check (optional, best-effort)
 
@@ -270,13 +270,13 @@ Keep the parametrized `path=`/`root=` seams so tests never touch a real
 
 ## Suggested delivery order
 
-1. **Parser + fixtures first** (`analyze_codex` + tests) — pure Python, no UI,
+1. **Parser + fixtures first** (`analyze_codex` + tests): pure Python, no UI,
    fully verifiable against hand-computed costs. Highest-risk, isolate it.
 2. **Provider config + storage seam** (`PROVIDERS`, per-provider paths,
    `--provider` flag, provider-aware `tier()`).
-3. **Wire into `main()`** — parse each selected provider, merge into its own
+3. **Wire into `main()`**: parse each selected provider, merge into its own
    store, emit report(s). Smoke-test against a real `~/.codex` if available.
-4. **HTML generalizations** — tier-list-from-data, generic routing, provider-
+4. **HTML generalizations**: tier-list-from-data, generic routing, provider-
    aware copy.
 5. **Optional:** OpenAI pricing drift check; then revisit ChatGPT-export /
    Costs-API as clearly-labeled low-fidelity add-ons.

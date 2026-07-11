@@ -17,7 +17,7 @@ The abstraction is a producer/consumer split:
 Adding a provider = adding one Provider class. Nothing else changes.
 
 Stdlib only (sqlite3). Runs alongside the existing pipeline (dual-write); it
-never mutates report.py's stores. Privacy: TOKENOPS_CAPTURE=verbatim stores
+never mutates report.py's stores. Privacy: TRACEYIELD_CAPTURE=verbatim stores
 raw text; the default ("structural") stores only length + sha256.
 """
 import os, glob, json, hashlib, sqlite3, datetime
@@ -25,7 +25,7 @@ from dataclasses import dataclass
 import report   # reuse tier(), classify(), result_text(), project_of(), machine_id()
 
 # ---------------------------------------------------------------- config
-CAPTURE = os.environ.get("TOKENOPS_CAPTURE", "structural")   # "structural" | "verbatim"
+CAPTURE = os.environ.get("TRACEYIELD_CAPTURE") or "structural"   # "structural" | "verbatim"
 RAW_CAP = 32 * 1024      # max bytes of raw_event.raw kept in verbatim mode (§7)
 SCHEMA_VERSION = 2   # v2: turn.project (per-turn project, see MIGRATIONS)
 DB_FILE = os.path.join(report.MACHINE_DIR, "usage.db")
