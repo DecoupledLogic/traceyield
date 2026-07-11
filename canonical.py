@@ -202,14 +202,22 @@ def write(conn, rec, verbatim):
             "VALUES(?,?,?,?,?,?)",
             (rec.provider, rec.session_id, rec.ts, rec.type, sha(rec.raw), raw))
     elif isinstance(rec, Session):
+        # project/cwd/git_branch/cli_version are FIRST-wins (keep the already-
+        # stored value when present) to match analyze()'s first-seen-wins
+        # semantics for a session's project/meta ("if S['project'] is None:
+        # S['project']=proj"; meta uses "if 'cwd' not in meta"). A session
+        # whose cwd/project changed mid-conversation (e.g. a worktree switch)
+        # must resolve to its FIRST project, not whichever file ingest()
+        # happens to process last. first_ts/last_ts stay MIN/MAX (already
+        # order-independent).
         conn.execute(
             "INSERT INTO session(provider,session_id,machine_id,project,cwd,git_branch,cli_version,"
             "source,approval_policy,sandbox_policy,first_ts,last_ts) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) "
             "ON CONFLICT(provider,session_id) DO UPDATE SET "
-            "project=COALESCE(excluded.project, session.project), "
-            "cwd=COALESCE(excluded.cwd, session.cwd), "
-            "git_branch=COALESCE(excluded.git_branch, session.git_branch), "
-            "cli_version=COALESCE(excluded.cli_version, session.cli_version), "
+            "project=COALESCE(session.project, excluded.project), "
+            "cwd=COALESCE(session.cwd, excluded.cwd), "
+            "git_branch=COALESCE(session.git_branch, excluded.git_branch), "
+            "cli_version=COALESCE(session.cli_version, excluded.cli_version), "
             "first_ts=MIN(COALESCE(session.first_ts,excluded.first_ts),COALESCE(excluded.first_ts,session.first_ts)), "
             "last_ts=MAX(COALESCE(session.last_ts,excluded.last_ts),COALESCE(excluded.last_ts,session.last_ts))",
             (rec.provider, rec.session_id, report.machine_id(), rec.project, rec.cwd, rec.git_branch,
