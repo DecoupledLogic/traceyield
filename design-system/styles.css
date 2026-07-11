@@ -1,0 +1,138 @@
+/*
+ * TraceYield — Design System page (chrome)
+ * ========================================
+ * @imports the shared contract (tokens.css) + the product components (components.css),
+ * then adds only this page's own shell (sidebar nav, workspace stage, swatches, specimens).
+ * The page is the first consumer of the system it documents.
+ */
+@import "tokens.css";
+@import "components.css";
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--ty-bg);color:var(--ty-text);
+  font-family:var(--ty-font-ui);font-size:var(--ty-fs-md);line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+code{font-family:var(--ty-font-mono);font-size:.9em;color:var(--ty-text-muted);
+  background:var(--ty-surface-2);border-radius:4px;padding:1px 5px}
+.eyebrow{margin:0;font-size:var(--ty-fs-xs);font-weight:var(--ty-w-bold);
+  letter-spacing:var(--ty-track-eyebrow);text-transform:uppercase;color:var(--ty-text-muted)}
+
+/* ============================ SHELL ============================ */
+.ds-shell{display:grid;grid-template-columns:264px 1fr;min-height:100vh}
+
+.sidebar{
+  background:var(--ty-surface);border-right:1px solid var(--ty-border);
+  padding:var(--ty-space-6) var(--ty-space-4);
+  display:flex;flex-direction:column;gap:var(--ty-space-6);
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.brand-lockup{display:flex;flex-direction:column;gap:var(--ty-space-2)}
+.lockup-row{display:flex;align-items:center;gap:10px}
+.lockup-row .mark{width:30px;height:30px;flex:none}
+.wordmark{font-weight:var(--ty-w-bold);font-size:var(--ty-fs-xl);letter-spacing:-.01em;color:var(--ty-text)}
+.wordmark .wm-y{color:var(--ty-teal)}
+
+.nav-list{display:flex;flex-direction:column;gap:2px}
+.nav-item{
+  display:flex;align-items:center;gap:var(--ty-space-3);
+  text-decoration:none;color:var(--ty-text-muted);
+  padding:8px var(--ty-space-3);border-radius:var(--ty-radius-sm);
+  font-weight:var(--ty-w-medium);font-size:var(--ty-fs-base);cursor:pointer;border:0;background:none;width:100%;text-align:left;
+  font-family:inherit;
+}
+.nav-item .nav-ic{width:18px;height:18px;flex:none;display:grid;place-items:center;opacity:.85}
+.nav-item .nav-ic svg{width:16px;height:16px}
+.nav-item:hover{background:var(--ty-surface-2);color:var(--ty-text)}
+.nav-item.active{background:var(--ty-surface-2);color:var(--ty-text);box-shadow:inset 3px 0 0 var(--ty-accent)}
+.nav-item.active .nav-ic{opacity:1;color:var(--ty-accent)}
+
+.sidebar-note{
+  margin-top:auto;font-size:var(--ty-fs-sm);color:var(--ty-text-muted);
+  border-top:1px solid var(--ty-border);padding-top:var(--ty-space-4);
+}
+.sidebar-note strong{color:var(--ty-text);display:block;margin-bottom:4px}
+
+.workspace{padding:var(--ty-space-6) var(--ty-space-8);max-width:1120px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--ty-space-6);gap:var(--ty-space-4)}
+.topbar h2{margin:3px 0 0;font-size:var(--ty-fs-3xl);font-weight:var(--ty-w-bold);letter-spacing:-.01em}
+.topbar-actions{display:flex;gap:var(--ty-space-2);align-items:center}
+.theme-toggle{border:1px solid var(--ty-border);background:var(--ty-surface);color:var(--ty-text);
+  border-radius:var(--ty-radius-sm);padding:7px 12px;font:inherit;font-size:var(--ty-fs-sm);cursor:pointer}
+.theme-toggle:hover{border-color:var(--ty-border-strong)}
+
+.stage{padding-bottom:80px}
+.stage h3{margin:var(--ty-space-8) 0 var(--ty-space-3);font-size:var(--ty-fs-xl);font-weight:var(--ty-w-semibold)}
+.stage h3:first-child{margin-top:0}
+.section-intro{color:var(--ty-text-muted);max-width:70ch;margin:0 0 var(--ty-space-4)}
+.section-intro strong{color:var(--ty-text);font-weight:var(--ty-w-semibold)}
+
+/* ---- callouts ---- */
+.callout{border:1px solid var(--ty-border);border-left:3px solid var(--ty-accent);
+  background:var(--ty-surface);border-radius:var(--ty-radius-md);padding:12px 16px;margin:0 0 var(--ty-space-3);
+  font-size:var(--ty-fs-base);color:var(--ty-text-muted)}
+.callout strong{color:var(--ty-text)}
+.callout.grad{border-left:0;position:relative;overflow:hidden}
+.callout.grad::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--ty-gradient)}
+
+/* ---- swatch grid (copy-to-clipboard) ---- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px;margin-bottom:var(--ty-space-4)}
+.swatch{display:block;text-align:left;border:1px solid var(--ty-border);border-radius:var(--ty-radius-md);
+  overflow:hidden;background:var(--ty-surface);cursor:pointer;padding:0;font-family:inherit;color:inherit}
+.swatch:hover{border-color:var(--ty-border-strong)}
+.swatch .chip{display:block;height:60px}
+.swatch .meta{padding:9px 11px}
+.swatch .meta strong{font-size:var(--ty-fs-base);font-weight:var(--ty-w-semibold);display:block}
+.swatch .meta .hex{font-family:var(--ty-font-mono);font-size:var(--ty-fs-xs);color:var(--ty-text-muted);display:block;margin-top:3px}
+.swatch .meta code{display:inline-block;margin-top:5px;background:var(--ty-surface-2)}
+
+/* ---- gradient bar ---- */
+.gradbar{height:36px;border-radius:var(--ty-radius-md);background:var(--ty-gradient)}
+.gradstops{display:flex;justify-content:space-between;margin-top:8px;font-family:var(--ty-font-mono);font-size:var(--ty-fs-xs);color:var(--ty-text-muted)}
+
+/* ---- tables (DS reference) ---- */
+.ds-table{width:100%;border-collapse:collapse;font-size:var(--ty-fs-base);margin-bottom:var(--ty-space-4)}
+.ds-table th,.ds-table td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--ty-border);vertical-align:middle}
+.ds-table th{color:var(--ty-text-muted);font-weight:var(--ty-w-semibold);font-size:var(--ty-fs-xs);text-transform:uppercase;letter-spacing:.03em}
+
+/* ---- specimens ---- */
+.specimen{border:1px solid var(--ty-border);border-radius:var(--ty-radius-lg);overflow:hidden;margin-bottom:var(--ty-space-4);background:var(--ty-surface)}
+.specimen figcaption{padding:11px 16px;border-bottom:1px solid var(--ty-border);display:flex;flex-direction:column;gap:2px;background:var(--ty-surface-2)}
+.specimen figcaption strong{font-size:var(--ty-fs-base)}
+.specimen figcaption span{font-size:var(--ty-fs-sm);color:var(--ty-text-muted)}
+.specimen-stage{padding:20px 18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.specimen-stage.block{display:block}
+.specimen-code{border-top:1px solid var(--ty-border);font-size:var(--ty-fs-sm)}
+.specimen-code summary{padding:9px 16px;cursor:pointer;color:var(--ty-text-muted);display:flex;justify-content:space-between;align-items:center}
+.specimen-code pre{margin:0;padding:14px 16px;overflow-x:auto;background:var(--ty-bg);border-top:1px solid var(--ty-border)}
+.specimen-code pre code{background:none;padding:0;color:var(--ty-text-muted);font-size:var(--ty-fs-xs);white-space:pre}
+.copy-code{border:1px solid var(--ty-border);background:var(--ty-surface);color:var(--ty-text);border-radius:4px;padding:2px 9px;font:inherit;font-size:var(--ty-fs-xs);cursor:pointer}
+
+/* ---- icon grid ---- */
+.icongrid{display:flex;flex-wrap:wrap;gap:18px;margin-bottom:var(--ty-space-4)}
+.icongrid .ig{display:flex;flex-direction:column;align-items:center;gap:8px;width:74px}
+.icongrid .ig .box{width:52px;height:52px;border:1px solid var(--ty-border);border-radius:var(--ty-radius-md);display:grid;place-items:center;color:var(--ty-text)}
+.icongrid .ig .box svg{width:24px;height:24px}
+.icongrid .ig span{font-size:var(--ty-fs-xs);color:var(--ty-text-muted);text-align:center}
+
+/* ---- misc ---- */
+.copytip{font-size:var(--ty-fs-sm);color:var(--ty-text-faint);margin-top:6px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.donut-wrap{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+
+/* ---- toast ---- */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--ty-text);color:var(--ty-bg);padding:8px 16px;border-radius:var(--ty-radius-pill);
+  opacity:0;transition:all var(--ty-dur) var(--ty-ease);pointer-events:none;font-size:var(--ty-fs-sm);z-index:50;font-weight:var(--ty-w-semibold)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:820px){
+  .ds-shell{grid-template-columns:1fr}
+  .sidebar{position:static;height:auto;border-right:0;border-bottom:1px solid var(--ty-border);flex-direction:column}
+  .nav-list{flex-direction:row;flex-wrap:wrap}
+  .sidebar-note{display:none}
+  .workspace{padding:var(--ty-space-5)}
+  .two{grid-template-columns:1fr}
+}

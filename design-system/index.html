@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TraceYield — Design System</title>
+<meta name="description" content="Living design system for TraceYield: tokens and components rendered from a single source of token data. The executable spec the report is built from.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="ds-shell">
+    <aside class="sidebar" aria-label="Design system navigation">
+      <div class="brand-lockup">
+        <div class="lockup-row">
+          <span class="mark" id="brandMark" aria-hidden="true"></span>
+          <span class="wordmark">Trace<span class="wm-y">Yield</span></span>
+        </div>
+        <p class="eyebrow">Design System</p>
+      </div>
+
+      <nav class="nav-list" id="navList" aria-label="Sections"></nav>
+
+      <div class="sidebar-note">
+        <strong>Living reference</strong>
+        Every swatch and specimen renders from the shared tokens (<code>tokens.css</code>). Click a color to copy its hex; expand a specimen to copy its markup.
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">TraceYield · Tokens are the meter, not the mission</p>
+          <h2 id="stageTitle">Overview</h2>
+        </div>
+        <div class="topbar-actions">
+          <button class="theme-toggle" id="themeToggle" type="button" title="Toggle dark / light / auto">◐ Auto</button>
+        </div>
+      </header>
+
+      <div class="stage" id="stage" aria-live="polite"></div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/tokens.js"></script>
+  <script src="js/components.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
