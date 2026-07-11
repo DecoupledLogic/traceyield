@@ -1,4 +1,4 @@
-# TokenLens
+# TokenOps
 
 Token-spend & health analytics for [Claude Code](https://claude.com/claude-code). One script parses your local Claude Code transcripts and produces a **self-contained, interactive HTML dashboard** — no server, no build step, no dependencies (Python stdlib only).
 
@@ -16,7 +16,7 @@ Open the `report.html` in your machine's folder under `machines/` in any browser
 
 ### Per-machine data
 
-Each machine has its own `~/.claude/projects`, so every machine's generated artifacts — `daily_metrics.json`, `session_metrics.json`, `report.html`, `run.log` — are written under **`machines/<machine-id>/`**, keyed by the sanitized hostname, so runs on different machines never overwrite each other. Set the `TOKENLENS_MACHINE` env var to override the folder name (e.g. to make a machine merge into an existing folder).
+Each machine has its own `~/.claude/projects`, so every machine's generated artifacts — `daily_metrics.json`, `session_metrics.json`, `report.html`, `run.log` — are written under **`machines/<machine-id>/`**, keyed by the sanitized hostname, so runs on different machines never overwrite each other. Set the `TOKENOPS_MACHINE` env var to override the folder name (e.g. to make a machine merge into an existing folder).
 
 **`machines/` is git-ignored** — your report and metrics stay local to your machine and are never committed, so cloning this repo never carries anyone else's usage data. Just clone and run; you get your own report. `pricing_history.json` is the one generated file that *is* committed: it's non-personal (dates + Anthropic's public rates) and shared at the repo root so the pricing-over-time chart has history on a fresh clone.
 
@@ -38,8 +38,8 @@ The report has a built-in **"How to read this report"** section explaining the t
 Requires Python 3 (stdlib only — nothing to `pip install`).
 
 ```bash
-git clone https://github.com/DecoupledLogic/tokenlens.git
-cd tokenlens
+git clone https://github.com/DecoupledLogic/tokenops.git
+cd tokenops
 python report.py
 ```
 
@@ -50,7 +50,7 @@ It reads transcripts from `~/.claude/projects` and writes this machine's `report
 `run.cmd` is a Task Scheduler wrapper that runs the report and appends a one-line summary to this machine's `run.log`. It's portable — it locates the repo from its own path and the per-machine folder via `report.py --machine-dir`, so no editing is needed. If `python` isn't on PATH, set `PYTHON` to your interpreter (e.g. `set PYTHON=C:\Users\you\anaconda3\python.exe`) before scheduling. Point a daily scheduled task at it:
 
 ```
-schtasks /create /tn "TokenLens" /tr "C:\path\to\tokenlens\run.cmd" /sc daily /st 09:00
+schtasks /create /tn "TokenOps Usage Report" /tr "C:\path\to\tokenops\run.cmd" /sc daily /st 09:00
 ```
 
 On macOS/Linux, wire `python report.py` into a `cron` job or `launchd` agent.

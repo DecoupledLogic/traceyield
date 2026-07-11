@@ -36,9 +36,9 @@ def machine_id():
     it (daily_metrics/session_metrics/report.html/run.log) are namespaced under
     machines/<machine_id>/ — otherwise one machine's run would clobber another's
     data in the shared repo. Defaults to the sanitized hostname; the
-    TOKENLENS_MACHINE env var overrides it (e.g. to make a machine write into a
+    TOKENOPS_MACHINE env var overrides it (e.g. to make a machine write into a
     pre-existing directory whose name doesn't match its hostname)."""
-    raw = (os.environ.get("TOKENLENS_MACHINE") or "").strip() or socket.gethostname() or "unknown"
+    raw = (os.environ.get("TOKENOPS_MACHINE") or "").strip() or socket.gethostname() or "unknown"
     slug = re.sub(r"[^a-z0-9._-]+", "-", raw.strip().lower()).strip("-._")
     return slug or "unknown"
 
@@ -496,7 +496,7 @@ def record_pricing(path=PRICING_FILE):
 # ------------------------------------------------------- pricing drift check
 def _fetch_pricing_page(url=PRICING_URL, timeout=15):
     """Fetch the Anthropic pricing page as text. Raises on any network error."""
-    req = urllib.request.Request(url, headers={"User-Agent": "tokenlens-pricing-check"})
+    req = urllib.request.Request(url, headers={"User-Agent": "tokenops-pricing-check"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read().decode("utf-8", "replace")
 

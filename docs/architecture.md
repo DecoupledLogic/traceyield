@@ -233,7 +233,7 @@ JS renders:
 has its own `~/.claude/projects`, so each machine's *derived* artifacts live under
 `machines/<machine_id>/` — never at the repo root — so one machine's run can't
 clobber another's. `machine_id()` returns the sanitized hostname by default;
-`TOKENLENS_MACHINE` overrides it. `pricing_history.json` is the one durable store
+`TOKENOPS_MACHINE` overrides it. `pricing_history.json` is the one durable store
 that stays **shared at the repo root**, because it's stamped from the `PRICING`
 table (code), not derived from any machine's transcripts — so it's identical
 everywhere and non-personal (dates + public rates).
@@ -311,7 +311,7 @@ session/`by_model` shapes, update the fixtures' expected numbers.
   provider-blind), so a new provider is one class. `ClaudeProvider` implemented;
   `CodexProvider` is the planned twin. Dual-written best-effort from `main()`
   (`ingest_canonical()`), never touching the existing JSON/report. Opt-in verbatim
-  via `TOKENLENS_CAPTURE`. Design + measured size model:
+  via `TOKENOPS_CAPTURE`. Design + measured size model:
   [`canonical-data-model.md`](./canonical-data-model.md). Tests: `test_canonical.py`.
 - **2026-07-10** — Data health monitoring: `scan_claude()`/`scan_codex()` schema
   fingerprinting vs. a `SCHEMA_EXPECT` baseline, `coverage()` idle-vs-hole
