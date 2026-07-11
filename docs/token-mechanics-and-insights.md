@@ -180,6 +180,25 @@ diff the rendered prompt bytes between two consecutive requests to find the
 invalidator; if `cache_read_input_tokens` stays 0 across requests that *should*
 share a prefix, an invalidator is confirmed.
 
+**Not every change is equally catastrophic.** The cache has three tiers
+(`tools`, `system`, `messages`, in render order), and a change only busts its own
+tier *and everything after it* — so the cost of a change depends on how far
+forward it sits. ✅ = that tier's cache survives:
+
+| Change | Tools | System | Messages |
+|---|:--:|:--:|:--:|
+| Tool definitions (add / remove / reorder) | ❌ | ❌ | ❌ |
+| Model switch | ❌ | ❌ | ❌ |
+| `speed` / web-search / citations toggle, **system-prompt content** | ✅ | ❌ | ❌ |
+| `tool_choice`, images, `thinking` on/off | ✅ | ✅ | ❌ |
+| Message content (a normal new turn) | ✅ | ✅ | ❌ |
+
+The two total-rebuilds are **changing the tool set** and **switching models** —
+both re-write from byte 0. Everything else keeps the (expensive) tools+system
+prefix and only re-writes the message tail, which is the normal per-turn cost.
+So a mid-session model swap or a churned tool list is the pathological case; a new
+user turn is not. ([Anthropic — Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching))
+
 ### 2.4 Codex / OpenAI: simpler, three line-items
 
 OpenAI's model is simpler — caching is **automatic** (no `cache_control`,
