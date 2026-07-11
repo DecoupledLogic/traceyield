@@ -293,6 +293,13 @@ def aggregate(conn):
       - day `sessions`, `tool_results`, `tool_errors`, `errors`, and
         `by_tool[*].calls`/`.err` are NOT tier-filtered (they come from
         tool_call rows / the session-id union, independent of model tier);
+      - `by_tool[*].calls` is bucketed by the linked TURN's day (join
+        turn_id -> turn.ts), matching analyze()'s "a tool_use call belongs to
+        its assistant turn's day". `by_tool[*].err`/`tool_results`/
+        `tool_errors`/`errors` stay bucketed by tool_call.ts's own day (which
+        tracks MAX(call, result) -- i.e. the RESULT's day), matching
+        analyze()'s "a tool_result's error belongs to the result line's day".
+        A call/result straddling UTC midnight is the reason these two differ;
       - `by_tool` cost/out attribution follows the turn's tool_use count via a
         turn_id -> tool_call join (0 -> "(final response)", 1 -> that tool's
         name, >1 -> "(multi-tool turn)");
@@ -322,9 +329,11 @@ def aggregate(conn):
         if d is not None:
             days[d]["sessions"] = cnt
 
-    # tool_results / tool_errors / errors (day) and by_tool.calls/.err (day) --
-    # NOT tier-filtered (rule 3); one row per call already merges the call
-    # (name) and the result (ok/error_class) via canonical.py's upsert.
+    # tool_results / tool_errors / errors (day) and by_tool.err (day) -- NOT
+    # tier-filtered (rule 3); grouped by tool_call.ts, which tracks MAX(call,
+    # result) -- i.e. the RESULT's day once a result has arrived. This matches
+    # analyze(), which counts a tool_result's error/tool_results/tool_errors
+    # on the RESULT line's own day (a separate line from the call).
     for day, sid, name, ok, ec in conn.execute("""
         SELECT substr(ts,1,10), session_id, name, ok, error_class
         FROM tool_call WHERE provider='claude' AND ts IS NOT NULL
@@ -336,10 +345,25 @@ def aggregate(conn):
                 if ok == 0:
                     D["tool_errors"] += 1
                     if ec: D["errors"][ec] += 1
-            if name is not None:
-                D["by_tool"][name]["calls"] += 1
-                if ok == 0:
-                    D["by_tool"][name]["err"] += 1
+            if name is not None and ok == 0:
+                D["by_tool"][name]["err"] += 1
+
+    # by_tool[*].calls -- bucketed by the CALL's linked TURN's day, not the
+    # tool_call row's own ts day. tool_call.ts tracks MAX(call, result), so it
+    # can drift to the result's day (or even the next day, e.g. an
+    # AskUserQuestion answered after UTC midnight); analyze() always counts a
+    # tool_use call under the assistant turn's own day. Join turn_id ->
+    # turn.ts to match; every call's turn_id points at a kept turn, but fall
+    # back to the tool_call's own ts day if that join is ever empty.
+    for name, turn_day, tc_day in conn.execute("""
+        SELECT tc.name, substr(t.ts,1,10), substr(tc.ts,1,10)
+        FROM tool_call tc LEFT JOIN turn t
+          ON t.turn_id = tc.turn_id AND t.provider = tc.provider
+        WHERE tc.provider='claude' AND tc.name IS NOT NULL
+    """):
+        day = turn_day or tc_day
+        if day is not None:
+            days[day]["by_tool"][name]["calls"] += 1
 
     # session-level tool_results/tool_errors -- NOT tier-filtered (rule 7).
     for sid, ok in conn.execute("""
