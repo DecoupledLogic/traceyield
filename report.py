@@ -7,8 +7,12 @@ bucketed by activity date. Aggregation into day / week / month views happens
 client-side in report.html, so you can step through any period and see trends.
 
 Each run:
-  1. Parses every transcript under CLAUDE_PROJECTS, bucketing metrics by the
-     UTC date of each message/tool-result.
+  1. Ingests every transcript under CLAUDE_PROJECTS (and ~/.codex) into the
+     canonical usage.db (canonical.py), then derives day/session metrics from
+     it via aggregate() -- SQL GROUP BY over the provider-neutral turn/tool
+     store is the source of truth. Falls back to the legacy direct-parse
+     analyze() if the canonical path fails for any reason (never breaks a run).
+     See docs/decisions/0001-aggregate-flip.md.
   2. Merges into daily_metrics.json (new data authoritative per date; older
      dates kept even if their transcripts get rotated away).
   3. Records today's model pricing in pricing_history.json.
@@ -139,9 +143,31 @@ def new_session():
             "project":None,"start":None,"end":None,"by_model":defaultdict(float)}
 
 def analyze(root=CLAUDE_PROJECTS):
+    """Parse Claude transcripts directly into (days, sessions).
+
+    Retained as the equivalence oracle for aggregate() (see TestAggregateEquivalence
+    in test_report.py) and as main()'s resilience fallback if the canonical-db path
+    fails. It is NO LONGER the live production path — main() derives day/session
+    metrics from aggregate() over usage.db instead (see docs/decisions/0001-
+    aggregate-flip.md).
+
+    Dedup: Claude Code replays the SAME assistant turn (same uuid) and its tool
+    results into multiple transcript files on session resume/compaction. A
+    billable turn is deduped by `uuid`; a tool_result is deduped by
+    `tool_use_id`. Only replayed turns/results are counted once (the operator
+    decided this is correct -- each turn is billed once); a line/block without
+    that id is never deduped. `days`/`sessions` entries, and the day-active-
+    session set / session start-end span, are only ever touched by a
+    (non-duplicate) billable turn or a (non-duplicate) tool_result -- never by
+    a plain prompt-only line -- so both are defined identically to aggregate()."""
     files = glob.glob(os.path.join(root, "**", "*.jsonl"), recursive=True)
     days = defaultdict(new_day)
     sessions = defaultdict(new_session)
+    # Run-scoped across ALL files: glob order matches canonical.ingest()'s
+    # INSERT-OR-IGNORE-by-turn_id/call_id dedup, so the first occurrence
+    # (across files) wins identically in both paths.
+    seen_turn_ids = set()
+    seen_result_ids = set()
     for f in files:
         proj = project_of(f, root)
         idname = {}
@@ -156,61 +182,76 @@ def analyze(root=CLAUDE_PROJECTS):
                 d = ts[:10]
                 m = o.get("message")
                 if not isinstance(m, dict): continue
-                D = days[d]
                 sid = o.get("sessionId")
-                S = sessions[sid] if sid else None
-                if sid: D["sids"].add(sid)
-                if S is not None:
-                    if S["project"] is None: S["project"] = proj
-                    if S["start"] is None or ts < S["start"]: S["start"] = ts
-                    if S["end"] is None or ts > S["end"]: S["end"] = ts
-                turn_tools = []
                 content = m.get("content")
-                if isinstance(content, list):
+                content = content if isinstance(content, list) else []
+                u = m.get("usage")
+
+                if isinstance(u, dict):                        # a billable assistant turn
+                    tid = o.get("uuid")
+                    if tid is not None:
+                        if tid in seen_turn_ids: continue       # replayed turn -- already billed
+                        seen_turn_ids.add(tid)
+                    D = days[d]; S = sessions[sid] if sid else None
+                    if sid: D["sids"].add(sid)
+                    if S is not None:
+                        if S["project"] is None: S["project"] = proj
+                        if S["start"] is None or ts < S["start"]: S["start"] = ts
+                        if S["end"] is None or ts > S["end"]: S["end"] = ts
+                    turn_tools = []
                     for b in content:
                         if not isinstance(b, dict): continue
-                        t = b.get("type")
-                        if t == "tool_use":
+                        if b.get("type") == "tool_use":
                             nm = b.get("name","?")
                             turn_tools.append(nm)
                             D["by_tool"][nm]["calls"] += 1
                             idname[b.get("id")] = nm
-                        elif t == "tool_result":
-                            D["tool_results"] += 1
-                            if S is not None: S["tool_results"] += 1
-                            if b.get("is_error"):
-                                D["tool_errors"] += 1
-                                if S is not None: S["tool_errors"] += 1
-                                D["errors"][classify(result_text(b))] += 1
-                                enm = idname.get(b.get("tool_use_id"))
-                                if enm: D["by_tool"][enm]["err"] += 1
-                u = m.get("usage")
-                if not isinstance(u, dict): continue
-                tr = tier(m.get("model"))
-                if tr is None: continue
-                inp=u.get("input_tokens",0) or 0; out=u.get("output_tokens",0) or 0
-                cr=u.get("cache_read_input_tokens",0) or 0; cc=u.get("cache_creation_input_tokens",0) or 0
-                det=u.get("cache_creation") or {}
-                w1h=det.get("ephemeral_1h_input_tokens",0) or 0; w5m=det.get("ephemeral_5m_input_tokens",0) or 0
-                if w1h+w5m==0 and cc>0: w5m=cc
-                ri,ro=PRICING[tr]; crate=cache_rates(ri)
-                cost=(inp*ri+out*ro+cr*crate["read"]+w5m*crate["w5m"]+w1h*crate["w1h"])/1e6
-                D["cost"]+=cost; D["msgs"]+=1
-                tk=D["tok"]; tk["input"]+=inp; tk["output"]+=out; tk["cache_read"]+=cr
-                tk["cache_write_5m"]+=w5m; tk["cache_write_1h"]+=w1h
-                bm=D["by_model"][tr]; bm["cost"]+=cost
-                bmt=bm["tok"]; bmt["input"]+=inp; bmt["output"]+=out; bmt["cache_read"]+=cr
-                bmt["cache_write_5m"]+=w5m; bmt["cache_write_1h"]+=w1h
-                bp=D["by_project"][proj]; bp["cost"]+=cost; bp["msgs"]+=1
-                if S is not None:
-                    S["cost"]+=cost; S["msgs"]+=1
-                    stk=S["tok"]; stk["input"]+=inp; stk["output"]+=out; stk["cache_read"]+=cr
-                    stk["cache_write_5m"]+=w5m; stk["cache_write_1h"]+=w1h
-                    S["by_model"][tr]+=cost
-                # tool calls serialize (~100% single-tool turns) → attribute the
-                # whole turn's cost+output to its one tool; else a pseudo-row.
-                tkey = turn_tools[0] if len(turn_tools)==1 else ("(final response)" if not turn_tools else "(multi-tool turn)")
-                bt=D["by_tool"][tkey]; bt["cost"]+=cost; bt["out"]+=out
+                    tr = tier(m.get("model"))
+                    if tr is None: continue
+                    inp=u.get("input_tokens",0) or 0; out=u.get("output_tokens",0) or 0
+                    cr=u.get("cache_read_input_tokens",0) or 0; cc=u.get("cache_creation_input_tokens",0) or 0
+                    det=u.get("cache_creation") or {}
+                    w1h=det.get("ephemeral_1h_input_tokens",0) or 0; w5m=det.get("ephemeral_5m_input_tokens",0) or 0
+                    if w1h+w5m==0 and cc>0: w5m=cc
+                    ri,ro=PRICING[tr]; crate=cache_rates(ri)
+                    cost=(inp*ri+out*ro+cr*crate["read"]+w5m*crate["w5m"]+w1h*crate["w1h"])/1e6
+                    D["cost"]+=cost; D["msgs"]+=1
+                    tk=D["tok"]; tk["input"]+=inp; tk["output"]+=out; tk["cache_read"]+=cr
+                    tk["cache_write_5m"]+=w5m; tk["cache_write_1h"]+=w1h
+                    bm=D["by_model"][tr]; bm["cost"]+=cost
+                    bmt=bm["tok"]; bmt["input"]+=inp; bmt["output"]+=out; bmt["cache_read"]+=cr
+                    bmt["cache_write_5m"]+=w5m; bmt["cache_write_1h"]+=w1h
+                    bp=D["by_project"][proj]; bp["cost"]+=cost; bp["msgs"]+=1
+                    if S is not None:
+                        S["cost"]+=cost; S["msgs"]+=1
+                        stk=S["tok"]; stk["input"]+=inp; stk["output"]+=out; stk["cache_read"]+=cr
+                        stk["cache_write_5m"]+=w5m; stk["cache_write_1h"]+=w1h
+                        S["by_model"][tr]+=cost
+                    # tool calls serialize (~100% single-tool turns) → attribute the
+                    # whole turn's cost+output to its one tool; else a pseudo-row.
+                    tkey = turn_tools[0] if len(turn_tools)==1 else ("(final response)" if not turn_tools else "(multi-tool turn)")
+                    bt=D["by_tool"][tkey]; bt["cost"]+=cost; bt["out"]+=out
+                else:                                            # a user line: prompts and/or tool_results
+                    for b in content:
+                        if not isinstance(b, dict) or b.get("type") != "tool_result": continue
+                        rid = b.get("tool_use_id")
+                        if rid is not None:
+                            if rid in seen_result_ids: continue  # replayed result -- already counted
+                            seen_result_ids.add(rid)
+                        D = days[d]; S = sessions[sid] if sid else None
+                        if sid: D["sids"].add(sid)
+                        if S is not None:
+                            if S["project"] is None: S["project"] = proj
+                            if S["start"] is None or ts < S["start"]: S["start"] = ts
+                            if S["end"] is None or ts > S["end"]: S["end"] = ts
+                        D["tool_results"] += 1
+                        if S is not None: S["tool_results"] += 1
+                        if b.get("is_error"):
+                            D["tool_errors"] += 1
+                            if S is not None: S["tool_errors"] += 1
+                            D["errors"][classify(result_text(b))] += 1
+                            enm = idname.get(rid)
+                            if enm: D["by_tool"][enm]["err"] += 1
         except: continue
     # serialize (sets->counts kept as list length; round cost)
     out = {}
@@ -223,6 +264,193 @@ def analyze(root=CLAUDE_PROJECTS):
             "by_model": {m:{"cost":round(v["cost"],4),"tok":v["tok"]} for m,v in D["by_model"].items()},
             "by_project": {p:{"cost":round(v["cost"],4),"msgs":v["msgs"]} for p,v in D["by_project"].items()},
             "by_tool": {t:{"calls":v["calls"],"out":v["out"],"cost":round(v["cost"],4),"err":v["err"]} for t,v in D["by_tool"].items()},
+            "errors": dict(D["errors"]),
+        }
+    sess = {}
+    for sid, S in sessions.items():
+        sess[sid] = {
+            "cost": round(S["cost"], 4),
+            "tok": S["tok"],
+            "msgs": S["msgs"], "tool_results": S["tool_results"], "tool_errors": S["tool_errors"],
+            "project": S["project"], "start": S["start"], "end": S["end"],
+            "by_model": {m: round(c, 4) for m, c in S["by_model"].items()},
+        }
+    return out, sess
+
+def aggregate(conn):
+    """Derive (days, sessions) — the SAME shapes analyze() returns — via SQL
+    GROUP BY aggregation over an open canonical-db connection (canonical.py's
+    usage.db). This is the live production path (see main()); analyze() is kept
+    as the equivalence oracle this is proven against (TestAggregateEquivalence
+    in test_report.py) and as a resilience fallback.
+
+    Equivalence rules honored (see docs/decisions/0001-aggregate-flip.md):
+      - scoped to provider='claude' (Codex has no cost model yet);
+      - cost/tok/msgs/by_model/by_project/session-cost only accumulate over
+        turns with tier IS NOT NULL, mirroring analyze()'s
+        `if tr is None: continue` gate. Cost is recomputed from tokens at the
+        CURRENT PRICING/cache_rates() — never read from a stored column;
+      - day `sessions`, `tool_results`, `tool_errors`, `errors`, and
+        `by_tool[*].calls`/`.err` are NOT tier-filtered (they come from
+        tool_call rows / the session-id union, independent of model tier);
+      - `by_tool[*].calls` is bucketed by the linked TURN's day (join
+        turn_id -> turn.ts), matching analyze()'s "a tool_use call belongs to
+        its assistant turn's day". `by_tool[*].err`/`tool_results`/
+        `tool_errors`/`errors` stay bucketed by tool_call.ts's own day (which
+        tracks MAX(call, result) -- i.e. the RESULT's day), matching
+        analyze()'s "a tool_result's error belongs to the result line's day".
+        A call/result straddling UTC midnight is the reason these two differ;
+      - `by_tool` cost/out attribution follows the turn's tool_use count via a
+        turn_id -> tool_call join (0 -> "(final response)", 1 -> that tool's
+        name, >1 -> "(multi-tool turn)");
+      - session `start`/`end` are MIN/MAX(ts) over that session's turn AND
+        tool_call rows -- NOT session.first_ts/last_ts (a canonical session
+        row is keyed by the file's own span bookkeeping; deriving span from
+        the turn+tool_call rows matches analyze() exactly turn-for-turn);
+      - day `by_project` keys on each TURN's OWN `project` column (per-file,
+        set at ingest) -- NOT the session's resolved `project` -- matching
+        analyze()'s per-file cost attribution. A session's turns can span two
+        project directories (e.g. a worktree switch mid-session); by_project
+        must still split like analyze() does. `sessions[*].project` is the
+        session-level, first-seen-wins value (from the session table) and is
+        unrelated to this per-turn field.
+    """
+    days = defaultdict(new_day)
+    sessions = defaultdict(new_session)
+
+    # project per session (provider='claude'), for by_project / session.project
+    project_of_sess = dict(conn.execute(
+        "SELECT session_id, project FROM session WHERE provider='claude'"))
+
+    # day `sessions` = distinct session_id over the UNION of turn + tool_call
+    # rows on that day -- NOT tier-filtered (rule 3).
+    for d, cnt in conn.execute("""
+        SELECT day, COUNT(DISTINCT session_id) FROM (
+          SELECT substr(ts,1,10) AS day, session_id FROM turn
+            WHERE provider='claude' AND ts IS NOT NULL
+          UNION
+          SELECT substr(ts,1,10) AS day, session_id FROM tool_call
+            WHERE provider='claude' AND ts IS NOT NULL
+        ) GROUP BY day
+    """):
+        if d is not None:
+            days[d]["sessions"] = cnt
+
+    # tool_results / tool_errors / errors (day) and by_tool.err (day) -- NOT
+    # tier-filtered (rule 3); grouped by tool_call.ts, which tracks MAX(call,
+    # result) -- i.e. the RESULT's day once a result has arrived. This matches
+    # analyze(), which counts a tool_result's error/tool_results/tool_errors
+    # on the RESULT line's own day (a separate line from the call).
+    for day, sid, name, ok, ec in conn.execute("""
+        SELECT substr(ts,1,10), session_id, name, ok, error_class
+        FROM tool_call WHERE provider='claude' AND ts IS NOT NULL
+    """):
+        if day is not None:
+            D = days[day]
+            if ok is not None:
+                D["tool_results"] += 1
+                if ok == 0:
+                    D["tool_errors"] += 1
+                    if ec: D["errors"][ec] += 1
+            if name is not None and ok == 0:
+                D["by_tool"][name]["err"] += 1
+
+    # by_tool[*].calls -- bucketed by the CALL's linked TURN's day, not the
+    # tool_call row's own ts day. tool_call.ts tracks MAX(call, result), so it
+    # can drift to the result's day (or even the next day, e.g. an
+    # AskUserQuestion answered after UTC midnight); analyze() always counts a
+    # tool_use call under the assistant turn's own day. Join turn_id ->
+    # turn.ts to match; every call's turn_id points at a kept turn, but fall
+    # back to the tool_call's own ts day if that join is ever empty.
+    for name, turn_day, tc_day in conn.execute("""
+        SELECT tc.name, substr(t.ts,1,10), substr(tc.ts,1,10)
+        FROM tool_call tc LEFT JOIN turn t
+          ON t.turn_id = tc.turn_id AND t.provider = tc.provider
+        WHERE tc.provider='claude' AND tc.name IS NOT NULL
+    """):
+        day = turn_day or tc_day
+        if day is not None:
+            days[day]["by_tool"][name]["calls"] += 1
+
+    # session-level tool_results/tool_errors -- NOT tier-filtered (rule 7).
+    for sid, ok in conn.execute("""
+        SELECT session_id, ok FROM tool_call
+        WHERE provider='claude' AND session_id IS NOT NULL
+    """):
+        if ok is not None:
+            S = sessions[sid]
+            S["tool_results"] += 1
+            if ok == 0: S["tool_errors"] += 1
+
+    # session span -- MIN/MAX(ts) over turn UNION tool_call rows (rule 7),
+    # not session.first_ts/last_ts.
+    for sid, lo, hi in conn.execute("""
+        SELECT session_id, MIN(ts), MAX(ts) FROM (
+          SELECT session_id, ts FROM turn WHERE provider='claude' AND ts IS NOT NULL
+          UNION ALL
+          SELECT session_id, ts FROM tool_call WHERE provider='claude' AND ts IS NOT NULL
+        ) GROUP BY session_id
+    """):
+        S = sessions[sid]
+        S["start"], S["end"] = lo, hi
+        S["project"] = project_of_sess.get(sid)
+
+    # tool_use name(s) per turn_id, for the by_tool cost/out attribution (rule 4).
+    tool_names_by_turn = defaultdict(list)
+    for turn_id, name in conn.execute("""
+        SELECT turn_id, name FROM tool_call
+        WHERE provider='claude' AND name IS NOT NULL
+          AND turn_id IS NOT NULL AND turn_id != ''
+    """):
+        tool_names_by_turn[turn_id].append(name)
+
+    # cost/tok/msgs/by_model/by_project/session-cost/by_tool(cost,out) --
+    # tier-not-null turns only (rule 2). by_project keys on the TURN's OWN
+    # project (per-file, populated at ingest by ClaudeProvider) -- NOT the
+    # session's resolved project -- so a session whose turns span two project
+    # directories still splits its cost exactly like analyze() (which
+    # attributes each turn to the file it was parsed from). Falls back to the
+    # session's project on the (should-never-happen-for-claude) chance a
+    # turn's own project is NULL.
+    for turn_id, sid, day, tr, inp, cr, w5m, w1h, out, tproj in conn.execute("""
+        SELECT turn_id, session_id, substr(ts,1,10), tier,
+               input_fresh, cache_read, cache_write_5m, cache_write_1h, output, project
+        FROM turn WHERE provider='claude' AND tier IS NOT NULL AND ts IS NOT NULL
+    """):
+        ri, ro = PRICING[tr]; crate = cache_rates(ri)
+        cost = (inp*ri + out*ro + cr*crate["read"] + w5m*crate["w5m"] + w1h*crate["w1h"]) / 1e6
+
+        D = days[day]
+        D["cost"] += cost; D["msgs"] += 1
+        tk = D["tok"]; tk["input"] += inp; tk["output"] += out; tk["cache_read"] += cr
+        tk["cache_write_5m"] += w5m; tk["cache_write_1h"] += w1h
+        bm = D["by_model"][tr]; bm["cost"] += cost
+        bmt = bm["tok"]; bmt["input"] += inp; bmt["output"] += out; bmt["cache_read"] += cr
+        bmt["cache_write_5m"] += w5m; bmt["cache_write_1h"] += w1h
+        proj = tproj or project_of_sess.get(sid)
+        bp = D["by_project"][proj]; bp["cost"] += cost; bp["msgs"] += 1
+
+        S = sessions[sid]
+        S["cost"] += cost; S["msgs"] += 1
+        stk = S["tok"]; stk["input"] += inp; stk["output"] += out; stk["cache_read"] += cr
+        stk["cache_write_5m"] += w5m; stk["cache_write_1h"] += w1h
+        S["by_model"][tr] += cost
+
+        names = tool_names_by_turn.get(turn_id, [])
+        tkey = names[0] if len(names) == 1 else ("(final response)" if not names else "(multi-tool turn)")
+        bt = D["by_tool"][tkey]; bt["cost"] += cost; bt["out"] += out
+
+    out = {}
+    for d, D in days.items():
+        out[d] = {
+            "cost": round(D["cost"], 4),
+            "tok": D["tok"],
+            "msgs": D["msgs"], "tool_results": D["tool_results"], "tool_errors": D["tool_errors"],
+            "sessions": D.get("sessions", 0),
+            "by_model": {m: {"cost": round(v["cost"], 4), "tok": v["tok"]} for m, v in D["by_model"].items()},
+            "by_project": {p: {"cost": round(v["cost"], 4), "msgs": v["msgs"]} for p, v in D["by_project"].items()},
+            "by_tool": {t: {"calls": v["calls"], "out": v["out"], "cost": round(v["cost"], 4), "err": v["err"]}
+                        for t, v in D["by_tool"].items()},
             "errors": dict(D["errors"]),
         }
     sess = {}
@@ -606,27 +834,34 @@ def build_html(days, sessions, pricing_hist, health=None):
     tmpl = tmpl.replace("__PRICEROWS__", "".join(price_rows))
     return tmpl
 
-def ingest_canonical():
-    """Dual-write the provider-neutral turn/tool/segment store (canonical.py).
+def metrics_via_canonical():
+    """Live production path: ingest the canonical turn/tool/segment store
+    (canonical.py) and derive (days, sessions) from it via aggregate() -- SQLite
+    is the source of truth for the aggregates, not a parallel transcript walk.
 
-    Best-effort and fully isolated: it reads the same transcripts but writes only
-    its own machines/<id>/usage.db — it never touches daily/session JSON or the
-    report. Any failure is swallowed so the canonical layer can never break the
-    working pipeline. Imported lazily to avoid an import cycle (canonical imports
-    report). See docs/canonical-data-model.md."""
+    Imported lazily to avoid an import cycle (canonical imports report). Raises
+    on any failure (ingest or aggregate) so main() can fall back to analyze();
+    it never partially commits -- merge_daily/merge_sessions only run on the
+    result this returns. See docs/canonical-data-model.md and
+    docs/decisions/0001-aggregate-flip.md."""
+    import canonical
+    db = canonical.open_db()
+    files, recs = canonical.ingest(db)
+    print(f"Canonical store: {canonical.DB_FILE} (capture={canonical.CAPTURE}) "
+          f"| {files} files -> {recs} records")
     try:
-        import canonical
-        db = canonical.open_db()
-        files, recs = canonical.ingest(db)
+        newdays, newsess = aggregate(db)
+    finally:
         db.close()
-        print(f"Canonical store: {canonical.DB_FILE} (capture={canonical.CAPTURE}) "
-              f"| {files} files -> {recs} records")
-    except Exception as e:
-        print(f"Canonical ingest skipped ({type(e).__name__}: {e})")
+    return newdays, newsess
 
 def main():
     os.makedirs(MACHINE_DIR, exist_ok=True)   # machines/<machine_id>/
-    newdays, newsess = analyze()
+    try:
+        newdays, newsess = metrics_via_canonical()
+    except Exception as e:
+        print(f"Aggregate-from-db failed ({type(e).__name__}: {e}); fell back to analyze()")
+        newdays, newsess = analyze()
     days = merge_daily(newdays)
     sessions = merge_sessions(newsess)
     pricing_hist = record_pricing()
@@ -635,7 +870,6 @@ def main():
     health = build_health(days, scan_claude(), scan_codex())
     write_health(health)
     open(OUT_HTML, "w", encoding="utf-8").write(build_html(days, sessions, pricing_hist, health))
-    ingest_canonical()   # dual-write the richer turn/tool/segment store (best-effort)
     tc = sum(d["cost"] for d in days.values()); tm = sum(d["msgs"] for d in days.values())
     te = sum(d["tool_errors"] for d in days.values()); tr = sum(d["tool_results"] for d in days.values())
     ds = sorted(days)

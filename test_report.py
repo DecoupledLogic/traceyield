@@ -12,7 +12,7 @@ model-routing estimator consumes. Fixtures are built with hand-computable
 numbers so expected costs are checked exactly, not approximately.
 """
 import json, os, re, socket, tempfile, unittest, warnings
-import report
+import report, canonical
 
 # report.py favors a terse `json.load(open(...))` idiom that leaks file handles
 # on CPython's GC schedule; that's a deliberate single-file style choice, not a
@@ -25,11 +25,14 @@ def line(**kw):
     """One transcript JSON line."""
     return json.dumps(kw)
 
-def assistant(ts, sid, model, usage, tools=()):
-    """An assistant message: model + usage, optional tool_use blocks."""
+def assistant(ts, sid, model, usage, tools=(), uuid=None):
+    """An assistant message: model + usage, optional tool_use blocks, optional
+    uuid (Claude Code's turn id -- set it to exercise replay dedup)."""
     content = [{"type": "tool_use", "id": tid, "name": name} for tid, name in tools]
-    return line(timestamp=ts, sessionId=sid,
-                message={"model": model, "usage": usage, "content": content})
+    o = {"timestamp": ts, "sessionId": sid,
+         "message": {"model": model, "usage": usage, "content": content}}
+    if uuid: o["uuid"] = uuid
+    return line(**o)
 
 def tool_result(ts, sid, tool_use_id, is_error=False, text="ok"):
     """A user message carrying a tool_result block (no usage/model)."""
@@ -37,6 +40,12 @@ def tool_result(ts, sid, tool_use_id, is_error=False, text="ok"):
                 message={"content": [{"type": "tool_result",
                                       "tool_use_id": tool_use_id,
                                       "is_error": is_error, "content": text}]})
+
+def prompt(ts, sid, text):
+    """A plain user prompt line: no usage, no tool_result -- not a billable
+    turn or tool touch, so it must not move a session's span or count as a
+    day-active-session in either analyze() or aggregate()."""
+    return line(timestamp=ts, sessionId=sid, message={"role": "user", "content": text})
 
 def usage(inp=0, out=0, cr=0, cc=0, w5m=None, w1h=None):
     u = {"input_tokens": inp, "output_tokens": out,
@@ -51,6 +60,15 @@ def write_transcript(root, project, name, lines):
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, name), "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
+
+def ingest_and_aggregate(root):
+    """Ingest a transcript root into an in-memory canonical db, then run
+    report.aggregate() over it — the equivalence-test twin of report.analyze(root)."""
+    conn = canonical.open_db(":memory:")
+    canonical.ingest(conn, [canonical.ClaudeProvider(root=root)])
+    days, sessions = report.aggregate(conn)
+    conn.close()
+    return days, sessions
 
 
 # --------------------------------------------------------------- pure helpers
@@ -349,6 +367,159 @@ class TestAnalyze(unittest.TestCase):
             self.assertEqual(days["2026-02-01"]["by_model"], {})
             self.assertEqual(sessions["sx"]["cost"], 0.0)
             self.assertEqual(sessions["sx"]["by_model"], {})
+
+
+# --------------------------------------------------------------- aggregate() equivalence
+class TestAggregateEquivalence(unittest.TestCase):
+    """aggregate() (SQL GROUP BY over the canonical db) must reproduce analyze()'s
+    (days, sessions) output exactly, on the same transcripts, within the cost
+    rounding both already apply. This is the regression guard for the E1-F2-S1
+    "aggregate flip": SQLite becomes the source of truth for the aggregates
+    without changing what the report shows."""
+
+    def _check(self, root):
+        days_a, sess_a = report.analyze(root)
+        days_b, sess_b = ingest_and_aggregate(root)
+        self.assertEqual(days_a, days_b)
+        self.assertEqual(sess_a, sess_b)
+
+    def test_equivalence_on_the_full_TestAnalyze_fixture(self):
+        # Same fixture as TestAnalyze.setUp: two sessions in one file (one
+        # spanning two days), opus + haiku, a tool error, cache_creation->5m
+        # fallback, a malformed-JSON line, and a no-timestamp line.
+        with tempfile.TemporaryDirectory() as root:
+            lines = [
+                assistant("2026-01-01T10:00:00Z", "s1", "claude-opus-4",
+                          usage(inp=100, out=50, cr=1000, w5m=200, w1h=300),
+                          tools=[("t1", "Read")]),
+                tool_result("2026-01-01T10:00:01Z", "s1", "t1"),
+                assistant("2026-01-02T09:00:00Z", "s1", "claude-opus-4",
+                          usage(inp=10, out=10), tools=[("t2", "Bash")]),
+                tool_result("2026-01-02T09:00:01Z", "s1", "t2",
+                            is_error=True, text="command not found"),
+                assistant("2026-01-02T11:00:00Z", "s2", "claude-haiku-4-5",
+                          usage(inp=1000, out=500, cc=400)),
+                "{ this is not valid json",
+                line(message={"model": "x", "usage": usage(inp=9)}),
+            ]
+            write_transcript(root, "projX", "conv.jsonl", lines)
+            self._check(root)
+
+    def test_equivalence_unknown_model(self):
+        with tempfile.TemporaryDirectory() as root:
+            write_transcript(root, "p", "c.jsonl", [
+                assistant("2026-02-01T00:00:00Z", "sx", "gpt-4", usage(inp=1000, out=1000)),
+            ])
+            self._check(root)
+
+    def test_equivalence_multi_tool_turn(self):
+        # A turn with >1 tool_use block must land in the "(multi-tool turn)"
+        # pseudo-row in both analyze() and aggregate() -- exercises the last
+        # untested branch of the by_tool attribution rule.
+        with tempfile.TemporaryDirectory() as root:
+            lines = [
+                assistant("2026-03-01T00:00:00Z", "sm", "claude-sonnet-5",
+                          usage(inp=200, out=100, cr=50, w5m=10, w1h=0),
+                          tools=[("m1", "Read"), ("m2", "Grep")]),
+                tool_result("2026-03-01T00:00:01Z", "sm", "m1"),
+                tool_result("2026-03-01T00:00:02Z", "sm", "m2"),
+            ]
+            write_transcript(root, "projM", "multi.jsonl", lines)
+            days, sessions = report.analyze(root)
+            self.assertIn("(multi-tool turn)", days["2026-03-01"]["by_tool"])
+            self._check(root)
+
+    def test_equivalence_cross_file_turn_replay_dedup(self):
+        # Claude Code replays the SAME assistant turn (same uuid) -- and its
+        # tool result -- into a second transcript file on session resume/
+        # compaction. Both paths must dedup by uuid/tool_use_id and count it
+        # exactly once (the operator's decision: each turn is billed once).
+        with tempfile.TemporaryDirectory() as root:
+            turn = assistant("2026-04-01T00:00:00Z", "sd", "claude-opus-4",
+                             usage(inp=100, out=50, cr=10, w5m=5, w1h=0),
+                             tools=[("dtool", "Read")], uuid="turn-dup-1")
+            result = tool_result("2026-04-01T00:00:01Z", "sd", "dtool")
+            write_transcript(root, "projD", "conv1.jsonl", [turn, result])
+            write_transcript(root, "projD", "conv2.jsonl", [turn, result])   # exact replay
+            days, sessions = report.analyze(root)
+            self.assertEqual(days["2026-04-01"]["msgs"], 1)                  # billed once
+            self.assertEqual(days["2026-04-01"]["by_tool"]["Read"]["calls"], 1)
+            self.assertEqual(days["2026-04-01"]["tool_results"], 1)
+            self.assertEqual(sessions["sd"]["msgs"], 1)
+            self._check(root)
+
+    def test_equivalence_leading_prompt_only_line_excluded(self):
+        # A plain prompt-only user line, timestamped BEFORE any billable turn
+        # or tool touch, must not move the session's start and must not
+        # fabricate a day-active-session on the day it alone occupies -- in
+        # neither analyze() nor aggregate() (session/day activity is defined
+        # over billable-turn + tool_result touches only, in both paths).
+        with tempfile.TemporaryDirectory() as root:
+            lines = [
+                prompt("2026-04-29T23:00:00Z", "sp", "hello"),   # earlier day, no billable turn
+                assistant("2026-04-30T00:05:00Z", "sp", "claude-sonnet-5",
+                         usage(inp=10, out=5), uuid="turn-p1"),
+            ]
+            write_transcript(root, "projP", "conv.jsonl", lines)
+            days, sessions = report.analyze(root)
+            self.assertNotIn("2026-04-29", days)                            # no phantom day
+            self.assertEqual(sessions["sp"]["start"], "2026-04-30T00:05:00Z")
+            self._check(root)
+
+    def test_equivalence_tool_call_and_result_straddle_midnight(self):
+        # A tool_use call at 23:59:30Z and its tool_result the NEXT day
+        # (00:00:30Z) -- by_tool[*].calls must land on the CALL's (turn's)
+        # day; tool_results/tool_errors/errors/by_tool[*].err must land on the
+        # RESULT's day, identically in analyze() and aggregate(). This is the
+        # scenario tool_call.ts = MAX(call_ts, result_ts) can drift a day
+        # ahead of the call's own turn -- aggregate() must bucket `calls` via
+        # the linked turn's day, not tool_call.ts's day, to match analyze().
+        with tempfile.TemporaryDirectory() as root:
+            lines = [
+                assistant("2026-05-10T23:59:30Z", "sn", "claude-opus-4",
+                         usage(inp=40, out=20, cr=5, w5m=2, w1h=0),
+                         tools=[("n1", "AskUserQuestion")], uuid="turn-mid-1"),
+                tool_result("2026-05-11T00:00:30Z", "sn", "n1",
+                           is_error=True, text="no such file"),
+            ]
+            write_transcript(root, "projN", "midnight.jsonl", lines)
+            days, sessions = report.analyze(root)
+            # the call counts on the call/turn day (2026-05-10)...
+            self.assertEqual(days["2026-05-10"]["by_tool"]["AskUserQuestion"]["calls"], 1)
+            self.assertEqual(days["2026-05-10"]["by_tool"]["AskUserQuestion"]["err"], 0)
+            # ...but the error/tool_results/tool_errors count on the RESULT day (2026-05-11)
+            self.assertEqual(days["2026-05-11"]["tool_results"], 1)
+            self.assertEqual(days["2026-05-11"]["tool_errors"], 1)
+            self.assertEqual(days["2026-05-11"]["errors"], {"file_not_found": 1})
+            self.assertEqual(days["2026-05-11"]["by_tool"]["AskUserQuestion"]["err"], 1)
+            self.assertEqual(days["2026-05-11"]["by_tool"]["AskUserQuestion"]["calls"], 0)
+            self._check(root)
+
+    def test_equivalence_session_project_first_wins_across_files(self):
+        # The SAME session_id has turns in TWO project directories across two
+        # files (e.g. a worktree switch mid-session -- canonical.py's
+        # motivating case for the Session-upsert first-wins fix). Both paths
+        # must resolve the session's own `project` field to the FIRST-seen
+        # project ("projA"), not whichever file ingest()/analyze() happens to
+        # process last -- AND, since `turn.project` is now a per-turn column
+        # (not derived from the session's single resolved project), the day
+        # `by_project` breakdown must still split cost per-file exactly like
+        # analyze() does (projA gets turn-w1's cost, projB gets turn-w2's).
+        # Full deep-equality on both days and sessions.
+        with tempfile.TemporaryDirectory() as root:
+            write_transcript(root, "projA", "a.jsonl", [
+                assistant("2026-06-01T00:00:00Z", "sw", "claude-opus-4",
+                         usage(inp=10, out=5), uuid="turn-w1"),
+            ])
+            write_transcript(root, "projB", "b.jsonl", [
+                assistant("2026-06-01T01:00:00Z", "sw", "claude-opus-4",
+                         usage(inp=20, out=10), uuid="turn-w2"),
+            ])
+            days_a, sess_a = report.analyze(root)
+            self.assertEqual(sess_a["sw"]["project"], "projA")            # first-wins
+            self.assertIn("projA", days_a["2026-06-01"]["by_project"])    # per-file split preserved
+            self.assertIn("projB", days_a["2026-06-01"]["by_project"])
+            self._check(root)
 
 
 # --------------------------------------------------------------- persistence
