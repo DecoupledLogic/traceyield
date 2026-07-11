@@ -1,0 +1,5 @@
+# Shell scripts must stay LF in the repo so they run under bash on macOS/Linux
+# (this repo has core.autocrlf=true, which would otherwise store CRLF and break
+# the shebang / the pre-commit hook on non-Windows machines).
+*.sh text eol=lf
+scripts/hooks/pre-commit text eol=lf
