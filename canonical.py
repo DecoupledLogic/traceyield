@@ -27,6 +27,7 @@ import report   # reuse tier(), classify(), result_text(), project_of(), machine
 # ---------------------------------------------------------------- config
 CAPTURE = os.environ.get("TRACEYIELD_CAPTURE") or "structural"   # "structural" | "verbatim"
 RAW_CAP = 32 * 1024      # max bytes of raw_event.raw kept in verbatim mode (§7)
+RAW_RETENTION_DAYS = int(os.environ.get("TRACEYIELD_RAW_RETENTION_DAYS") or 90)   # age_out() window (§7)
 SCHEMA_VERSION = 2   # v2: turn.project (per-turn project, see MIGRATIONS)
 DB_FILE = os.path.join(report.MACHINE_DIR, "usage.db")
 
@@ -621,11 +622,35 @@ def ingest(conn, providers=None, capture=None):
                     continue
     return n_files, n_recs
 
+# ---------------------------------------------------------------- retention (age-out)
+def age_out(conn, days=None, now=None):
+    """Null out raw_event.raw for rows older than a retention window (§6/§7).
+
+    The write-side complement to the per-event RAW_CAP clamp: where RAW_CAP
+    bounds a single row's size at ingest time, age_out() bounds the store's
+    total growth over time. Structural columns (provider/session_id/ts/type/
+    sha256) are untouched -- only the bulky verbatim JSON in `raw` is
+    reclaimed, so the row (and its hash, for provenance) survives forever.
+
+    `days` defaults to RAW_RETENTION_DAYS; `now` defaults to the real UTC
+    clock but is an injectable seam so callers (tests) can pin it, same
+    idiom as report.py's `today=` params. The `raw IS NOT NULL` guard makes
+    a second run of the same (or wider) window a no-op, so the returned
+    rowcount always reflects rows actually cleared by this call.
+    """
+    if days is None: days = RAW_RETENTION_DAYS
+    if now is None: now = datetime.datetime.now(datetime.timezone.utc)
+    cutoff = (now - datetime.timedelta(days=days)).isoformat()
+    cur = conn.execute("UPDATE raw_event SET raw=NULL WHERE raw IS NOT NULL AND ts < ?", (cutoff,))
+    conn.commit()
+    return cur.rowcount
+
 
 if __name__ == "__main__":
     os.makedirs(report.MACHINE_DIR, exist_ok=True)
     db = open_db()
     files, recs = ingest(db)
+    cleared = age_out(db)
     row = lambda q: db.execute(q).fetchone()[0]
     print(f"canonical store: {DB_FILE}  (capture={CAPTURE})")
     print(f"  {files} files -> {recs} records")
@@ -634,3 +659,4 @@ if __name__ == "__main__":
           f"tool_calls={row('SELECT count(*) FROM tool_call')} "
           f"segments={row('SELECT count(*) FROM segment')} "
           f"raw_events={row('SELECT count(*) FROM raw_event')}")
+    print(f"  aged out raw payloads: {cleared} cleared (> {RAW_RETENTION_DAYS}d)")
