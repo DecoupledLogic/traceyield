@@ -25,11 +25,14 @@ def line(**kw):
     """One transcript JSON line."""
     return json.dumps(kw)
 
-def assistant(ts, sid, model, usage, tools=()):
-    """An assistant message: model + usage, optional tool_use blocks."""
+def assistant(ts, sid, model, usage, tools=(), uuid=None):
+    """An assistant message: model + usage, optional tool_use blocks, optional
+    uuid (Claude Code's turn id -- set it to exercise replay dedup)."""
     content = [{"type": "tool_use", "id": tid, "name": name} for tid, name in tools]
-    return line(timestamp=ts, sessionId=sid,
-                message={"model": model, "usage": usage, "content": content})
+    o = {"timestamp": ts, "sessionId": sid,
+         "message": {"model": model, "usage": usage, "content": content}}
+    if uuid: o["uuid"] = uuid
+    return line(**o)
 
 def tool_result(ts, sid, tool_use_id, is_error=False, text="ok"):
     """A user message carrying a tool_result block (no usage/model)."""
@@ -37,6 +40,12 @@ def tool_result(ts, sid, tool_use_id, is_error=False, text="ok"):
                 message={"content": [{"type": "tool_result",
                                       "tool_use_id": tool_use_id,
                                       "is_error": is_error, "content": text}]})
+
+def prompt(ts, sid, text):
+    """A plain user prompt line: no usage, no tool_result -- not a billable
+    turn or tool touch, so it must not move a session's span or count as a
+    day-active-session in either analyze() or aggregate()."""
+    return line(timestamp=ts, sessionId=sid, message={"role": "user", "content": text})
 
 def usage(inp=0, out=0, cr=0, cc=0, w5m=None, w1h=None):
     u = {"input_tokens": inp, "output_tokens": out,
@@ -418,6 +427,43 @@ class TestAggregateEquivalence(unittest.TestCase):
             write_transcript(root, "projM", "multi.jsonl", lines)
             days, sessions = report.analyze(root)
             self.assertIn("(multi-tool turn)", days["2026-03-01"]["by_tool"])
+            self._check(root)
+
+    def test_equivalence_cross_file_turn_replay_dedup(self):
+        # Claude Code replays the SAME assistant turn (same uuid) -- and its
+        # tool result -- into a second transcript file on session resume/
+        # compaction. Both paths must dedup by uuid/tool_use_id and count it
+        # exactly once (the operator's decision: each turn is billed once).
+        with tempfile.TemporaryDirectory() as root:
+            turn = assistant("2026-04-01T00:00:00Z", "sd", "claude-opus-4",
+                             usage(inp=100, out=50, cr=10, w5m=5, w1h=0),
+                             tools=[("dtool", "Read")], uuid="turn-dup-1")
+            result = tool_result("2026-04-01T00:00:01Z", "sd", "dtool")
+            write_transcript(root, "projD", "conv1.jsonl", [turn, result])
+            write_transcript(root, "projD", "conv2.jsonl", [turn, result])   # exact replay
+            days, sessions = report.analyze(root)
+            self.assertEqual(days["2026-04-01"]["msgs"], 1)                  # billed once
+            self.assertEqual(days["2026-04-01"]["by_tool"]["Read"]["calls"], 1)
+            self.assertEqual(days["2026-04-01"]["tool_results"], 1)
+            self.assertEqual(sessions["sd"]["msgs"], 1)
+            self._check(root)
+
+    def test_equivalence_leading_prompt_only_line_excluded(self):
+        # A plain prompt-only user line, timestamped BEFORE any billable turn
+        # or tool touch, must not move the session's start and must not
+        # fabricate a day-active-session on the day it alone occupies -- in
+        # neither analyze() nor aggregate() (session/day activity is defined
+        # over billable-turn + tool_result touches only, in both paths).
+        with tempfile.TemporaryDirectory() as root:
+            lines = [
+                prompt("2026-04-29T23:00:00Z", "sp", "hello"),   # earlier day, no billable turn
+                assistant("2026-04-30T00:05:00Z", "sp", "claude-sonnet-5",
+                         usage(inp=10, out=5), uuid="turn-p1"),
+            ]
+            write_transcript(root, "projP", "conv.jsonl", lines)
+            days, sessions = report.analyze(root)
+            self.assertNotIn("2026-04-29", days)                            # no phantom day
+            self.assertEqual(sessions["sp"]["start"], "2026-04-30T00:05:00Z")
             self._check(root)
 
 
