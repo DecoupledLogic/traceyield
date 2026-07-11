@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Stdlib only — no dependency install, no build step.
+      # Tests parametrize their root=/path= seams to temp dirs, so no
+      # ~/.claude or ~/.codex data, secrets, or network access are needed.
+      - name: Run test suite
+        run: python -m unittest test_report test_canonical
