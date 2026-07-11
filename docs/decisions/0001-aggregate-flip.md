@@ -159,19 +159,46 @@ Two smaller residuals remained, both fixed here:
   (e.g. a worktree switch mid-session) — locked by
   `test_equivalence_session_project_first_wins_across_files`.
 
-**Known, separate, pre-existing caveat surfaced by the project-first-wins
-fixture (not fixed here, flagged for a possible follow-up):** when a session
-spans two project directories, `by_project` (the day-level "cost by project"
-breakdown) does NOT agree between the two paths, even after the fix above.
-This is not a bug in either fix — it's the original rule 5 design
-(`by_project` joins `turn.session_id → session.project`, i.e. session-level
-granularity) meeting a case it was never exercised against: `analyze()`
-attributes each turn's cost to the FILE it actually appeared in (per-turn
-granularity), while `aggregate()` has no per-turn project column to fall back
-on, so every turn in the session gets the session's one resolved project.
-Closing this exactly would mean adding a `project` column to `turn` itself
-(populated per-turn at ingest, with an additive `ALTER TABLE` migration for
-existing `usage.db` files) — a real, understood, buildable fix, deliberately
-deferred rather than folded into this round's two asks. If the real-corpus
-comparison surfaces a `by_project` (not `sessions[*].project`) difference,
-this is why, and the fix above is the fast follow-up.
+## Round 3 — `by_project` closed with a per-turn `project` column (schema v2)
+
+Round 2 left one flagged, deliberately-deferred caveat: when a session spans
+two project directories, `by_project` (the day-level "cost by project"
+breakdown) didn't agree between the two paths, because `aggregate()` joined
+it via `turn.session_id → session.project` (session-level, one value per
+session) while `analyze()` attributes each turn's cost to the FILE it
+actually appeared in (per-turn granularity). The real-corpus comparison
+confirmed this was the **last** residual — sessions and total cost already
+matched exactly, and `by_project` differed on exactly one day for exactly the
+split-project session flagged in Round 2.
+
+**Fix: give `turn` its own `project` column.** `canonical.py`'s `turn` table
+gained `project TEXT`, populated per-turn by `ClaudeProvider.parse_file` from
+the same `proj = report.project_of(path, self.root)` value it already
+computes for every line (the FILE's own project — independent of the
+session's single resolved `project`). `CodexProvider` sets it to `None`
+(unused: `aggregate()` scopes to `provider='claude'`). `aggregate()`'s
+`by_project` accumulation now keys on `turn.project` directly (falling back
+to the session's `project` on the should-never-happen case a Claude turn's
+own `project` is `NULL`), instead of joining through `session.project`.
+`sessions[*].project` is untouched — it's still `session.project`
+(first-wins, Round 2), which was already correct.
+
+**Migration:** `usage.db` is a durable, gitignored, per-machine store (not
+regenerated from scratch), so existing files needed an additive, in-place
+upgrade rather than a fresh schema. `SCHEMA_VERSION` bumped to 2;
+`open_db()` now runs `_migrate()` on every open, which checks
+`PRAGMA table_info(turn)` and issues `ALTER TABLE turn ADD COLUMN project
+TEXT` only when the column is missing (guarded against a duplicate-column
+`OperationalError` too, belt-and-suspenders). `CREATE TABLE IF NOT EXISTS`
+alone can't add a column to an already-existing table, which is exactly why
+this explicit migration step exists — the additive-only column policy
+`docs/canonical-data-model.md` §8 anticipated. `TestSchemaMigration` in
+`test_canonical.py` builds a pre-v2 `turn` table by hand, confirms `open_db()`
+upgrades it, that ingest then succeeds and populates the new column, and that
+re-opening an already-migrated db is a silent no-op.
+
+With `turn.project` in place, `test_equivalence_session_project_first_wins_
+across_files` now asserts full `days == days` deep-equality (previously it
+deliberately stopped short of that). Real-corpus equivalence is now exact —
+`analyze(root) == aggregate(ingest(root))` on every day and every session,
+with no known remaining divergence.
