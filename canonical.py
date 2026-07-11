@@ -27,7 +27,7 @@ import report   # reuse tier(), classify(), result_text(), project_of(), machine
 # ---------------------------------------------------------------- config
 CAPTURE = os.environ.get("TOKENLENS_CAPTURE", "structural")   # "structural" | "verbatim"
 RAW_CAP = 32 * 1024      # max bytes of raw_event.raw kept in verbatim mode (§7)
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2   # v2: turn.project (per-turn project, see MIGRATIONS)
 DB_FILE = os.path.join(report.MACHINE_DIR, "usage.db")
 
 # ---------------------------------------------------------------- schema
@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS turn (
   input_fresh INTEGER DEFAULT 0, cache_read INTEGER DEFAULT 0,
   cache_write_5m INTEGER DEFAULT 0, cache_write_1h INTEGER DEFAULT 0,
   output INTEGER DEFAULT 0, reasoning_output INTEGER,
-  compacted INTEGER DEFAULT 0, n_tool_calls INTEGER DEFAULT 0
+  compacted INTEGER DEFAULT 0, n_tool_calls INTEGER DEFAULT 0,
+  project TEXT
 );
 CREATE TABLE IF NOT EXISTS tool_call (
   call_id TEXT PRIMARY KEY, provider TEXT NOT NULL, session_id TEXT,
@@ -73,10 +74,44 @@ CREATE INDEX IF NOT EXISTS seg_turn  ON segment(turn_id);
 CREATE INDEX IF NOT EXISTS seg_tool  ON segment(tool_call_id);
 """
 
+# Additive-only column migrations (docs/canonical-data-model.md §8): each entry
+# is (table, column, type-and-default DDL fragment) added to an EXISTING db
+# that predates it. CREATE TABLE IF NOT EXISTS only helps a brand-new db (it's
+# a no-op on a table that already exists), so a column added to SCHEMA above
+# also needs its ALTER TABLE listed here to reach machines with an old
+# usage.db. Order matters only in that later entries may assume earlier ones.
+MIGRATIONS = [
+    ("turn", "project", "TEXT"),   # v2: per-turn project (report.aggregate() by_project)
+]
+
+def _migrate(conn):
+    """Idempotently apply MIGRATIONS to an already-open connection. Safe to run
+    on every open_db() call: skips a column that's already present (checked via
+    PRAGMA table_info, and belt-and-suspenders around the duplicate-column
+    OperationalError), so a fresh db and a repeatedly-opened old db both end up
+    identical and no ALTER ever runs twice."""
+    for table, column, ddl in MIGRATIONS:
+        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if column in cols:
+            continue
+        try:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e).lower():
+                raise
+
 def open_db(path=DB_FILE):
-    """Open (creating if needed) the canonical db and ensure the schema exists."""
+    """Open (creating if needed) the canonical db and ensure the schema exists.
+
+    A brand-new db gets the full current SCHEMA (already includes every
+    migrated column). An EXISTING db (older SCHEMA_VERSION, gitignored
+    machines/<id>/usage.db) gets its CREATE TABLE IF NOT EXISTS statements
+    skipped for tables that already exist, so _migrate() additively ALTERs in
+    any columns it's missing -- this must run on every open, not just once,
+    so an old db upgrades cleanly the next time a machine runs."""
     conn = sqlite3.connect(path)
     conn.executescript(SCHEMA)
+    _migrate(conn)
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
     return conn
@@ -98,6 +133,8 @@ class Turn:
     cache_write_1h: int = 0; output: int = 0; reasoning_output: int = None
     compacted: bool = False; n_tool_calls: int = 0; wall_ms: int = None
     tier: str = None
+    project: str = None   # the project the SOURCE FILE lives in (per-turn, not
+                           # per-session -- a session can span project dirs)
 
 @dataclass
 class ToolCall:
@@ -157,12 +194,12 @@ def write(conn, rec, verbatim):
         conn.execute(
             "INSERT OR IGNORE INTO turn(turn_id,provider,session_id,parent_turn_id,ts,wall_ms,"
             "model,tier,request_id,stop_reason,input_fresh,cache_read,cache_write_5m,cache_write_1h,"
-            "output,reasoning_output,compacted,n_tool_calls) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "output,reasoning_output,compacted,n_tool_calls,project) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (rec.turn_id, rec.provider, rec.session_id, rec.parent_turn_id, rec.ts, rec.wall_ms,
              rec.model, rec.tier, rec.request_id, rec.stop_reason, rec.input_fresh, rec.cache_read,
              rec.cache_write_5m, rec.cache_write_1h, rec.output, rec.reasoning_output,
-             _b(rec.compacted), rec.n_tool_calls))
+             _b(rec.compacted), rec.n_tool_calls, rec.project))
     elif isinstance(rec, ToolCall):
         # ts tracks the LATEST known event for this call (call issue or result
         # return, whichever is later) — same MAX-with-COALESCE idiom as
@@ -304,7 +341,8 @@ class ClaudeProvider:
                            stop_reason=m.get("stop_reason"), input_fresh=inp, cache_read=cr,
                            cache_write_5m=w5m, cache_write_1h=w1h, output=out,
                            reasoning_output=None,   # Claude has no separate reasoning count (§2.4)
-                           n_tool_calls=n_tools, wall_ms=wall, tier=report.tier(m.get("model")))
+                           n_tool_calls=n_tools, wall_ms=wall, tier=report.tier(m.get("model")),
+                           project=proj)   # the FILE's own project, not the session's resolved one
                 for i, b in enumerate(content):
                     if not isinstance(b, dict): continue
                     t = b.get("type")
@@ -497,7 +535,8 @@ class CodexProvider:
                                input_fresh=max(inp - cached, 0), cache_read=cached,
                                cache_write_5m=0, cache_write_1h=0, output=out,
                                reasoning_output=reasoning, compacted=pending_compacted,
-                               tier=codex_tier(model))
+                               tier=codex_tier(model),
+                               project=None)   # unused: report.aggregate() scopes to provider='claude'
                     pending_compacted = False
                 continue
 
