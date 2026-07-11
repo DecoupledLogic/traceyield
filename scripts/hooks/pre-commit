@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# traceyield pre-commit hook — keep the decisions index in sync with its README.
+#
+# Runs scripts/check-docs-index.sh whenever a commit touches docs/decisions/.
+# Catches the drift class where a status flip or a new decision doc never made it
+# into docs/decisions/README.md (rows, statuses, and the Statistics block).
+#
+# Installed via `git config core.hooksPath scripts/hooks` (run scripts/install-hooks.sh).
+#
+# Bypass (use sparingly): git commit --no-verify
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+changed="$(git diff --cached --name-only --diff-filter=ACMRD || true)"
+
+run_check=false
+if printf '%s\n' "$changed" | grep -q '^docs/decisions/'; then
+    run_check=true
+fi
+
+if [ "$run_check" = true ]; then
+    if ! bash scripts/check-docs-index.sh; then
+        echo "" >&2
+        echo "pre-commit: docs index is out of sync (see above)." >&2
+        echo "Fix docs/decisions/README.md, then re-commit." >&2
+        echo "To bypass intentionally: git commit --no-verify" >&2
+        exit 1
+    fi
+fi
+
+exit 0

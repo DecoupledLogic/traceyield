@@ -46,6 +46,7 @@ python -m pytest test_report.py -q        # same tests under pytest, if installe
 - `run.cmd` is the scheduled-task wrapper. It's machine-agnostic: it resolves the repo dir from its own location (`%~dp0`), asks `report.py --machine-dir` where this machine's folder is, and appends its one-line summary to `machines\<machine_id>\run.log`. The interpreter is `python` on PATH unless `PYTHON` is set (e.g. `set PYTHON=C:\Users\charl\anaconda3\python.exe` before scheduling). It runs daily via Windows Task Scheduler.
 - `python report.py --machine-dir` prints the resolved per-machine directory and exits without parsing. It exists so `run.cmd` can locate the log without re-implementing hostname sanitization in batch.
 - No linter or package manifest. Beyond the tests, the smoke check is running the script and confirming the printed summary line (active days, total cost, turns, tool-error rate, session count) looks sane and `report.html` opens.
+- `scripts/check-docs-index.sh` verifies `docs/decisions/README.md` (rows, statuses, Statistics block) stays in sync with the decision files. It's wired as a **pre-commit hook** (`scripts/hooks/pre-commit`) that fires whenever a commit touches `docs/decisions/`. `core.hooksPath` is a per-clone local setting, so **each new clone/machine must run `bash scripts/install-hooks.sh` once** to activate it. Bypass a check intentionally with `git commit --no-verify`. The checker understands both YAML front-matter `status:` and the older bold-inline `**Status:**` header (e.g. decision 0001).
 
 ## Tests
 
