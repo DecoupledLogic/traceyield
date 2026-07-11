@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TraceYield — Brand Guidelines</title>
+<meta name="description" content="TraceYield brand guidelines: logo, color, typography, iconography, data visualization, voice, and design principles.">
+<style>
+  :root{
+    /* Canonical gradient (from the logo mark) */
+    --g0:#05B98A; --g1:#10B7D8; --g2:#258CF8; --g3:#7338FF;
+    /* Named palette */
+    --navy:#0B1220;      /* Deep Navy (primary surface) */
+    --ink:#0F172A;       /* Ink (primary text) */
+    --teal:#12C99A;      /* Yield Teal (accent, wordmark) */
+    --sky:#258CF8;       /* Sky Blue (accent) */
+    --violet:#7338FF;    /* Violet (accent) */
+    --slate:#64748B;     /* Slate (neutral) */
+    --cool:#F5F7FA;      /* Cool Gray (background) */
+    --line:#E6EAF0;
+    --line-soft:#EEF1F6;
+    --mut:#5B6577;
+    --faint:#8A93A5;
+    --grad:linear-gradient(120deg,var(--g0),var(--g1) 42%,var(--g2) 70%,var(--g3));
+    --font:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:#DFE3EA;color:var(--ink);
+    font-family:var(--font);font-size:14px;line-height:1.5;
+    -webkit-font-smoothing:antialiased;padding:28px;
+  }
+  .sheet{
+    max-width:1280px;margin:0 auto;background:#fff;
+    border-radius:14px;overflow:hidden;
+    box-shadow:0 24px 70px rgba(11,18,32,.22);
+    border:1px solid #d7dce4;
+  }
+  /* ---------- generic ---------- */
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--slate)}
+  h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:-.01em}
+  .cell{padding:34px 36px}
+  .divider-b{border-bottom:1px solid var(--line)}
+  .divider-r{border-right:1px solid var(--line)}
+  .muted{color:var(--mut)}
+  .mono{font-family:ui-monospace,"SFMono-Regular",Consolas,monospace}
+  .grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .teal{color:var(--teal)}
+
+  /* ---------- ROW 1: hero ---------- */
+  .row1{display:grid;grid-template-columns:1.05fr 1.35fr .95fr}
+  .hero{background:var(--navy);color:#EEF2F8;padding:40px 38px;display:flex;flex-direction:column;gap:22px}
+  .hero .lockup{display:flex;flex-direction:column;gap:10px}
+  .hero img.wordmark{height:64px;width:auto;display:block}
+  .hero .tag{font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase}
+  .hero .tag b{font-weight:700}
+  .hero p{margin:0;color:#AEB8C9;font-size:15px;line-height:1.6;max-width:34ch}
+  .hero .tag .s0{color:var(--g0)}.hero .tag .s1{color:var(--g1)}.hero .tag .s2{color:var(--g3)}
+
+  .idea{padding:40px 40px}
+  .idea h1{font-size:38px;line-height:1.08;margin:14px 0 20px;color:var(--ink)}
+  .idea p{color:var(--mut);font-size:15px;line-height:1.65;max-width:46ch;margin:0}
+
+  .attrs{padding:36px 34px;display:flex;flex-direction:column;gap:20px;justify-content:center}
+  .attr{display:grid;grid-template-columns:40px 1fr;gap:14px;align-items:start}
+  .attr .ic{width:40px;height:40px;border-radius:10px;border:1.5px solid var(--line);display:grid;place-items:center;color:var(--sky)}
+  .attr .ic svg{width:20px;height:20px}
+  .attr h4{font-size:14px}
+  .attr span{display:block;color:var(--mut);font-size:12.5px;margin-top:2px}
+  .attr:nth-child(1) .ic{color:var(--g1)}
+  .attr:nth-child(2) .ic{color:var(--teal)}
+  .attr:nth-child(3) .ic{color:var(--sky)}
+  .attr:nth-child(4) .ic{color:var(--g1)}
+  .attr:nth-child(5) .ic{color:var(--violet)}
+
+  /* ---------- ROW 2 ---------- */
+  .row2{display:grid;grid-template-columns:1.05fr 2.3fr}
+  .logo-block img.mark-lockup{width:210px;max-width:100%;display:block;margin:14px 0 18px}
+  .logo-block .desc{color:var(--mut);font-size:13px;line-height:1.6;max-width:36ch;margin-bottom:26px}
+  .variants{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .variant figure{margin:0}
+  .variant .box{border:1px solid var(--line);border-radius:10px;height:66px;display:grid;place-items:center;overflow:hidden}
+  .variant .box.dark{background:var(--navy);border-color:var(--navy)}
+  .variant .box img{height:26px;width:auto}
+  .variant .box .markonly{width:34px;height:34px}
+  .variant figcaption{font-size:11px;color:var(--slate);margin-top:8px;text-align:center}
+
+  .palette{display:grid;grid-template-columns:repeat(7,1fr);gap:14px}
+  .sw figure{margin:0}
+  .sw .chip{height:78px;border-radius:12px;border:1px solid rgba(11,18,32,.06)}
+  .sw .name{font-size:12px;font-weight:600;margin-top:10px;line-height:1.35}
+  .sw .name small{display:block;color:var(--slate);font-weight:500;font-size:11px}
+  .sw .hex{font-size:11px;color:var(--mut);margin-top:3px}
+  .usage-grad{display:grid;grid-template-columns:1fr 1.25fr;gap:30px;margin-top:30px}
+  .usage p{margin:8px 0 0;color:var(--mut);font-size:13px;line-height:1.6;max-width:40ch}
+  .grad-bar{height:26px;border-radius:8px;background:var(--grad);margin-top:12px}
+  .grad-stops{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:var(--mut)}
+
+  /* ---------- ROW 3 ---------- */
+  .row3{display:grid;grid-template-columns:1.05fr 1.25fr 1.7fr}
+  .type .aa{font-size:104px;font-weight:800;line-height:.9;letter-spacing:-.03em;margin:10px 0 6px}
+  .type .pf{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--slate)}
+  .type .fam{font-size:26px;font-weight:600;margin:2px 0}
+  .type .note{color:var(--mut);font-size:12.5px;margin:0 0 18px}
+  .type .spec{margin-top:12px}
+  .type .spec .lab{font-size:11.5px;color:var(--slate);font-weight:600}
+  .type .spec .demo{font-size:14px;color:var(--ink);margin-top:1px}
+  .w400{font-weight:400}.w500{font-weight:500}.w600{font-weight:600}.w700{font-weight:700}
+
+  .icons .lead{color:var(--mut);font-size:13px;line-height:1.6;margin:6px 0 22px;max-width:34ch}
+  .icon-row{display:flex;gap:20px;flex-wrap:wrap}
+  .ig{display:flex;flex-direction:column;align-items:center;gap:7px;width:58px}
+  .ig svg{width:30px;height:30px;color:var(--ink)}
+  .ig span{font-size:10.5px;color:var(--slate);text-align:center}
+  .icon-row.mini{margin-top:20px}
+  .icon-row.mini .ig svg{width:24px;height:24px;color:var(--slate)}
+
+  .dv .lead{color:var(--mut);font-size:13px;line-height:1.6;margin:6px 0 20px;max-width:44ch}
+  .dv-card{border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(11,18,32,.05)}
+  .dv-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+  .dv-head h4{font-size:13px}
+  .dv-head .per{font-size:11px;color:var(--slate)}
+  .dv-body{display:grid;grid-template-columns:120px 1fr;gap:22px;align-items:center}
+  .dv-legend{display:flex;flex-direction:column;gap:9px}
+  .dv-legend .li{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--mut)}
+  .dv-legend .li i{width:11px;height:11px;border-radius:3px;flex:none}
+  .dv-legend .li b{margin-left:auto;color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+  .photo h4{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--slate);margin:24px 0 8px}
+  .photo p{color:var(--mut);font-size:12.5px;line-height:1.6;margin:0 0 12px;max-width:44ch}
+  .strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .strip .ph{aspect-ratio:16/10;border-radius:10px;background:var(--navy);position:relative;overflow:hidden}
+  .strip .ph.g{background:var(--grad)}
+  .strip .ph.wave{background:radial-gradient(120% 140% at 20% 120%,#132038,transparent),var(--navy)}
+
+  /* ---------- ROW 4 ---------- */
+  .row4{display:grid;grid-template-columns:.95fr 1.7fr 1.35fr}
+  .voice .v{display:grid;grid-template-columns:82px 1fr;gap:10px;padding:9px 0;font-size:13px;align-items:baseline}
+  .voice .v b{font-weight:700}
+  .voice .v span{color:var(--mut)}
+  .voice .v:nth-child(2) b{color:var(--g0)}
+  .voice .v:nth-child(3) b{color:var(--g1)}
+  .voice .v:nth-child(4) b{color:var(--sky)}
+  .voice .v:nth-child(5) b{color:var(--violet)}
+
+  .principles{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:16px}
+  .pr{display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px}
+  .pr .ic{width:44px;height:44px;border-radius:11px;background:var(--cool);display:grid;place-items:center;color:var(--ink)}
+  .pr .ic svg{width:22px;height:22px}
+  .pr h4{font-size:12.5px}
+  .pr span{font-size:10.5px;color:var(--slate);line-height:1.4}
+
+  .apps{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;align-items:start}
+  .app-nav{background:var(--navy);border-radius:12px;padding:16px 14px;color:#cdd6e4}
+  .app-nav .brand{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+  .app-nav .brand svg{width:22px;height:22px}
+  .app-nav .brand b{color:#fff;font-size:14px}
+  .app-nav .item{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;font-size:12.5px;color:#9fabbe}
+  .app-nav .item.on{background:rgba(255,255,255,.07);color:#fff}
+  .app-nav .item svg{width:15px;height:15px}
+  .app-rec{border:1px solid var(--line);border-radius:12px;padding:15px 16px}
+  .app-rec .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+  .app-rec .top .lab{font-size:11px;color:var(--slate);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  .badge{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:rgba(18,201,154,.14);color:#0f8f6e}
+  .app-rec h4{font-size:14px;line-height:1.35;margin-bottom:10px}
+  .app-rec .est{font-size:11px;color:var(--slate)}
+  .app-rec .money{display:flex;align-items:baseline;gap:10px;margin-top:2px}
+  .app-rec .money b{font-size:26px}
+  .app-rec .money .up{color:#0f8f6e;font-size:12px;font-weight:700}
+
+  .footer{background:var(--navy);color:#8493a8;padding:16px 36px;font-size:11.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  .footer b{color:#cdd6e4;font-weight:600}
+
+  @media(max-width:1080px){
+    .row1,.row2,.row3,.row4{grid-template-columns:1fr}
+    .divider-r{border-right:0;border-bottom:1px solid var(--line)}
+    .palette{grid-template-columns:repeat(4,1fr)}
+    .principles{grid-template-columns:repeat(3,1fr)}
+  }
+  @media(max-width:640px){
+    body{padding:12px}.cell,.idea,.attrs,.hero{padding:26px 22px}
+    .palette{grid-template-columns:repeat(2,1fr)}
+    .variants,.strip{grid-template-columns:repeat(2,1fr)}
+    .principles{grid-template-columns:repeat(2,1fr)}
+    .apps{grid-template-columns:1fr}
+    .idea h1{font-size:30px}.type .aa{font-size:80px}
+  }
+</style>
+</head>
+<body>
+<main class="sheet">
+
+  <!-- ===================== ROW 1 : HERO ===================== -->
+  <section class="row1 divider-b">
+    <div class="hero divider-r">
+      <div class="lockup">
+        <img class="wordmark" src="logo-mark-dark.svg" alt="TraceYield">
+        <div class="tag"><span class="s0">MEASURE.</span> <span class="s1">UNDERSTAND.</span> <span class="s2">IMPROVE.</span></div>
+      </div>
+      <p>TraceYield is a closed-loop discipline for managing the cost and efficacy of LLM interactions — and the reference tool that makes it possible for engineering teams.</p>
+    </div>
+
+    <div class="idea divider-r">
+      <p class="eyebrow">Brand idea</p>
+      <h1>Tokens are the meter,<br><span class="grad-text">not the mission.</span></h1>
+      <p>TraceYield brings the discipline of operations to LLM usage. We measure in tokens, but we optimize for value per token. We turn data into insight and insight into action — closing the loop of <b>describe, diagnose, predict, prescribe, remediate</b> so teams get steadily cheaper <em>and</em> more effective.</p>
+    </div>
+
+    <div class="attrs">
+      <div class="attr">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="4" height="9" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="17" y="8" width="4" height="12" rx="1"/></svg></div>
+        <div><h4>Data-driven</h4><span>Measure what matters — token by token.</span></div>
+      </div>
+      <div class="attr">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+        <div><h4>Insightful</h4><span>Surface the why, not just the what.</span></div>
+      </div>
+      <div class="attr">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 7-8"/><path d="M17 7h4v4"/></svg></div>
+        <div><h4>Actionable</h4><span>Recommend the next best change.</span></div>
+      </div>
+      <div class="attr">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg></div>
+        <div><h4>Closed-loop</h4><span>Act, measure, learn, repeat.</span></div>
+      </div>
+      <div class="attr">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 7.5-7 9-4-1.5-7-4-7-9V6z"/><path d="M9.5 12l2 2 3.5-4"/></svg></div>
+        <div><h4>Private by default</h4><span>Your data stays on your machine.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ROW 2 : LOGO + COLOR ===================== -->
+  <section class="row2 divider-b">
+    <div class="cell divider-r logo-block">
+      <p class="eyebrow">The logo</p>
+      <img class="mark-lockup" src="logo-mark-light.svg" alt="TraceYield logo">
+      <p class="desc">The mark combines a hexagon (structure, systems) with a bar / token motif (measurement), inside a gradient path that implies a circular flow — the closed loop.</p>
+
+      <p class="eyebrow" style="margin-bottom:12px">Logo variants</p>
+      <div class="variants">
+        <div class="variant"><figure><div class="box"><img src="logo-mark-light.svg" alt="Full color on light"></div><figcaption>On light</figcaption></figure></div>
+        <div class="variant"><figure><div class="box dark"><img src="logo-mark-dark.svg" alt="On dark"></div><figcaption>On dark</figcaption></figure></div>
+        <div class="variant"><figure><div class="box"><span class="markonly" id="markMono"></span></div><figcaption>Icon only</figcaption></figure></div>
+        <div class="variant"><figure><div class="box dark"><span class="markonly" id="markDark"></span></div><figcaption>Icon / dark</figcaption></figure></div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <p class="eyebrow">Color palette</p>
+      <div class="palette" style="margin-top:16px">
+        <div class="sw"><figure><div class="chip" style="background:#0B1220"></div><div class="name">Deep Navy<small>Primary surface</small></div><div class="hex mono">#0B1220</div></figure></div>
+        <div class="sw"><figure><div class="chip" style="background:#0F172A"></div><div class="name">Ink<small>Primary text</small></div><div class="hex mono">#0F172A</div></figure></div>
+        <div class="sw"><figure><div class="chip" style="background:#12C99A"></div><div class="name">Yield Teal<small>Accent</small></div><div class="hex mono">#12C99A</div></figure></div>
+        <div class="sw"><figure><div class="chip" style="background:#258CF8"></div><div class="name">Sky Blue<small>Accent</small></div><div class="hex mono">#258CF8</div></figure></div>
+        <div class="sw"><figure><div class="chip" style="background:#7338FF"></div><div class="name">Violet<small>Accent</small></div><div class="hex mono">#7338FF</div></figure></div>
+        <div class="sw"><figure><div class="chip" style="background:#64748B"></div><div class="name">Slate<small>Neutral</small></div><div class="hex mono">#64748B</div></figure></div>
+        <div class="sw"><figure><div class="chip" style="background:#F5F7FA;border-color:#E2E6EC"></div><div class="name">Cool Gray<small>Background</small></div><div class="hex mono">#F5F7FA</div></figure></div>
+      </div>
+
+      <div class="usage-grad">
+        <div class="usage">
+          <p class="eyebrow">Usage</p>
+          <p>Deep Navy and Ink for text and surfaces. Yield Teal, Sky Blue, and Violet for accents, data viz, and highlights — one accent leads, the others support.</p>
+        </div>
+        <div class="grad">
+          <p class="eyebrow">Gradient (logo mark)</p>
+          <div class="grad-bar"></div>
+          <div class="grad-stops mono"><span>#05B98A</span><span>#10B7D8</span><span>#258CF8</span><span>#7338FF</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ROW 3 : TYPE / ICONS / DATAVIZ ===================== -->
+  <section class="row3 divider-b">
+    <div class="cell divider-r type">
+      <p class="eyebrow">Typography</p>
+      <div class="aa">Aa</div>
+      <div class="pf">Primary font</div>
+      <div class="fam">Inter</div>
+      <p class="note">Clean, modern, highly readable. Wordmark set in Poppins.</p>
+      <div class="spec"><div class="lab">Inter Regular</div><div class="demo w400">The quick brown fox jumps over the lazy dog.</div></div>
+      <div class="spec"><div class="lab">Inter Medium</div><div class="demo w500">The quick brown fox jumps over the lazy dog.</div></div>
+      <div class="spec"><div class="lab">Inter Semibold</div><div class="demo w600">The quick brown fox jumps over the lazy dog.</div></div>
+      <div class="spec"><div class="lab">Inter Bold</div><div class="demo w700">The quick brown fox jumps over the lazy dog.</div></div>
+    </div>
+
+    <div class="cell divider-r icons">
+      <p class="eyebrow">Iconography</p>
+      <p class="lead">Clean, minimal line icons with rounded corners. Consistent 2px stroke, rounded joins. The five primary icons are the loop's rungs.</p>
+      <div class="icon-row">
+        <div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="4" height="9" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="17" y="8" width="4" height="12" rx="1"/></svg><span>Describe</span></div>
+        <div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><span>Diagnose</span></div>
+        <div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 7-8"/><path d="M17 7h4v4"/></svg><span>Predict</span></div>
+        <div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg><span>Prescribe</span></div>
+        <div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg><span>Remediate</span></div>
+      </div>
+      <div class="icon-row mini">
+        <div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-6 8-6s8 2 8 6"/></svg></div>
+        <div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4-8 4-8-4z"/><path d="M4 7v10l8 4 8-4V7"/></svg></div>
+        <div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8l-4 4 4 4"/><path d="M13 6l-2 12"/></svg></div>
+        <div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 7.5-7 9-4-1.5-7-4-7-9V6z"/></svg></div>
+        <div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/></svg></div>
+        <div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></div>
+        <div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2 5 5 1-3.5 4 1 5-4.5-2.5L7.5 21l1-5L5 12l5-1z"/></svg></div>
+      </div>
+    </div>
+
+    <div class="cell dv">
+      <p class="eyebrow">Data visualization</p>
+      <p class="lead">Use the accent palette for categorical data and insights. Keep charts clean and high-contrast; label every series.</p>
+      <div class="dv-card">
+        <div class="dv-head"><h4>Token composition</h4><span class="per">This month</span></div>
+        <div class="dv-body">
+          <svg viewBox="0 0 42 42" width="120" height="120" aria-hidden="true">
+            <circle cx="21" cy="21" r="15.915" fill="none" stroke="#eef1f6" stroke-width="7"/>
+            <circle cx="21" cy="21" r="15.915" fill="none" stroke="#12C99A" stroke-width="7" stroke-dasharray="42 58" stroke-dashoffset="0"/>
+            <circle cx="21" cy="21" r="15.915" fill="none" stroke="#258CF8" stroke-width="7" stroke-dasharray="23 77" stroke-dashoffset="-42"/>
+            <circle cx="21" cy="21" r="15.915" fill="none" stroke="#7338FF" stroke-width="7" stroke-dasharray="21 79" stroke-dashoffset="-65"/>
+            <circle cx="21" cy="21" r="15.915" fill="none" stroke="#0B1220" stroke-width="7" stroke-dasharray="14 86" stroke-dashoffset="-86"/>
+          </svg>
+          <div class="dv-legend">
+            <div class="li"><i style="background:#12C99A"></i>Fresh input <b>42%</b></div>
+            <div class="li"><i style="background:#258CF8"></i>Cache write <b>23%</b></div>
+            <div class="li"><i style="background:#7338FF"></i>Cache read <b>21%</b></div>
+            <div class="li"><i style="background:#0B1220"></i>Output <b>14%</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="photo">
+        <h4>Photography + illustration</h4>
+        <p>Use UI screenshots, data imagery, and abstract visuals that convey systems, flow, and clarity.</p>
+        <div class="strip">
+          <div class="ph"></div>
+          <div class="ph wave"></div>
+          <div class="ph"></div>
+          <div class="ph g"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ROW 4 : VOICE / PRINCIPLES / APPS ===================== -->
+  <section class="row4">
+    <div class="cell divider-r voice">
+      <p class="eyebrow">Tone of voice</p>
+      <div class="v"><b>Clear</b><span>We explain the complex simply.</span></div>
+      <div class="v"><b>Confident</b><span>We back recommendations with data.</span></div>
+      <div class="v"><b>Practical</b><span>We focus on what teams can do.</span></div>
+      <div class="v"><b>Respectful</b><span>We protect your data and your time.</span></div>
+    </div>
+
+    <div class="cell divider-r">
+      <p class="eyebrow">Design system principles</p>
+      <div class="principles">
+        <div class="pr"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg></div><h4>Structured</h4><span>Systems and alignment</span></div>
+        <div class="pr"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h13"/><circle cx="18" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="15" cy="17" r="2"/></svg></div><h4>Data-first</h4><span>Evidence over opinion</span></div>
+        <div class="pr"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg></div><h4>Iterative</h4><span>Always improving</span></div>
+        <div class="pr"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5M15 20c0-2.4 1.3-4 4-4"/></svg></div><h4>Team-oriented</h4><span>Built for teams</span></div>
+        <div class="pr"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 7.5-7 9-4-1.5-7-4-7-9V6z"/><path d="M9.5 12l2 2 3.5-4"/></svg></div><h4>Trustworthy</h4><span>Private, secure</span></div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <p class="eyebrow">Application examples</p>
+      <div class="apps">
+        <div class="app-nav">
+          <div class="brand"><span id="navMark"></span><b>TraceYield</b></div>
+          <div class="item on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Overview</div>
+          <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Sessions</div>
+          <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Insights</div>
+          <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 7-8"/></svg>Recommendations</div>
+        </div>
+        <div class="app-rec">
+          <div class="top"><span class="lab">Recommendation</span><span class="badge">High impact</span></div>
+          <h4>Route long-context analysis sessions to a cheaper tier.</h4>
+          <div class="est">Est. monthly savings (upper bound)</div>
+          <div class="money"><b>$1,240</b><span class="up">18% ↑</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer">
+    <span><b>TraceYield</b> — Brand Guidelines · v1</span>
+    <span>© 2026 Charles L. Bryant d.b.a. DecoupledLogic · Assets governed by TRADEMARKS.md</span>
+  </div>
+</main>
+
+<script>
+  // Inline the hexagon mark (mark.svg geometry) for the icon-only + nav lockups,
+  // recoloring per placement without shipping extra files.
+  var MARK = function(strokeGrad){
+    return '<svg viewBox="0 0 1254 1254" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">'
+      + '<defs><linearGradient id="mg' + strokeGrad + '" x1="300" y1="280" x2="900" y2="985" gradientUnits="userSpaceOnUse">'
+      + '<stop offset="0" stop-color="#05b98a"/><stop offset="0.46" stop-color="#10b7d8"/>'
+      + '<stop offset="0.72" stop-color="#258cf8"/><stop offset="1" stop-color="#7338ff"/></linearGradient></defs>'
+      + '<path d="M627 228 L952 424 L952 806 L627 1002 L301 806 L301 424 Z" fill="none" stroke="url(#mg' + strokeGrad + ')" stroke-width="70" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '<g fill="url(#mg' + strokeGrad + ')">'
+      + '<rect x="432" y="603" width="77" height="165" rx="38.5"/>'
+      + '<rect x="587" y="452" width="77" height="316" rx="38.5"/>'
+      + '<rect x="741" y="571" width="77" height="197" rx="38.5"/></g></svg>';
+  };
+  document.getElementById('markMono').innerHTML = MARK('a');
+  document.getElementById('markDark').innerHTML = MARK('b');
+  document.getElementById('navMark').innerHTML = MARK('c');
+</script>
+</body>
+</html>
