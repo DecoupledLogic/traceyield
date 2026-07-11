@@ -11,5 +11,13 @@ Decision records for **traceyield**. Each captures a decision, its context, and 
 | 0005 | [Package cc-usage-analytics as an installable cross-platform (Windows + macOS) release](0005-installable-cross-platform-release.md) | Drafted | 2026-07-11 |
 | 0006 | [TokenLens Context-health panel: context-occupancy and cache-efficiency diagnostics in report.html](0006-context-health-panel.md) | Drafted | 2026-07-11 |
 
+## Statistics
+
+| Status | Count |
+|--------|-------|
+| Accepted | 1 |
+| Drafted | 5 |
+| **Total** | **6** |
+
 ---
 *Last Updated: 2026-07-11*
