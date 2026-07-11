@@ -466,6 +466,69 @@ class TestAggregateEquivalence(unittest.TestCase):
             self.assertEqual(sessions["sp"]["start"], "2026-04-30T00:05:00Z")
             self._check(root)
 
+    def test_equivalence_tool_call_and_result_straddle_midnight(self):
+        # A tool_use call at 23:59:30Z and its tool_result the NEXT day
+        # (00:00:30Z) -- by_tool[*].calls must land on the CALL's (turn's)
+        # day; tool_results/tool_errors/errors/by_tool[*].err must land on the
+        # RESULT's day, identically in analyze() and aggregate(). This is the
+        # scenario tool_call.ts = MAX(call_ts, result_ts) can drift a day
+        # ahead of the call's own turn -- aggregate() must bucket `calls` via
+        # the linked turn's day, not tool_call.ts's day, to match analyze().
+        with tempfile.TemporaryDirectory() as root:
+            lines = [
+                assistant("2026-05-10T23:59:30Z", "sn", "claude-opus-4",
+                         usage(inp=40, out=20, cr=5, w5m=2, w1h=0),
+                         tools=[("n1", "AskUserQuestion")], uuid="turn-mid-1"),
+                tool_result("2026-05-11T00:00:30Z", "sn", "n1",
+                           is_error=True, text="no such file"),
+            ]
+            write_transcript(root, "projN", "midnight.jsonl", lines)
+            days, sessions = report.analyze(root)
+            # the call counts on the call/turn day (2026-05-10)...
+            self.assertEqual(days["2026-05-10"]["by_tool"]["AskUserQuestion"]["calls"], 1)
+            self.assertEqual(days["2026-05-10"]["by_tool"]["AskUserQuestion"]["err"], 0)
+            # ...but the error/tool_results/tool_errors count on the RESULT day (2026-05-11)
+            self.assertEqual(days["2026-05-11"]["tool_results"], 1)
+            self.assertEqual(days["2026-05-11"]["tool_errors"], 1)
+            self.assertEqual(days["2026-05-11"]["errors"], {"file_not_found": 1})
+            self.assertEqual(days["2026-05-11"]["by_tool"]["AskUserQuestion"]["err"], 1)
+            self.assertEqual(days["2026-05-11"]["by_tool"]["AskUserQuestion"]["calls"], 0)
+            self._check(root)
+
+    def test_equivalence_session_project_first_wins_across_files(self):
+        # The SAME session_id has turns in TWO project directories across two
+        # files (e.g. a worktree switch mid-session -- canonical.py's
+        # motivating case for the Session-upsert first-wins fix). Both paths
+        # must resolve the session's own `project` field to the FIRST-seen
+        # project ("projA"), not whichever file ingest()/analyze() happens to
+        # process last.
+        #
+        # NOTE: this fixture intentionally does NOT go through the shared
+        # _check() (full days+sessions deep-equality) helper. `by_project`
+        # (the day-level "cost by project" breakdown) is a pre-existing,
+        # deliberate design difference from the original E1-F2-S1 rule 5:
+        # analyze() attributes each turn's cost to the FILE it actually
+        # appeared in (per-turn granularity), while aggregate() attributes it
+        # via a turn's session's single resolved `project` (session-level,
+        # since the canonical schema has no per-turn project column). A
+        # session split across two project dirs is the one case where these
+        # two views genuinely diverge; every other field -- including the
+        # session dict itself -- agrees, which is what's asserted below.
+        with tempfile.TemporaryDirectory() as root:
+            write_transcript(root, "projA", "a.jsonl", [
+                assistant("2026-06-01T00:00:00Z", "sw", "claude-opus-4",
+                         usage(inp=10, out=5), uuid="turn-w1"),
+            ])
+            write_transcript(root, "projB", "b.jsonl", [
+                assistant("2026-06-01T01:00:00Z", "sw", "claude-opus-4",
+                         usage(inp=20, out=10), uuid="turn-w2"),
+            ])
+            days_a, sess_a = report.analyze(root)
+            days_b, sess_b = ingest_and_aggregate(root)
+            self.assertEqual(sess_a["sw"]["project"], "projA")   # first-wins, analyze()
+            self.assertEqual(sess_b["sw"]["project"], "projA")   # first-wins, aggregate()
+            self.assertEqual(sess_a, sess_b)                     # sessions dict fully agrees
+
 
 # --------------------------------------------------------------- persistence
 class TestPersistence(unittest.TestCase):
