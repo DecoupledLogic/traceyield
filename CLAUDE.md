@@ -52,6 +52,15 @@ python -m pytest test_report.py -q        # same tests under pytest, if installe
 
 `test_report.py` is stdlib `unittest` (runs under pytest too) so it needs no dependencies. It builds fixture transcripts in a temp dir with hand-computable token counts and asserts exact costs: the parametrized `analyze(root=...)`, `merge_daily(..., path=...)`, `merge_sessions(..., path=...)`, `record_pricing(path=...)`, `scan_claude(root=...)`, `scan_codex(root=...)`, and `coverage(days, scan_dates, today=...)` signatures exist specifically so tests never touch the real `~/.claude`/`~/.codex` dirs or a machine's real data files under `machines/`. If you change the cost formula, cache multipliers, error taxonomy, or the session/by_model shapes, update the fixtures' expected numbers. If you change the `SCHEMA_EXPECT` baseline, drift categories, or the coverage heuristics, update `TestSchemaScanClaude`/`TestSchemaScanCodex`/`TestCoverage`. Note: `report.py`'s terse `json.load(open(...))` idiom leaks file handles, so tests silence `ResourceWarning`. That's deliberate, not a masked bug.
 
+Name test methods `test_<behavior>` and keep fixtures deterministic, synthetic, and free of real transcripts or identifiers. Behavioral changes should cover both the success and the meaningful failure paths — especially malformed data, schema drift, pricing math, persistence, and privacy behavior. Run the full suite (`python -m unittest test_report test_canonical`) before submitting.
+
+## Contribution conventions
+
+- **Coding style.** Four-space indentation and standard Python conventions: `snake_case` for functions and variables, `PascalCase` for classes, uppercase for constants. Keep the core stdlib-only unless a dependency proposal clearly justifies its operational and security cost. Preserve `report.py`'s `__PAYLOAD__` and `__PRICEROWS__` template markers.
+- **Naming: brand vs. identifier.** Use **TraceYield** for the discipline or brand and **traceyield** for code, commands, and repository identifiers.
+- **Commits.** Follow Conventional Commit subjects with an imperative, scoped summary — e.g. `feat(report): …`, `test(report): …`, `docs(decisions): …`. Keep commits focused.
+- **Pull requests.** Explain the problem and approach, link relevant issues, include tests (or justify their absence), update affected docs, and call out any schema, privacy, compatibility, pricing, or performance effects. Include screenshots for visible dashboard changes, but not as a substitute for tests.
+
 ## Data flow (one `python report.py` run)
 
 1. **Parse**: glob every `*.jsonl` under `~/.claude/projects` (`CLAUDE_PROJECTS`). Each transcript line is timestamped; metrics are bucketed by the UTC **activity date** (`timestamp[:10]`), not by run date. This is why a single run can reconstruct the entire history.
