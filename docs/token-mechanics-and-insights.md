@@ -1,6 +1,6 @@
 # Token-serving mechanics & the insights our data can yield
 
-*Written 2026-07-11. This is the "why" doc behind the numbers TokenLens collects.
+*Written 2026-07-11. This is the "why" doc behind the numbers TokenOps collects.
 The two source-inventory docs — [`claude-usage-data-research.md`](./claude-usage-data-research.md)
 and [`openai-usage-data-research.md`](./openai-usage-data-research.md) — cover
 **where the data comes from**. This one covers **what the data means**: how tokens
@@ -387,7 +387,7 @@ fills, plus a fresh-session command — but confirm the exact command names agai
 OpenAI's current Codex CLI docs before relying on them; they weren't pinned to a
 primary source at time of writing.
 
-None of this requires the user to think in tokens — TokenLens's job is to translate
+None of this requires the user to think in tokens — TokenOps's job is to translate
 these mechanics into the three or four numbers (D1, D3, D8, D9) that make the right
 habit obvious.
 

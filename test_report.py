@@ -115,16 +115,16 @@ class TestPureHelpers(unittest.TestCase):
 # --------------------------------------------------------------- machine identity
 class TestMachineId(unittest.TestCase):
     """machine_id() picks the per-machine data directory. Hostname by default,
-    TOKENLENS_MACHINE override, always sanitized to a filesystem-safe slug."""
+    TOKENOPS_MACHINE override, always sanitized to a filesystem-safe slug."""
 
     def setUp(self):
-        self._saved = os.environ.pop("TOKENLENS_MACHINE", None)
+        self._saved = os.environ.pop("TOKENOPS_MACHINE", None)
 
     def tearDown(self):
         if self._saved is None:
-            os.environ.pop("TOKENLENS_MACHINE", None)
+            os.environ.pop("TOKENOPS_MACHINE", None)
         else:
-            os.environ["TOKENLENS_MACHINE"] = self._saved
+            os.environ["TOKENOPS_MACHINE"] = self._saved
 
     def _expect(self, raw):
         return re.sub(r"[^a-z0-9._-]+", "-", raw.strip().lower()).strip("-._") or "unknown"
@@ -133,11 +133,11 @@ class TestMachineId(unittest.TestCase):
         self.assertEqual(report.machine_id(), self._expect(socket.gethostname()))
 
     def test_env_override_wins_and_is_sanitized(self):
-        os.environ["TOKENLENS_MACHINE"] = "Charl's PC!"
+        os.environ["TOKENOPS_MACHINE"] = "Charl's PC!"
         self.assertEqual(report.machine_id(), "charl-s-pc")
 
     def test_blank_override_falls_back_to_hostname(self):
-        os.environ["TOKENLENS_MACHINE"] = "   "
+        os.environ["TOKENOPS_MACHINE"] = "   "
         self.assertEqual(report.machine_id(), self._expect(socket.gethostname()))
 
     def test_data_files_are_namespaced_under_machine_dir(self):

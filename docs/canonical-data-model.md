@@ -34,7 +34,7 @@ substrate the tool already relies on.
 3. **Cost is never stored.** It's a query-time projection of tokens × *current*
    `PRICING`, preserving the "recompute all history at today's rates" principle.
    Freezing a dollar figure would break trend comparability.
-4. **One privacy switch.** `TOKENLENS_CAPTURE` governs whether verbatim text is
+4. **One privacy switch.** `TOKENOPS_CAPTURE` governs whether verbatim text is
    stored. Structural mode still records that content existed, its length, and a
    hash — so counts/analysis work without holding sensitive text.
 5. **Provider-agnostic core, provider-specific edges.** Common fields are
@@ -165,7 +165,7 @@ place. `kind ∈ {prompt, response, reasoning, tool_args, tool_output}`.
 | `role` | user \| assistant \| tool |
 | `length` | char/byte length — **always** stored |
 | `sha256` | content hash — **always** stored (dedupe, "same command again?") |
-| `text` | **verbatim only when `TOKENLENS_CAPTURE=verbatim`**, else NULL |
+| `text` | **verbatim only when `TOKENOPS_CAPTURE=verbatim`**, else NULL |
 | `text_available` | provider actually persisted the text (see reasoning caveat below) |
 
 **Reasoning caveat — measured, not assumed.** Reasoning *text* is largely
@@ -200,7 +200,7 @@ release introduces): store `{session_id, ts, provider, type, sha256, raw?}`.
 we can now, structure it later" guarantee — a new field in a future CLI version
 is retained even before we write a parser for it.
 
-## 3. Capture modes (`TOKENLENS_CAPTURE`)
+## 3. Capture modes (`TOKENOPS_CAPTURE`)
 
 | Mode | segments.text / raw_event.raw | Everything else |
 |---|---|---|
@@ -307,7 +307,7 @@ CREATE TABLE segment (
   turn_id TEXT, tool_call_id TEXT,
   kind TEXT NOT NULL,                     -- prompt|response|reasoning|tool_args|tool_output
   role TEXT, length INTEGER, sha256 TEXT,
-  text TEXT,                              -- verbatim only when TOKENLENS_CAPTURE=verbatim
+  text TEXT,                              -- verbatim only when TOKENOPS_CAPTURE=verbatim
   text_available INTEGER DEFAULT 1
 );
 CREATE TABLE raw_event (
@@ -386,7 +386,7 @@ taxonomy stays unified across providers.
 ### 6.3 The core is provider-blind
 
 ```python
-def ingest(db, providers=PROVIDERS, capture=os.environ.get("TOKENLENS_CAPTURE","structural")):
+def ingest(db, providers=PROVIDERS, capture=os.environ.get("TOKENOPS_CAPTURE","structural")):
     verbatim = capture == "verbatim"
     for prov in providers:
         for root in prov.roots():
