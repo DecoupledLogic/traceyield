@@ -112,6 +112,44 @@ class TestPureHelpers(unittest.TestCase):
         self.assertEqual(len(top), 3)                                 # capped
 
 
+# --------------------------------------------------------------- per-provider rate cards
+class TestRateCards(unittest.TestCase):
+    """rate_card()/cost_of() are the per-provider layer wrapped around the
+    existing flat PRICING map. Claude costs must come out byte-identical to
+    the pre-refactor formula (this is the behavior-neutral oracle)."""
+
+    def test_rate_card_returns_claude_tier_rates(self):
+        self.assertEqual(report.rate_card("claude", "opus"), (5.00, 25.00))
+        self.assertEqual(report.rate_card("claude", "sonnet"), report.PRICING["sonnet"])
+
+    def test_rate_card_none_for_unpriced_tier_or_provider(self):
+        self.assertIsNone(report.rate_card("claude", "nonesuch"))
+        self.assertIsNone(report.rate_card("nonesuch", "opus"))
+
+    def test_cost_of_matches_hand_computed_dollars(self):
+        # opus: input=5.00, output=25.00 per 1M; cache multipliers 0.10/1.25/2.0
+        inp, out, cr, w5m, w1h = 1000, 500, 200, 100, 50
+        ri, ro = 5.00, 25.00
+        expected = (inp*ri + out*ro + cr*(ri*0.10) + w5m*(ri*1.25) + w1h*(ri*2.0)) / 1e6
+        got = report.cost_of("claude", "opus", inp, out, cr, w5m, w1h)
+        self.assertAlmostEqual(got, expected)
+
+    def test_cost_of_unpriced_provider_or_tier_is_zero(self):
+        self.assertEqual(report.cost_of("claude", "nonesuch", 100, 100, 0, 0, 0), 0.0)
+        self.assertEqual(report.cost_of("nonesuch", "opus", 100, 100, 0, 0, 0), 0.0)
+
+    def test_cache_write_tiers_priced_at_1_25x_and_2x_base_input(self):
+        # AC2: cache economics come from CACHE -- w5m priced at 1.25x, w1h at 2x
+        # the base input rate. Isolate each write tier's dollar contribution.
+        ri, ro = report.rate_card("claude", "sonnet")
+        base = report.cost_of("claude", "sonnet", 0, 0, 0, 0, 0)
+        self.assertEqual(base, 0.0)
+        w5m_only = report.cost_of("claude", "sonnet", 0, 0, 0, 1_000_000, 0)
+        w1h_only = report.cost_of("claude", "sonnet", 0, 0, 0, 0, 1_000_000)
+        self.assertAlmostEqual(w5m_only, ri * 1.25)
+        self.assertAlmostEqual(w1h_only, ri * 2.0)
+
+
 # --------------------------------------------------------------- machine identity
 class TestMachineId(unittest.TestCase):
     """machine_id() picks the per-machine data directory. Hostname by default,
