@@ -149,10 +149,25 @@ def analyze(root=CLAUDE_PROJECTS):
     in test_report.py) and as main()'s resilience fallback if the canonical-db path
     fails. It is NO LONGER the live production path — main() derives day/session
     metrics from aggregate() over usage.db instead (see docs/decisions/0001-
-    aggregate-flip.md)."""
+    aggregate-flip.md).
+
+    Dedup: Claude Code replays the SAME assistant turn (same uuid) and its tool
+    results into multiple transcript files on session resume/compaction. A
+    billable turn is deduped by `uuid`; a tool_result is deduped by
+    `tool_use_id`. Only replayed turns/results are counted once (the operator
+    decided this is correct -- each turn is billed once); a line/block without
+    that id is never deduped. `days`/`sessions` entries, and the day-active-
+    session set / session start-end span, are only ever touched by a
+    (non-duplicate) billable turn or a (non-duplicate) tool_result -- never by
+    a plain prompt-only line -- so both are defined identically to aggregate()."""
     files = glob.glob(os.path.join(root, "**", "*.jsonl"), recursive=True)
     days = defaultdict(new_day)
     sessions = defaultdict(new_session)
+    # Run-scoped across ALL files: glob order matches canonical.ingest()'s
+    # INSERT-OR-IGNORE-by-turn_id/call_id dedup, so the first occurrence
+    # (across files) wins identically in both paths.
+    seen_turn_ids = set()
+    seen_result_ids = set()
     for f in files:
         proj = project_of(f, root)
         idname = {}
@@ -167,61 +182,76 @@ def analyze(root=CLAUDE_PROJECTS):
                 d = ts[:10]
                 m = o.get("message")
                 if not isinstance(m, dict): continue
-                D = days[d]
                 sid = o.get("sessionId")
-                S = sessions[sid] if sid else None
-                if sid: D["sids"].add(sid)
-                if S is not None:
-                    if S["project"] is None: S["project"] = proj
-                    if S["start"] is None or ts < S["start"]: S["start"] = ts
-                    if S["end"] is None or ts > S["end"]: S["end"] = ts
-                turn_tools = []
                 content = m.get("content")
-                if isinstance(content, list):
+                content = content if isinstance(content, list) else []
+                u = m.get("usage")
+
+                if isinstance(u, dict):                        # a billable assistant turn
+                    tid = o.get("uuid")
+                    if tid is not None:
+                        if tid in seen_turn_ids: continue       # replayed turn -- already billed
+                        seen_turn_ids.add(tid)
+                    D = days[d]; S = sessions[sid] if sid else None
+                    if sid: D["sids"].add(sid)
+                    if S is not None:
+                        if S["project"] is None: S["project"] = proj
+                        if S["start"] is None or ts < S["start"]: S["start"] = ts
+                        if S["end"] is None or ts > S["end"]: S["end"] = ts
+                    turn_tools = []
                     for b in content:
                         if not isinstance(b, dict): continue
-                        t = b.get("type")
-                        if t == "tool_use":
+                        if b.get("type") == "tool_use":
                             nm = b.get("name","?")
                             turn_tools.append(nm)
                             D["by_tool"][nm]["calls"] += 1
                             idname[b.get("id")] = nm
-                        elif t == "tool_result":
-                            D["tool_results"] += 1
-                            if S is not None: S["tool_results"] += 1
-                            if b.get("is_error"):
-                                D["tool_errors"] += 1
-                                if S is not None: S["tool_errors"] += 1
-                                D["errors"][classify(result_text(b))] += 1
-                                enm = idname.get(b.get("tool_use_id"))
-                                if enm: D["by_tool"][enm]["err"] += 1
-                u = m.get("usage")
-                if not isinstance(u, dict): continue
-                tr = tier(m.get("model"))
-                if tr is None: continue
-                inp=u.get("input_tokens",0) or 0; out=u.get("output_tokens",0) or 0
-                cr=u.get("cache_read_input_tokens",0) or 0; cc=u.get("cache_creation_input_tokens",0) or 0
-                det=u.get("cache_creation") or {}
-                w1h=det.get("ephemeral_1h_input_tokens",0) or 0; w5m=det.get("ephemeral_5m_input_tokens",0) or 0
-                if w1h+w5m==0 and cc>0: w5m=cc
-                ri,ro=PRICING[tr]; crate=cache_rates(ri)
-                cost=(inp*ri+out*ro+cr*crate["read"]+w5m*crate["w5m"]+w1h*crate["w1h"])/1e6
-                D["cost"]+=cost; D["msgs"]+=1
-                tk=D["tok"]; tk["input"]+=inp; tk["output"]+=out; tk["cache_read"]+=cr
-                tk["cache_write_5m"]+=w5m; tk["cache_write_1h"]+=w1h
-                bm=D["by_model"][tr]; bm["cost"]+=cost
-                bmt=bm["tok"]; bmt["input"]+=inp; bmt["output"]+=out; bmt["cache_read"]+=cr
-                bmt["cache_write_5m"]+=w5m; bmt["cache_write_1h"]+=w1h
-                bp=D["by_project"][proj]; bp["cost"]+=cost; bp["msgs"]+=1
-                if S is not None:
-                    S["cost"]+=cost; S["msgs"]+=1
-                    stk=S["tok"]; stk["input"]+=inp; stk["output"]+=out; stk["cache_read"]+=cr
-                    stk["cache_write_5m"]+=w5m; stk["cache_write_1h"]+=w1h
-                    S["by_model"][tr]+=cost
-                # tool calls serialize (~100% single-tool turns) → attribute the
-                # whole turn's cost+output to its one tool; else a pseudo-row.
-                tkey = turn_tools[0] if len(turn_tools)==1 else ("(final response)" if not turn_tools else "(multi-tool turn)")
-                bt=D["by_tool"][tkey]; bt["cost"]+=cost; bt["out"]+=out
+                    tr = tier(m.get("model"))
+                    if tr is None: continue
+                    inp=u.get("input_tokens",0) or 0; out=u.get("output_tokens",0) or 0
+                    cr=u.get("cache_read_input_tokens",0) or 0; cc=u.get("cache_creation_input_tokens",0) or 0
+                    det=u.get("cache_creation") or {}
+                    w1h=det.get("ephemeral_1h_input_tokens",0) or 0; w5m=det.get("ephemeral_5m_input_tokens",0) or 0
+                    if w1h+w5m==0 and cc>0: w5m=cc
+                    ri,ro=PRICING[tr]; crate=cache_rates(ri)
+                    cost=(inp*ri+out*ro+cr*crate["read"]+w5m*crate["w5m"]+w1h*crate["w1h"])/1e6
+                    D["cost"]+=cost; D["msgs"]+=1
+                    tk=D["tok"]; tk["input"]+=inp; tk["output"]+=out; tk["cache_read"]+=cr
+                    tk["cache_write_5m"]+=w5m; tk["cache_write_1h"]+=w1h
+                    bm=D["by_model"][tr]; bm["cost"]+=cost
+                    bmt=bm["tok"]; bmt["input"]+=inp; bmt["output"]+=out; bmt["cache_read"]+=cr
+                    bmt["cache_write_5m"]+=w5m; bmt["cache_write_1h"]+=w1h
+                    bp=D["by_project"][proj]; bp["cost"]+=cost; bp["msgs"]+=1
+                    if S is not None:
+                        S["cost"]+=cost; S["msgs"]+=1
+                        stk=S["tok"]; stk["input"]+=inp; stk["output"]+=out; stk["cache_read"]+=cr
+                        stk["cache_write_5m"]+=w5m; stk["cache_write_1h"]+=w1h
+                        S["by_model"][tr]+=cost
+                    # tool calls serialize (~100% single-tool turns) → attribute the
+                    # whole turn's cost+output to its one tool; else a pseudo-row.
+                    tkey = turn_tools[0] if len(turn_tools)==1 else ("(final response)" if not turn_tools else "(multi-tool turn)")
+                    bt=D["by_tool"][tkey]; bt["cost"]+=cost; bt["out"]+=out
+                else:                                            # a user line: prompts and/or tool_results
+                    for b in content:
+                        if not isinstance(b, dict) or b.get("type") != "tool_result": continue
+                        rid = b.get("tool_use_id")
+                        if rid is not None:
+                            if rid in seen_result_ids: continue  # replayed result -- already counted
+                            seen_result_ids.add(rid)
+                        D = days[d]; S = sessions[sid] if sid else None
+                        if sid: D["sids"].add(sid)
+                        if S is not None:
+                            if S["project"] is None: S["project"] = proj
+                            if S["start"] is None or ts < S["start"]: S["start"] = ts
+                            if S["end"] is None or ts > S["end"]: S["end"] = ts
+                        D["tool_results"] += 1
+                        if S is not None: S["tool_results"] += 1
+                        if b.get("is_error"):
+                            D["tool_errors"] += 1
+                            if S is not None: S["tool_errors"] += 1
+                            D["errors"][classify(result_text(b))] += 1
+                            enm = idname.get(rid)
+                            if enm: D["by_tool"][enm]["err"] += 1
         except: continue
     # serialize (sets->counts kept as list length; round cost)
     out = {}
