@@ -11,7 +11,7 @@ real ~/.claude: ClaudeProvider(root=tmp) and open_db(":memory:"). Where costs
 would be involved they aren't — the canonical store deliberately holds tokens,
 not dollars (cost stays a query-time projection).
 """
-import json, os, tempfile, unittest, warnings
+import datetime, json, os, tempfile, unittest, warnings
 import report, canonical
 
 warnings.simplefilter("ignore", ResourceWarning)
@@ -463,6 +463,93 @@ class TestRawEvent(unittest.TestCase):
         self.assertIsNotNone(raw)
         self.assertLessEqual(len(raw), canonical.RAW_CAP)   # clamped, not unbounded
         tmp.cleanup()
+
+
+# --------------------------------------------------------------- raw_event age-out (retention)
+def _insert_raw_event(conn, ts, raw="{}", type_="system", sid="s1", sha="h"):
+    conn.execute(
+        "INSERT INTO raw_event(provider,session_id,ts,type,sha256,raw) VALUES(?,?,?,?,?,?)",
+        ("claude", sid, ts, type_, sha, raw))
+    conn.commit()
+
+class TestRawEventAgeOut(unittest.TestCase):
+    """canonical.age_out() -- the write-side complement to the RAW_CAP clamp
+    (docs/canonical-data-model.md §6/§7): a periodic pass that nulls out
+    raw_event.raw for rows older than a retention window, leaving every
+    structural column (provider/session_id/ts/type/sha256) untouched. `now`
+    is an injectable seam so tests never depend on the real clock."""
+
+    NOW = datetime.datetime(2026, 7, 1, tzinfo=datetime.timezone.utc)
+
+    def _ts(self, days_ago):
+        return (self.NOW - datetime.timedelta(days=days_ago)).isoformat()
+
+    def test_ac1_nulls_raw_only_for_rows_older_than_window(self):
+        conn = canonical.open_db(":memory:")
+        _insert_raw_event(conn, self._ts(100), raw="old-blob", sid="old")
+        _insert_raw_event(conn, self._ts(1), raw="new-blob", sid="new")
+        canonical.age_out(conn, days=90, now=self.NOW)
+        old_raw = conn.execute("SELECT raw FROM raw_event WHERE session_id='old'").fetchone()[0]
+        new_raw = conn.execute("SELECT raw FROM raw_event WHERE session_id='new'").fetchone()[0]
+        self.assertIsNone(old_raw)
+        self.assertEqual(new_raw, "new-blob")
+
+    def test_ac2_structural_columns_survive_only_raw_cleared(self):
+        conn = canonical.open_db(":memory:")
+        _insert_raw_event(conn, self._ts(200), raw="verbatim-json", type_="world_state",
+                          sid="s-struct", sha="deadbeef")
+        canonical.age_out(conn, days=90, now=self.NOW)
+        r = conn.execute("SELECT provider,session_id,ts,type,sha256,raw FROM raw_event").fetchone()
+        self.assertEqual(r[0], "claude")
+        self.assertEqual(r[1], "s-struct")
+        self.assertEqual(r[2], self._ts(200))
+        self.assertEqual(r[3], "world_state")
+        self.assertEqual(r[4], "deadbeef")   # hash always kept
+        self.assertIsNone(r[5])              # only raw cleared
+
+    def test_ac3_configurable_window_and_idempotent(self):
+        conn = canonical.open_db(":memory:")
+        _insert_raw_event(conn, self._ts(40), raw="blob", sid="mid")
+        # default 90d window would keep a 40-day-old row...
+        cleared_default = canonical.age_out(conn, now=self.NOW)
+        self.assertEqual(cleared_default, 0)
+        self.assertEqual(conn.execute("SELECT raw FROM raw_event WHERE session_id='mid'").fetchone()[0], "blob")
+        # ...but a custom, shorter window clears it.
+        cleared_custom = canonical.age_out(conn, days=30, now=self.NOW)
+        self.assertEqual(cleared_custom, 1)
+        self.assertIsNone(conn.execute("SELECT raw FROM raw_event WHERE session_id='mid'").fetchone()[0])
+        # re-running (same or wider window) is a no-op: nothing left to clear.
+        cleared_again = canonical.age_out(conn, days=30, now=self.NOW)
+        self.assertEqual(cleared_again, 0)
+
+    def test_ac4_boundary_kept_vs_cleared(self):
+        conn = canonical.open_db(":memory:")
+        _insert_raw_event(conn, self._ts(89), raw="kept", sid="under")     # window-1d -> kept
+        _insert_raw_event(conn, self._ts(91), raw="cleared", sid="over")   # window+1d -> cleared
+        canonical.age_out(conn, days=90, now=self.NOW)
+        self.assertEqual(conn.execute("SELECT raw FROM raw_event WHERE session_id='under'").fetchone()[0], "kept")
+        self.assertIsNone(conn.execute("SELECT raw FROM raw_event WHERE session_id='over'").fetchone()[0])
+
+    def test_rowcount_reflects_rows_actually_cleared(self):
+        conn = canonical.open_db(":memory:")
+        _insert_raw_event(conn, self._ts(100), raw="a", sid="a")
+        _insert_raw_event(conn, self._ts(120), raw="b", sid="b")
+        _insert_raw_event(conn, self._ts(1), raw="c", sid="c")   # too new, not cleared
+        cleared = canonical.age_out(conn, days=90, now=self.NOW)
+        self.assertEqual(cleared, 2)
+
+    def test_already_null_raw_rows_untouched_and_not_recounted(self):
+        conn = canonical.open_db(":memory:")
+        _insert_raw_event(conn, self._ts(100), raw=None, sid="already-null")
+        cleared = canonical.age_out(conn, days=90, now=self.NOW)
+        self.assertEqual(cleared, 0)   # raw IS NOT NULL guard: nothing to do
+        self.assertIsNone(conn.execute("SELECT raw FROM raw_event WHERE session_id='already-null'").fetchone()[0])
+
+    def test_default_days_uses_module_constant(self):
+        conn = canonical.open_db(":memory:")
+        _insert_raw_event(conn, self._ts(canonical.RAW_RETENTION_DAYS + 1), raw="blob", sid="s")
+        cleared = canonical.age_out(conn, now=self.NOW)   # days omitted -> RAW_RETENTION_DAYS
+        self.assertEqual(cleared, 1)
 
 
 # --------------------------------------------------------------- idempotency & resilience
