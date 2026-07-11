@@ -887,18 +887,24 @@ def main():
 # ---------------------------------------------------------------- template
 HTML_TMPL = r"""<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Claude Code Usage Report</title>
+<title>TraceYield — Usage Report</title>
 <style>
-:root{--bg:#0f1117;--panel:#171a23;--panel2:#1e222e;--ink:#e7e9ee;--mut:#8b90a0;--line:#2a2f3d;--accent:#6b8afd;}
+/* TraceYield design system — brand tokens (see design-system/tokens.css). Swap these to retheme. */
+:root{--bg:#0B1220;--panel:#141B2B;--panel2:#1B2436;--ink:#E8ECF3;--mut:#94A0B4;--line:#263149;--accent:#12C99A;--accent-contrast:#04140F;
+--grad:linear-gradient(120deg,#05B98A,#10B7D8 42%,#258CF8 70%,#7338FF);
+--c1:#12C99A;--c2:#258CF8;--c3:#7338FF;--c4:#10B7D8;--c5:#F0A35E;--c6:#E5709B;}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
 .wrap{max-width:960px;margin:0 auto;padding:28px 20px 90px}
 h1{font-size:25px;margin:0 0 4px} h2{font-size:17px;margin:30px 0 10px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.brand .mk{width:34px;height:34px;flex:none} .brand h1{margin:0}
+.brand .wm{color:var(--accent)} .brand .ttl{color:var(--mut);font-weight:500;font-size:18px}
 .sub{color:var(--mut);font-size:13px;margin-bottom:20px}
 .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;position:sticky;top:0;z-index:5}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
 .seg button{background:transparent;color:var(--mut);border:0;padding:7px 14px;font-size:13px;cursor:pointer}
-.seg button.on{background:var(--accent);color:#fff}
+.seg button.on{background:var(--accent);color:var(--accent-contrast);font-weight:600}
 select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px}
 .stepper{display:inline-flex;align-items:center;gap:8px;margin-left:auto}
 .stepper button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;width:34px;height:34px;font-size:16px;cursor:pointer}
@@ -907,7 +913,7 @@ select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);bo
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px}
 .klabel{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
 .kval{font-size:24px;font-weight:650;margin-top:5px} .delta{font-size:12px;margin-top:5px}
-.delta.up{color:#f0a35e} .delta.down{color:#5bbf8a} .delta.flat{color:var(--mut)}
+.delta.up{color:#F0A35E} .delta.down{color:#34D399} .delta.flat{color:var(--mut)}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:12px;overflow-x:auto}
 .chart{width:100%;height:auto} .grid{stroke:var(--line);stroke-width:1}
 .ytick{fill:var(--mut);font-size:10px;text-anchor:end} .xtick{fill:var(--mut);font-size:10px;text-anchor:middle}
@@ -933,12 +939,13 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 .doc p{margin:8px 0}
 #health{margin-top:14px} .hhdr{margin-bottom:4px;font-size:15px}
 .hpill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-right:8px;vertical-align:middle}
-.hpill.ok{background:#173a2a;color:#5bbf8a} .hpill.warn{background:#3a2a17;color:#f0a35e}
+.hpill.ok{background:#062A20;color:#6EE7B7} .hpill.warn{background:#2E1D0A;color:#FBBF6E}
 .hrow{font-size:13px;padding:8px 0;border-top:1px solid var(--line)} .hrow:first-of-type{border-top:0}
-.hrow.warn{color:#f0a35e} .hrow.ok{color:var(--mut)} .hrow b{color:var(--ink)}
+.hrow.warn{color:#FBBF6E} .hrow.ok{color:var(--mut)} .hrow b{color:var(--ink)}
 .hrow ul{margin:6px 0 0;padding-left:20px} .hrow li{margin:3px 0}
 </style></head><body><div class="wrap">
-<h1>Claude Code — Usage &amp; Health</h1>
+<div class="brand"><span class="mk"><svg viewBox="0 0 1254 1254" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="tym" x1="300" y1="280" x2="900" y2="985" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#05b98a"/><stop offset="0.46" stop-color="#10b7d8"/><stop offset="0.72" stop-color="#258cf8"/><stop offset="1" stop-color="#7338ff"/></linearGradient></defs><path d="M627 228 L952 424 L952 806 L627 1002 L301 806 L301 424 Z" fill="none" stroke="url(#tym)" stroke-width="70" stroke-linecap="round" stroke-linejoin="round"/><g fill="url(#tym)"><rect x="432" y="603" width="77" height="165" rx="38.5"/><rect x="587" y="452" width="77" height="316" rx="38.5"/><rect x="741" y="571" width="77" height="197" rx="38.5"/></g></svg></span>
+<h1>Trace<span class="wm">Yield</span> <span class="ttl">— Claude Code Usage &amp; Health</span></h1></div>
 <div class="sub" id="sub"></div>
 
 <div class="controls">
@@ -1157,13 +1164,13 @@ function render(){
   $("#sub").innerHTML=`Generated ${esc(DATA.generated)} · ${dayKeys.length} active days (${dayKeys[0]} → ${dayKeys[dayKeys.length-1]}) · viewing <b>${cur.label}</b>${range}`;
   // trend
   $("#trendhint").textContent="— "+M.label+" by "+state.gran+" · click a point or use ← →";
-  $("#trend").innerHTML=svgLine(P.map(p=>p.label),P.map(M.f),M.fmt,i,"#6b8afd");
+  $("#trend").innerHTML=svgLine(P.map(p=>p.label),P.map(M.f),M.fmt,i,"#12C99A");
   // breakdowns
-  $("#byproj").innerHTML=hbars(Object.entries(cur.by_project).map(([p,d])=>[clean(p),d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#5bbf8a");
-  $("#bymodel").innerHTML=hbars(Object.entries(cur.by_model).map(([m,d])=>[m,d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#f0a35e");
+  $("#byproj").innerHTML=hbars(Object.entries(cur.by_project).map(([p,d])=>[clean(p),d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#258CF8");
+  $("#bymodel").innerHTML=hbars(Object.entries(cur.by_model).map(([m,d])=>[m,d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#7338FF");
   const t=cur.tok;
-  $("#comp").innerHTML=hbars([["Cache read",t.cache_read],["Cache write 1h",t.cache_write_1h],["Cache write 5m",t.cache_write_5m],["Output",t.output],["Fresh input",t.input]],fmtTok,"#8b7bfd");
-  $("#tools").innerHTML=hbars(Object.entries(cur.by_tool).filter(([t,v])=>v.calls>0).map(([t,v])=>[t,v.calls]).sort((a,b)=>b[1]-a[1]).slice(0,15),fmtInt,"#6b8afd");
+  $("#comp").innerHTML=hbars([["Cache read",t.cache_read],["Cache write 1h",t.cache_write_1h],["Cache write 5m",t.cache_write_5m],["Output",t.output],["Fresh input",t.input]],fmtTok,"#10B7D8");
+  $("#tools").innerHTML=hbars(Object.entries(cur.by_tool).filter(([t,v])=>v.calls>0).map(([t,v])=>[t,v.calls]).sort((a,b)=>b[1]-a[1]).slice(0,15),fmtInt,"#12C99A");
   // tokens & cost per tool
   const rf=parseFloat($("#retry").value); const rfac=isNaN(rf)?1:rf;
   const trows=Object.entries(cur.by_tool).sort((a,b)=>b[1].cost-a[1].cost);
@@ -1254,7 +1261,7 @@ function rebuild(keepEnd){
 // pricing chart (static)
 (function(){
   const pd=Object.keys(DATA.pricing_history).sort();
-  const colors={opus:"#f0a35e",sonnet:"#5bbf8a",haiku:"#6b8afd"};
+  const colors={opus:"#7338FF",sonnet:"#12C99A",haiku:"#258CF8"};
   const w=880,h=200,pad=46,n=pd.length;
   const series=["opus","sonnet","haiku"].map(m=>({m,vals:pd.map(d=>(DATA.pricing_history[d][m]||{}).input||0)}));
   const mx=Math.max(1,...series.flatMap(s=>s.vals))*1.15;
