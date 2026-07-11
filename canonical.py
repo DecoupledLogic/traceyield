@@ -537,7 +537,10 @@ class CodexProvider:
                                cache_write_5m=0, cache_write_1h=0, output=out,
                                reasoning_output=reasoning, compacted=pending_compacted,
                                tier=codex_tier(model),
-                               project=None)   # unused: report.aggregate() scopes to provider='claude'
+                               project=None)   # codex turns now participate in report.aggregate()'s
+                                                # default all-providers scope, but a codex turn's own
+                                                # project stays None -- by_project falls back to the
+                                                # session's resolved project for these rows
                     pending_compacted = False
                 continue
 

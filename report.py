@@ -148,20 +148,23 @@ def result_text(b):
     return ""
 def new_tool(): return {"calls":0,"out":0,"cost":0.0,"err":0}
 def new_model(): return {"cost":0.0,"tok":{"input":0,"output":0,"cache_read":0,"cache_write_5m":0,"cache_write_1h":0}}
+def new_provider(): return {"cost":0.0,"msgs":0,"tok":{"input":0,"output":0,"cache_read":0,"cache_write_5m":0,"cache_write_1h":0}}
 def new_day():
     return {"cost":0.0,
             "tok":{"input":0,"output":0,"cache_read":0,"cache_write_5m":0,"cache_write_1h":0},
             "msgs":0,"tool_results":0,"tool_errors":0,
             "sids":set(), "by_model":defaultdict(new_model),
             "by_project":defaultdict(lambda:{"cost":0.0,"msgs":0}),
-            "by_tool":defaultdict(new_tool), "errors":Counter()}
+            "by_tool":defaultdict(new_tool), "errors":Counter(),
+            "by_provider":defaultdict(new_provider)}
 def new_session():
     # sessions span days; accumulated globally (keyed by sessionId) so a single
     # runaway conversation is visible even when its cost is split across dates.
     return {"cost":0.0,
             "tok":{"input":0,"output":0,"cache_read":0,"cache_write_5m":0,"cache_write_1h":0},
             "msgs":0,"tool_results":0,"tool_errors":0,
-            "project":None,"start":None,"end":None,"by_model":defaultdict(float)}
+            "project":None,"start":None,"end":None,"by_model":defaultdict(float),
+            "by_provider":defaultdict(new_provider)}
 
 def analyze(root=CLAUDE_PROJECTS):
     """Parse Claude transcripts directly into (days, sessions).
@@ -297,15 +300,29 @@ def analyze(root=CLAUDE_PROJECTS):
         }
     return out, sess
 
-def aggregate(conn):
+def aggregate(conn, provider=None):
     """Derive (days, sessions) — the SAME shapes analyze() returns — via SQL
     GROUP BY aggregation over an open canonical-db connection (canonical.py's
     usage.db). This is the live production path (see main()); analyze() is kept
     as the equivalence oracle this is proven against (TestAggregateEquivalence
     in test_report.py) and as a resilience fallback.
 
-    Equivalence rules honored (see docs/decisions/0001-aggregate-flip.md):
-      - scoped to provider='claude' (Codex has no cost model yet);
+    `provider` controls scope:
+      - `provider=None` (the default): aggregate over ALL providers, and add a
+        `by_provider` facet to each day/session bucket -- a dict keyed by
+        provider name, each value `{"cost","msgs","tok"}` -- accumulated from
+        the same tier-not-null cost loop that builds the top-level cost/msgs/
+        tok, so summing `by_provider[*].cost/msgs/tok[k]` always equals the
+        bucket's own top-level value. Codex has no rate card yet
+        (cost_of("codex", ...) returns 0.0), so its turns still add msgs/tok
+        at $0 cost -- the sums invariant holds regardless.
+      - `provider='claude'` (or any specific provider string): scope every
+        query to that provider and produce output byte-identical to
+        analyze() -- NO `by_provider` key is added in scoped mode. This is
+        the preserved equivalence oracle (TestAggregateEquivalence).
+
+    Equivalence rules honored (see docs/decisions/0001-aggregate-flip.md),
+    when scoped to provider='claude':
       - cost/tok/msgs/by_model/by_project/session-cost only accumulate over
         turns with tier IS NOT NULL, mirroring analyze()'s
         `if tr is None: continue` gate. Cost is recomputed from tokens at the
@@ -338,21 +355,31 @@ def aggregate(conn):
     days = defaultdict(new_day)
     sessions = defaultdict(new_session)
 
-    # project per session (provider='claude'), for by_project / session.project
+    # Scope fragment: a specific provider binds ':prov' via params; None scopes
+    # to "all providers" with a literal predicate and no params (avoids sqlite
+    # binding errors from an unused named placeholder).
+    if provider is None:
+        scope, params = "provider IS NOT NULL", {}
+        tc_scope = "tc.provider IS NOT NULL"
+    else:
+        scope, params = "provider = :prov", {"prov": provider}
+        tc_scope = "tc.provider = :prov"
+
+    # project per session, for by_project / session.project
     project_of_sess = dict(conn.execute(
-        "SELECT session_id, project FROM session WHERE provider='claude'"))
+        f"SELECT session_id, project FROM session WHERE {scope}", params))
 
     # day `sessions` = distinct session_id over the UNION of turn + tool_call
     # rows on that day -- NOT tier-filtered (rule 3).
-    for d, cnt in conn.execute("""
+    for d, cnt in conn.execute(f"""
         SELECT day, COUNT(DISTINCT session_id) FROM (
           SELECT substr(ts,1,10) AS day, session_id FROM turn
-            WHERE provider='claude' AND ts IS NOT NULL
+            WHERE {scope} AND ts IS NOT NULL
           UNION
           SELECT substr(ts,1,10) AS day, session_id FROM tool_call
-            WHERE provider='claude' AND ts IS NOT NULL
+            WHERE {scope} AND ts IS NOT NULL
         ) GROUP BY day
-    """):
+    """, params):
         if d is not None:
             days[d]["sessions"] = cnt
 
@@ -361,10 +388,10 @@ def aggregate(conn):
     # result) -- i.e. the RESULT's day once a result has arrived. This matches
     # analyze(), which counts a tool_result's error/tool_results/tool_errors
     # on the RESULT line's own day (a separate line from the call).
-    for day, sid, name, ok, ec in conn.execute("""
+    for day, sid, name, ok, ec in conn.execute(f"""
         SELECT substr(ts,1,10), session_id, name, ok, error_class
-        FROM tool_call WHERE provider='claude' AND ts IS NOT NULL
-    """):
+        FROM tool_call WHERE {scope} AND ts IS NOT NULL
+    """, params):
         if day is not None:
             D = days[day]
             if ok is not None:
@@ -382,21 +409,23 @@ def aggregate(conn):
     # tool_use call under the assistant turn's own day. Join turn_id ->
     # turn.ts to match; every call's turn_id points at a kept turn, but fall
     # back to the tool_call's own ts day if that join is ever empty.
-    for name, turn_day, tc_day in conn.execute("""
+    # NOTE: `t.provider = tc.provider` is the JOIN CORRELATION (always kept
+    # as-is); `tc_scope` above is the separate SCOPE predicate.
+    for name, turn_day, tc_day in conn.execute(f"""
         SELECT tc.name, substr(t.ts,1,10), substr(tc.ts,1,10)
         FROM tool_call tc LEFT JOIN turn t
           ON t.turn_id = tc.turn_id AND t.provider = tc.provider
-        WHERE tc.provider='claude' AND tc.name IS NOT NULL
-    """):
+        WHERE {tc_scope} AND tc.name IS NOT NULL
+    """, params):
         day = turn_day or tc_day
         if day is not None:
             days[day]["by_tool"][name]["calls"] += 1
 
     # session-level tool_results/tool_errors -- NOT tier-filtered (rule 7).
-    for sid, ok in conn.execute("""
+    for sid, ok in conn.execute(f"""
         SELECT session_id, ok FROM tool_call
-        WHERE provider='claude' AND session_id IS NOT NULL
-    """):
+        WHERE {scope} AND session_id IS NOT NULL
+    """, params):
         if ok is not None:
             S = sessions[sid]
             S["tool_results"] += 1
@@ -404,40 +433,42 @@ def aggregate(conn):
 
     # session span -- MIN/MAX(ts) over turn UNION tool_call rows (rule 7),
     # not session.first_ts/last_ts.
-    for sid, lo, hi in conn.execute("""
+    for sid, lo, hi in conn.execute(f"""
         SELECT session_id, MIN(ts), MAX(ts) FROM (
-          SELECT session_id, ts FROM turn WHERE provider='claude' AND ts IS NOT NULL
+          SELECT session_id, ts FROM turn WHERE {scope} AND ts IS NOT NULL
           UNION ALL
-          SELECT session_id, ts FROM tool_call WHERE provider='claude' AND ts IS NOT NULL
+          SELECT session_id, ts FROM tool_call WHERE {scope} AND ts IS NOT NULL
         ) GROUP BY session_id
-    """):
+    """, params):
         S = sessions[sid]
         S["start"], S["end"] = lo, hi
         S["project"] = project_of_sess.get(sid)
 
     # tool_use name(s) per turn_id, for the by_tool cost/out attribution (rule 4).
     tool_names_by_turn = defaultdict(list)
-    for turn_id, name in conn.execute("""
+    for turn_id, name in conn.execute(f"""
         SELECT turn_id, name FROM tool_call
-        WHERE provider='claude' AND name IS NOT NULL
+        WHERE {scope} AND name IS NOT NULL
           AND turn_id IS NOT NULL AND turn_id != ''
-    """):
+    """, params):
         tool_names_by_turn[turn_id].append(name)
 
-    # cost/tok/msgs/by_model/by_project/session-cost/by_tool(cost,out) --
-    # tier-not-null turns only (rule 2). by_project keys on the TURN's OWN
-    # project (per-file, populated at ingest by ClaudeProvider) -- NOT the
-    # session's resolved project -- so a session whose turns span two project
+    # cost/tok/msgs/by_model/by_project/session-cost/by_tool(cost,out)/
+    # by_provider -- tier-not-null turns only (rule 2). by_project keys on the
+    # TURN's OWN project (per-file, populated at ingest) -- NOT the session's
+    # resolved project -- so a session whose turns span two project
     # directories still splits its cost exactly like analyze() (which
     # attributes each turn to the file it was parsed from). Falls back to the
     # session's project on the (should-never-happen-for-claude) chance a
-    # turn's own project is NULL.
-    for turn_id, sid, day, tr, inp, cr, w5m, w1h, out, tproj in conn.execute("""
+    # turn's own project is NULL. by_model/by_project are provider-blind
+    # (claude+codex share the same model/project keyspaces); by_provider is
+    # the new facet that separates them, added only when provider is None.
+    for turn_id, sid, day, tr, inp, cr, w5m, w1h, out, tproj, tprov in conn.execute(f"""
         SELECT turn_id, session_id, substr(ts,1,10), tier,
-               input_fresh, cache_read, cache_write_5m, cache_write_1h, output, project
-        FROM turn WHERE provider='claude' AND tier IS NOT NULL AND ts IS NOT NULL
-    """):
-        cost = cost_of("claude", tr, inp, out, cr, w5m, w1h)
+               input_fresh, cache_read, cache_write_5m, cache_write_1h, output, project, provider
+        FROM turn WHERE {scope} AND tier IS NOT NULL AND ts IS NOT NULL
+    """, params):
+        cost = cost_of(tprov, tr, inp, out, cr, w5m, w1h)
 
         D = days[day]
         D["cost"] += cost; D["msgs"] += 1
@@ -448,12 +479,20 @@ def aggregate(conn):
         bmt["cache_write_5m"] += w5m; bmt["cache_write_1h"] += w1h
         proj = tproj or project_of_sess.get(sid)
         bp = D["by_project"][proj]; bp["cost"] += cost; bp["msgs"] += 1
+        if provider is None:
+            dbp = D["by_provider"][tprov]; dbp["cost"] += cost; dbp["msgs"] += 1
+            dbpt = dbp["tok"]; dbpt["input"] += inp; dbpt["output"] += out; dbpt["cache_read"] += cr
+            dbpt["cache_write_5m"] += w5m; dbpt["cache_write_1h"] += w1h
 
         S = sessions[sid]
         S["cost"] += cost; S["msgs"] += 1
         stk = S["tok"]; stk["input"] += inp; stk["output"] += out; stk["cache_read"] += cr
         stk["cache_write_5m"] += w5m; stk["cache_write_1h"] += w1h
         S["by_model"][tr] += cost
+        if provider is None:
+            sbp = S["by_provider"][tprov]; sbp["cost"] += cost; sbp["msgs"] += 1
+            sbpt = sbp["tok"]; sbpt["input"] += inp; sbpt["output"] += out; sbpt["cache_read"] += cr
+            sbpt["cache_write_5m"] += w5m; sbpt["cache_write_1h"] += w1h
 
         names = tool_names_by_turn.get(turn_id, [])
         tkey = names[0] if len(names) == 1 else ("(final response)" if not names else "(multi-tool turn)")
@@ -472,6 +511,9 @@ def aggregate(conn):
                         for t, v in D["by_tool"].items()},
             "errors": dict(D["errors"]),
         }
+        if provider is None:
+            out[d]["by_provider"] = {p: {"cost": round(v["cost"], 4), "msgs": v["msgs"], "tok": v["tok"]}
+                                      for p, v in D["by_provider"].items()}
     sess = {}
     for sid, S in sessions.items():
         sess[sid] = {
@@ -481,6 +523,9 @@ def aggregate(conn):
             "project": S["project"], "start": S["start"], "end": S["end"],
             "by_model": {m: round(c, 4) for m, c in S["by_model"].items()},
         }
+        if provider is None:
+            sess[sid]["by_provider"] = {p: {"cost": round(v["cost"], 4), "msgs": v["msgs"], "tok": v["tok"]}
+                                         for p, v in S["by_provider"].items()}
     return out, sess
 
 # ---------------------------------------------------------------- persist
