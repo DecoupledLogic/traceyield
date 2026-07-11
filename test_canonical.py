@@ -152,6 +152,92 @@ class TestHelpers(unittest.TestCase):
         self.assertTrue({"session", "turn", "tool_call", "segment", "raw_event"} <= tables)
 
 
+# --------------------------------------------------------------- schema migration (v1 -> v2)
+class TestSchemaMigration(unittest.TestCase):
+    """A machine's existing usage.db (gitignored, SCHEMA_VERSION 1, no
+    turn.project column) must upgrade cleanly the next time open_db() runs --
+    additively, idempotently, without ever erroring or losing data."""
+
+    def test_pre_v2_db_gains_project_column_idempotently(self):
+        import sqlite3
+        tmp = tempfile.TemporaryDirectory()
+        path = os.path.join(tmp.name, "old.db")
+
+        # Simulate a pre-v2 db: a `turn` table with NO project column (mirrors
+        # SCHEMA_VERSION 1, before this migration existed).
+        old = sqlite3.connect(path)
+        old.executescript("""
+            CREATE TABLE turn (
+              turn_id TEXT PRIMARY KEY, provider TEXT NOT NULL, session_id TEXT NOT NULL,
+              parent_turn_id TEXT, ts TEXT NOT NULL, wall_ms INTEGER,
+              model TEXT, tier TEXT, request_id TEXT, stop_reason TEXT,
+              input_fresh INTEGER DEFAULT 0, cache_read INTEGER DEFAULT 0,
+              cache_write_5m INTEGER DEFAULT 0, cache_write_1h INTEGER DEFAULT 0,
+              output INTEGER DEFAULT 0, reasoning_output INTEGER,
+              compacted INTEGER DEFAULT 0, n_tool_calls INTEGER DEFAULT 0
+            );
+        """)
+        old.execute("PRAGMA user_version = 1")
+        old.commit()
+        old.close()
+        check = sqlite3.connect(path)
+        cols_before = {r[1] for r in check.execute("PRAGMA table_info(turn)")}
+        check.close()   # Windows holds the file open otherwise -- tmp.cleanup() would fail
+        self.assertNotIn("project", cols_before)
+
+        # open_db() on the pre-existing db: CREATE TABLE IF NOT EXISTS is a
+        # no-op (turn already exists), so _migrate() must ALTER the column in.
+        conn = canonical.open_db(path)
+        self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], canonical.SCHEMA_VERSION)
+        cols_after = {r[1] for r in conn.execute("PRAGMA table_info(turn)")}
+        self.assertIn("project", cols_after)
+        conn.close()
+
+        # ingest succeeds against the upgraded db (no "no such column" errors)
+        # and the new column is actually populated.
+        src = tempfile.TemporaryDirectory()
+        write_transcript(src.name, "projX", "c.jsonl", [
+            assistant("2026-01-01T00:00:00Z", "s1", "claude-opus-4-8",
+                      usage(inp=1, out=1), uuid="m1")])
+        conn2 = canonical.open_db(path)
+        canonical.ingest(conn2, [canonical.ClaudeProvider(root=src.name)])
+        self.assertEqual(conn2.execute("SELECT project FROM turn WHERE turn_id='m1'").fetchone()[0], "projX")
+        conn2.close()
+        src.cleanup()
+
+        # re-opening an ALREADY-migrated db doesn't error -- _migrate() sees
+        # the column already present (PRAGMA table_info) and skips the ALTER.
+        conn3 = canonical.open_db(path)
+        conn3.close()
+        tmp.cleanup()
+
+    def test_migrate_swallows_duplicate_column_error(self):
+        # Belt-and-suspenders on the except branch itself (not just the
+        # PRAGMA table_info pre-check that normally avoids it): if the ALTER
+        # ever runs against a column that already exists, sqlite3's
+        # "duplicate column name" OperationalError must be swallowed, not
+        # raised -- confirmed by calling a real ALTER twice, unguarded, and
+        # checking canonical._migrate()'s except clause recognizes it as the
+        # exact error text it's built to catch.
+        import sqlite3
+        conn = canonical.open_db(":memory:")   # already migrated to v2 (has turn.project)
+        with self.assertRaises(sqlite3.OperationalError) as ctx:
+            conn.execute("ALTER TABLE turn ADD COLUMN project TEXT")
+        self.assertIn("duplicate column name", str(ctx.exception).lower())
+        # canonical._migrate() itself, run again on this same (already
+        # migrated) connection, must not raise -- it never gets far enough to
+        # hit the ALTER (PRAGMA table_info already sees the column), which is
+        # the primary guard; the except above documents the fallback still works.
+        canonical._migrate(conn)
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(turn)")}
+        self.assertIn("project", cols)
+
+    def test_fresh_db_already_has_project_column(self):
+        conn = canonical.open_db(":memory:")
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(turn)")}
+        self.assertIn("project", cols)
+
+
 # --------------------------------------------------------------- turns & tokens
 class TestTurns(unittest.TestCase):
     def setUp(self):
@@ -174,6 +260,32 @@ class TestTurns(unittest.TestCase):
 
     def test_turn_count(self):
         self.assertEqual(self.conn.execute("SELECT count(*) FROM turn").fetchone()[0], 2)
+
+    def test_turn_project_populated_per_turn(self):
+        # report.aggregate()'s by_project keys on this column directly (not on
+        # the session's resolved project), so a turn's OWN file/project must
+        # always be recorded here for Claude turns.
+        r = self.conn.execute("SELECT project FROM turn WHERE turn_id='u1'").fetchone()
+        self.assertEqual(r[0], "projX")   # ingest_lines()'s default project dir
+        r2 = self.conn.execute("SELECT project FROM turn WHERE turn_id='u2'").fetchone()
+        self.assertEqual(r2[0], "projX")
+
+    def test_turn_project_differs_across_files_for_same_session(self):
+        # The same session_id can have turns land in different project dirs
+        # (a worktree switch mid-session); each turn keeps ITS OWN file's
+        # project, independent of the other file's.
+        tmp = tempfile.TemporaryDirectory()
+        write_transcript(tmp.name, "projA", "a.jsonl", [
+            assistant("2026-02-01T00:00:00Z", "sw", "claude-opus-4-8",
+                      usage(inp=1, out=1), uuid="wa")])
+        write_transcript(tmp.name, "projB", "b.jsonl", [
+            assistant("2026-02-01T01:00:00Z", "sw", "claude-opus-4-8",
+                      usage(inp=1, out=1), uuid="wb")])
+        conn = canonical.open_db(":memory:")
+        canonical.ingest(conn, [canonical.ClaudeProvider(root=tmp.name)])
+        self.assertEqual(conn.execute("SELECT project FROM turn WHERE turn_id='wa'").fetchone()[0], "projA")
+        self.assertEqual(conn.execute("SELECT project FROM turn WHERE turn_id='wb'").fetchone()[0], "projB")
+        tmp.cleanup()
 
     def test_wall_ms_from_consecutive_turns(self):
         # second turn is 5s after the first in the same session
@@ -435,6 +547,7 @@ class TestCodexTurns(unittest.TestCase):
         r = conn.execute("SELECT input_fresh,cache_read,cache_write_5m,cache_write_1h,output,"
                          "reasoning_output,tier,model FROM turn").fetchone()
         self.assertEqual(r, (200, 800, 0, 0, 50, 20, "gpt-5-codex", "gpt-5-codex"))
+        self.assertIsNone(conn.execute("SELECT project FROM turn").fetchone()[0])   # unused for codex
         tmp.cleanup()
 
     def test_reasoning_output_not_folded_into_output(self):

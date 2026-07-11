@@ -501,19 +501,11 @@ class TestAggregateEquivalence(unittest.TestCase):
         # motivating case for the Session-upsert first-wins fix). Both paths
         # must resolve the session's own `project` field to the FIRST-seen
         # project ("projA"), not whichever file ingest()/analyze() happens to
-        # process last.
-        #
-        # NOTE: this fixture intentionally does NOT go through the shared
-        # _check() (full days+sessions deep-equality) helper. `by_project`
-        # (the day-level "cost by project" breakdown) is a pre-existing,
-        # deliberate design difference from the original E1-F2-S1 rule 5:
-        # analyze() attributes each turn's cost to the FILE it actually
-        # appeared in (per-turn granularity), while aggregate() attributes it
-        # via a turn's session's single resolved `project` (session-level,
-        # since the canonical schema has no per-turn project column). A
-        # session split across two project dirs is the one case where these
-        # two views genuinely diverge; every other field -- including the
-        # session dict itself -- agrees, which is what's asserted below.
+        # process last -- AND, since `turn.project` is now a per-turn column
+        # (not derived from the session's single resolved project), the day
+        # `by_project` breakdown must still split cost per-file exactly like
+        # analyze() does (projA gets turn-w1's cost, projB gets turn-w2's).
+        # Full deep-equality on both days and sessions.
         with tempfile.TemporaryDirectory() as root:
             write_transcript(root, "projA", "a.jsonl", [
                 assistant("2026-06-01T00:00:00Z", "sw", "claude-opus-4",
@@ -524,10 +516,10 @@ class TestAggregateEquivalence(unittest.TestCase):
                          usage(inp=20, out=10), uuid="turn-w2"),
             ])
             days_a, sess_a = report.analyze(root)
-            days_b, sess_b = ingest_and_aggregate(root)
-            self.assertEqual(sess_a["sw"]["project"], "projA")   # first-wins, analyze()
-            self.assertEqual(sess_b["sw"]["project"], "projA")   # first-wins, aggregate()
-            self.assertEqual(sess_a, sess_b)                     # sessions dict fully agrees
+            self.assertEqual(sess_a["sw"]["project"], "projA")            # first-wins
+            self.assertIn("projA", days_a["2026-06-01"]["by_project"])    # per-file split preserved
+            self.assertIn("projB", days_a["2026-06-01"]["by_project"])
+            self._check(root)
 
 
 # --------------------------------------------------------------- persistence
