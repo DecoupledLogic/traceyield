@@ -306,7 +306,14 @@ def aggregate(conn):
       - session `start`/`end` are MIN/MAX(ts) over that session's turn AND
         tool_call rows -- NOT session.first_ts/last_ts (a canonical session
         row is keyed by the file's own span bookkeeping; deriving span from
-        the turn+tool_call rows matches analyze() exactly turn-for-turn).
+        the turn+tool_call rows matches analyze() exactly turn-for-turn);
+      - day `by_project` keys on each TURN's OWN `project` column (per-file,
+        set at ingest) -- NOT the session's resolved `project` -- matching
+        analyze()'s per-file cost attribution. A session's turns can span two
+        project directories (e.g. a worktree switch mid-session); by_project
+        must still split like analyze() does. `sessions[*].project` is the
+        session-level, first-seen-wins value (from the session table) and is
+        unrelated to this per-turn field.
     """
     days = defaultdict(new_day)
     sessions = defaultdict(new_session)
@@ -398,10 +405,16 @@ def aggregate(conn):
         tool_names_by_turn[turn_id].append(name)
 
     # cost/tok/msgs/by_model/by_project/session-cost/by_tool(cost,out) --
-    # tier-not-null turns only (rule 2).
-    for turn_id, sid, day, tr, inp, cr, w5m, w1h, out in conn.execute("""
+    # tier-not-null turns only (rule 2). by_project keys on the TURN's OWN
+    # project (per-file, populated at ingest by ClaudeProvider) -- NOT the
+    # session's resolved project -- so a session whose turns span two project
+    # directories still splits its cost exactly like analyze() (which
+    # attributes each turn to the file it was parsed from). Falls back to the
+    # session's project on the (should-never-happen-for-claude) chance a
+    # turn's own project is NULL.
+    for turn_id, sid, day, tr, inp, cr, w5m, w1h, out, tproj in conn.execute("""
         SELECT turn_id, session_id, substr(ts,1,10), tier,
-               input_fresh, cache_read, cache_write_5m, cache_write_1h, output
+               input_fresh, cache_read, cache_write_5m, cache_write_1h, output, project
         FROM turn WHERE provider='claude' AND tier IS NOT NULL AND ts IS NOT NULL
     """):
         ri, ro = PRICING[tr]; crate = cache_rates(ri)
@@ -414,7 +427,7 @@ def aggregate(conn):
         bm = D["by_model"][tr]; bm["cost"] += cost
         bmt = bm["tok"]; bmt["input"] += inp; bmt["output"] += out; bmt["cache_read"] += cr
         bmt["cache_write_5m"] += w5m; bmt["cache_write_1h"] += w1h
-        proj = project_of_sess.get(sid)
+        proj = tproj or project_of_sess.get(sid)
         bp = D["by_project"][proj]; bp["cost"] += cost; bp["msgs"] += 1
 
         S = sessions[sid]
