@@ -12,7 +12,7 @@ model-routing estimator consumes. Fixtures are built with hand-computable
 numbers so expected costs are checked exactly, not approximately.
 """
 import json, os, re, socket, tempfile, unittest, warnings
-import report
+import report, canonical
 
 # report.py favors a terse `json.load(open(...))` idiom that leaks file handles
 # on CPython's GC schedule; that's a deliberate single-file style choice, not a
@@ -51,6 +51,15 @@ def write_transcript(root, project, name, lines):
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, name), "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
+
+def ingest_and_aggregate(root):
+    """Ingest a transcript root into an in-memory canonical db, then run
+    report.aggregate() over it — the equivalence-test twin of report.analyze(root)."""
+    conn = canonical.open_db(":memory:")
+    canonical.ingest(conn, [canonical.ClaudeProvider(root=root)])
+    days, sessions = report.aggregate(conn)
+    conn.close()
+    return days, sessions
 
 
 # --------------------------------------------------------------- pure helpers
@@ -349,6 +358,67 @@ class TestAnalyze(unittest.TestCase):
             self.assertEqual(days["2026-02-01"]["by_model"], {})
             self.assertEqual(sessions["sx"]["cost"], 0.0)
             self.assertEqual(sessions["sx"]["by_model"], {})
+
+
+# --------------------------------------------------------------- aggregate() equivalence
+class TestAggregateEquivalence(unittest.TestCase):
+    """aggregate() (SQL GROUP BY over the canonical db) must reproduce analyze()'s
+    (days, sessions) output exactly, on the same transcripts, within the cost
+    rounding both already apply. This is the regression guard for the E1-F2-S1
+    "aggregate flip": SQLite becomes the source of truth for the aggregates
+    without changing what the report shows."""
+
+    def _check(self, root):
+        days_a, sess_a = report.analyze(root)
+        days_b, sess_b = ingest_and_aggregate(root)
+        self.assertEqual(days_a, days_b)
+        self.assertEqual(sess_a, sess_b)
+
+    def test_equivalence_on_the_full_TestAnalyze_fixture(self):
+        # Same fixture as TestAnalyze.setUp: two sessions in one file (one
+        # spanning two days), opus + haiku, a tool error, cache_creation->5m
+        # fallback, a malformed-JSON line, and a no-timestamp line.
+        with tempfile.TemporaryDirectory() as root:
+            lines = [
+                assistant("2026-01-01T10:00:00Z", "s1", "claude-opus-4",
+                          usage(inp=100, out=50, cr=1000, w5m=200, w1h=300),
+                          tools=[("t1", "Read")]),
+                tool_result("2026-01-01T10:00:01Z", "s1", "t1"),
+                assistant("2026-01-02T09:00:00Z", "s1", "claude-opus-4",
+                          usage(inp=10, out=10), tools=[("t2", "Bash")]),
+                tool_result("2026-01-02T09:00:01Z", "s1", "t2",
+                            is_error=True, text="command not found"),
+                assistant("2026-01-02T11:00:00Z", "s2", "claude-haiku-4-5",
+                          usage(inp=1000, out=500, cc=400)),
+                "{ this is not valid json",
+                line(message={"model": "x", "usage": usage(inp=9)}),
+            ]
+            write_transcript(root, "projX", "conv.jsonl", lines)
+            self._check(root)
+
+    def test_equivalence_unknown_model(self):
+        with tempfile.TemporaryDirectory() as root:
+            write_transcript(root, "p", "c.jsonl", [
+                assistant("2026-02-01T00:00:00Z", "sx", "gpt-4", usage(inp=1000, out=1000)),
+            ])
+            self._check(root)
+
+    def test_equivalence_multi_tool_turn(self):
+        # A turn with >1 tool_use block must land in the "(multi-tool turn)"
+        # pseudo-row in both analyze() and aggregate() -- exercises the last
+        # untested branch of the by_tool attribution rule.
+        with tempfile.TemporaryDirectory() as root:
+            lines = [
+                assistant("2026-03-01T00:00:00Z", "sm", "claude-sonnet-5",
+                          usage(inp=200, out=100, cr=50, w5m=10, w1h=0),
+                          tools=[("m1", "Read"), ("m2", "Grep")]),
+                tool_result("2026-03-01T00:00:01Z", "sm", "m1"),
+                tool_result("2026-03-01T00:00:02Z", "sm", "m2"),
+            ]
+            write_transcript(root, "projM", "multi.jsonl", lines)
+            days, sessions = report.analyze(root)
+            self.assertIn("(multi-tool turn)", days["2026-03-01"]["by_tool"])
+            self._check(root)
 
 
 # --------------------------------------------------------------- persistence
