@@ -164,12 +164,18 @@ def write(conn, rec, verbatim):
              rec.cache_write_5m, rec.cache_write_1h, rec.output, rec.reasoning_output,
              _b(rec.compacted), rec.n_tool_calls))
     elif isinstance(rec, ToolCall):
+        # ts tracks the LATEST known event for this call (call issue or result
+        # return, whichever is later) — same MAX-with-COALESCE idiom as
+        # session.last_ts below. This matters for report.aggregate(): a
+        # session's activity span is derived from turn+tool_call ts (§ report.py
+        # aggregate()), and a call's result line is often the true last touch.
         if rec.name is not None:            # the call itself
             conn.execute(
                 "INSERT INTO tool_call(call_id,provider,session_id,turn_id,ts,name,kind) "
                 "VALUES(?,?,?,?,?,?,?) ON CONFLICT(call_id) DO UPDATE SET "
                 "name=excluded.name, kind=excluded.kind, "
-                "turn_id=COALESCE(tool_call.turn_id, excluded.turn_id)",
+                "turn_id=COALESCE(tool_call.turn_id, excluded.turn_id), "
+                "ts=MAX(COALESCE(tool_call.ts,excluded.ts),COALESCE(excluded.ts,tool_call.ts))",
                 (rec.call_id, rec.provider, rec.session_id, rec.turn_id, rec.ts, rec.name, rec.kind))
         else:                                # the result (ok/error/latency), joined by call_id
             conn.execute(
@@ -178,7 +184,8 @@ def write(conn, rec, verbatim):
                 "ON CONFLICT(call_id) DO UPDATE SET ok=excluded.ok, error_class=excluded.error_class, "
                 "exit_code=COALESCE(excluded.exit_code, tool_call.exit_code), "
                 "output_bytes=excluded.output_bytes, latency_ms=excluded.latency_ms, "
-                "turn_id=COALESCE(tool_call.turn_id, excluded.turn_id)",
+                "turn_id=COALESCE(tool_call.turn_id, excluded.turn_id), "
+                "ts=MAX(COALESCE(tool_call.ts,excluded.ts),COALESCE(excluded.ts,tool_call.ts))",
                 (rec.call_id, rec.provider, rec.session_id, rec.turn_id, rec.ts, _b(rec.ok),
                  rec.error_class, rec.exit_code, rec.output_bytes, rec.latency_ms))
     elif isinstance(rec, Segment):
@@ -238,17 +245,23 @@ class ClaudeProvider:
     def parse_file(self, path):
         proj = report.project_of(path, self.root)
         sid = None
-        meta = {}                 # cwd / git / version, first seen wins
+        meta = {}                 # cwd / git / version, first seen wins (file-level)
         idmeta = {}               # tool_use.id -> (turn_id, call_ts_ms) for the result join
         prev_ms = {}              # sessionId -> last turn ts (ms), for wall_ms
-        first_ts = last_ts = None
+        spans = {}                 # sessionId -> [first_ts, last_ts] — PER SESSION, not per
+                                    # file: one file can hold multiple sessions (a rotated/
+                                    # resumed conversation), so a single file-wide span would
+                                    # bleed one session's timestamps into another's.
         seq = 0
         for o in _iter_json_lines(path):
             ts = o.get("timestamp")
-            if ts:
-                if first_ts is None or ts < first_ts: first_ts = ts
-                if last_ts is None or ts > last_ts: last_ts = ts
             if o.get("sessionId"): sid = o.get("sessionId")
+            if ts and sid:
+                sp = spans.get(sid)
+                if sp is None: spans[sid] = [ts, ts]
+                else:
+                    if ts < sp[0]: sp[0] = ts
+                    if ts > sp[1]: sp[1] = ts
             if o.get("cwd") and "cwd" not in meta: meta["cwd"] = o.get("cwd")
             if o.get("gitBranch") and "git" not in meta: meta["git"] = o.get("gitBranch")
             if o.get("version") and "ver" not in meta: meta["ver"] = o.get("version")
@@ -314,10 +327,10 @@ class ClaudeProvider:
                                    output_bytes=len(txt), latency_ms=lat)
                     yield Segment("tool_output", "tool", tool_call_id=cid, text=txt)
 
-        if sid:
-            yield Session("claude", sid, project=proj, cwd=meta.get("cwd"),
+        for s, (f_ts, l_ts) in spans.items():   # one Session row per distinct session_id
+            yield Session("claude", s, project=proj, cwd=meta.get("cwd"),
                           git_branch=meta.get("git"), cli_version=meta.get("ver"),
-                          first_ts=first_ts, last_ts=last_ts)
+                          first_ts=f_ts, last_ts=l_ts)
 
 # Codex model family → tier label. NOT report.tier() (that's Claude-only:
 # opus/sonnet/haiku). Unknown model -> None, but the turn is still recorded
