@@ -582,7 +582,7 @@ SCHEMA_EXPECT = {
                        "cache_creation_input_tokens", "cache_creation", "service_tier",
                        "inference_geo", "server_tool_use", "iterations", "speed"},
         "cache_creation_keys": {"ephemeral_5m_input_tokens", "ephemeral_1h_input_tokens"},
-        "block_types": {"text", "thinking", "tool_use", "tool_result"},
+        "block_types": {"text", "thinking", "tool_use", "tool_result", "image"},
         "known_unmapped_models": {"<synthetic>"},   # real ids we intentionally skip
     },
     "codex": {
