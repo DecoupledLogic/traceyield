@@ -72,7 +72,28 @@ PRICING = {
 # API — the Models API returns capabilities but no rates — so this doc page is
 # the authoritative live source for the drift check.
 PRICING_URL = "https://platform.claude.com/docs/en/docs/about-claude/pricing.md"
-def cache_rates(inp): return dict(read=inp*0.10, w5m=inp*1.25, w1h=inp*2.0)
+# Per-provider cache multipliers (fractions of that provider's input rate).
+# Only claude is priced today; other providers can add an entry here without
+# touching the flat PRICING table above.
+CACHE = {"claude": {"read": 0.10, "w5m": 1.25, "w1h": 2.0}}
+# Per-provider rate card: provider -> tier -> (input, output) per 1M tokens.
+# Claude's card references the existing flat PRICING dict so there's one
+# source of truth -- this is NOT a replacement for PRICING, just a lookup
+# layer around it so other providers can register their own tier maps.
+RATE_CARDS = {"claude": PRICING}
+def rate_card(provider, tier):
+    """(input, output) per-1M rate for provider+tier, or None if either is unpriced."""
+    return RATE_CARDS.get(provider, {}).get(tier)
+def cost_of(provider, tier, inp, out, cr, w5m, w1h):
+    """Cost in dollars for one turn's token counts, priced off RATE_CARDS/CACHE.
+    Returns 0.0 for an unpriced (provider, tier) pair -- never raises."""
+    card = rate_card(provider, tier)
+    if card is None: return 0.0
+    ri, ro = card
+    mult = CACHE.get(provider, {})
+    read = ri * mult.get("read", 0.0); w5 = ri * mult.get("w5m", 0.0); w1 = ri * mult.get("w1h", 0.0)
+    return (inp*ri + out*ro + cr*read + w5m*w5 + w1h*w1) / 1e6
+def cache_rates(inp, provider="claude"): return {k: inp*v for k, v in CACHE[provider].items()}
 def tier(model):
     if not model: return None
     m = model.lower()
@@ -213,8 +234,7 @@ def analyze(root=CLAUDE_PROJECTS):
                     det=u.get("cache_creation") or {}
                     w1h=det.get("ephemeral_1h_input_tokens",0) or 0; w5m=det.get("ephemeral_5m_input_tokens",0) or 0
                     if w1h+w5m==0 and cc>0: w5m=cc
-                    ri,ro=PRICING[tr]; crate=cache_rates(ri)
-                    cost=(inp*ri+out*ro+cr*crate["read"]+w5m*crate["w5m"]+w1h*crate["w1h"])/1e6
+                    cost=cost_of("claude", tr, inp, out, cr, w5m, w1h)
                     D["cost"]+=cost; D["msgs"]+=1
                     tk=D["tok"]; tk["input"]+=inp; tk["output"]+=out; tk["cache_read"]+=cr
                     tk["cache_write_5m"]+=w5m; tk["cache_write_1h"]+=w1h
@@ -417,8 +437,7 @@ def aggregate(conn):
                input_fresh, cache_read, cache_write_5m, cache_write_1h, output, project
         FROM turn WHERE provider='claude' AND tier IS NOT NULL AND ts IS NOT NULL
     """):
-        ri, ro = PRICING[tr]; crate = cache_rates(ri)
-        cost = (inp*ri + out*ro + cr*crate["read"] + w5m*crate["w5m"] + w1h*crate["w1h"]) / 1e6
+        cost = cost_of("claude", tr, inp, out, cr, w5m, w1h)
 
         D = days[day]
         D["cost"] += cost; D["msgs"] += 1
