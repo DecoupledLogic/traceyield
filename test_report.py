@@ -11,7 +11,7 @@ features — per-session cost accumulation and the per-tier token breakdown the
 model-routing estimator consumes. Fixtures are built with hand-computable
 numbers so expected costs are checked exactly, not approximately.
 """
-import json, os, re, socket, tempfile, unittest, warnings
+import contextlib, io, json, os, re, socket, tempfile, unittest, warnings
 import report, canonical
 
 # report.py favors a terse `json.load(open(...))` idiom that leaks file handles
@@ -196,10 +196,15 @@ class TestPricingDrift(unittest.TestCase):
         self.assertEqual(report.parse_pricing_page("# Pricing\n\nno table here"), {})
 
     def _drift(self, page):
+        # check_pricing_drift() prints its findings to stdout; that's intended in a
+        # real run, but here the "drift" is synthetic fixture data (e.g. opus 5.0+1
+        # = 6.0), so swallow the output to keep the suite's stdout clean and avoid a
+        # scary-looking "Anthropic=6.0" line that isn't a real rate.
         orig = report._fetch_pricing_page
         report._fetch_pricing_page = lambda url=None, timeout=15: page
         try:
-            return report.check_pricing_drift()
+            with contextlib.redirect_stdout(io.StringIO()):
+                return report.check_pricing_drift()
         finally:
             report._fetch_pricing_page = orig
 
