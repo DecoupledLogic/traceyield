@@ -6,4 +6,4 @@
 "01KX73KK8QDGBA2ZAZQD7A39KB","story","E1-F1-S1","01KX73K8WX1BA0RZTCEZ2SC3DW","","CodexProvider: parse ~/.codex rollout logs into the canonical usage store","released","","","2026-07-10T23:13:02Z","2026-07-10T23:30:57Z","2026-07-10T23:31:49Z","https://github.com/DecoupledLogic/tokenlens/pull/2",""
 "01KX73KPDF4VBD1YQ1N1MRP6TB","story","E1-F2-S1","01KX73KCC3AYK4JC9RT9Z0H266","","Aggregate flip: regenerate daily/session metrics via GROUP BY over usage.db","planned","01KX73KK8QDGBA2ZAZQD7A39KB","","","","","",""
 "01KX73KT8QMDVYYADK6ZNXD42T","story","E1-F3-S1","01KX73KFSDVWCSC499XPNA9CJ7","","raw_event age-out: null out raw payloads older than 90 days","planned","01KX73KK8QDGBA2ZAZQD7A39KB","","","","","",""
-"01KX7GMZYYSV8NHMQAS462Y8TC","tech-debt","T1","","","CI/CD GitHub Actions: run test suite on PRs and gate auto-merge on a required check","planned","","","","","","",""
+"01KX7GMZYYSV8NHMQAS462Y8TC","tech-debt","T1","","","CI/CD GitHub Actions: run test suite on PRs and gate auto-merge on a required check","in_progress","","","2026-07-11T02:50:59Z","","","",""
