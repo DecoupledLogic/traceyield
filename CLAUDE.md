@@ -8,7 +8,7 @@ A single-file Python tool that parses Claude Code's own transcript logs and prod
 
 **Per-machine data.** The repo is shared across machines, but every machine has its own `~/.claude/projects`, so each machine's derived artifacts (`daily_metrics.json`, `session_metrics.json`, `report.html`, `run.log`) live under `machines/<machine_id>/`, never at the repo root, so one machine's run can't clobber another's data. `machine_id()` returns the sanitized hostname by default; the `TRACEYIELD_MACHINE` env var overrides it (to point a machine at a pre-existing directory whose name doesn't match its hostname). `pricing_history.json` is the one durable store that stays **shared at the repo root**, because it's stamped from the `PRICING` table (code), not derived from any machine's transcripts.
 
-**Canonical usage store (in progress).** Alongside `report.py`, a second module `canonical.py` builds a provider-blind SQLite store (`usage.db`) that every coding-assistant provider ingests into as one neutral record stream (`Session`/`Turn`/`ToolCall`/`Segment`/`RawEvent`), keyed by a `provider` column. `ClaudeProvider` and `CodexProvider` have shipped. This is the MVP tracked by epic **E1** below and is intended to become the source of truth the report's aggregates are derived from. See `docs/canonical-data-model.md` and `docs/codexprovider.md`.
+**Canonical usage store (MVP delivered — epic E1 released).** Alongside `report.py`, a second module `canonical.py` builds a provider-blind SQLite store (`usage.db`) that every coding-assistant provider ingests into as one neutral record stream (`Session`/`Turn`/`ToolCall`/`Segment`/`RawEvent`), keyed by a `provider` column. `ClaudeProvider` and `CodexProvider` have shipped; canonical-backed aggregation (the `GROUP BY` flip) and retention hygiene (`raw_event` age-out via `canonical.age_out()`, window `TRACEYIELD_RAW_RETENTION_DAYS`, default 90d) are in place. This is the MVP tracked by epic **E1** below and is intended to become the source of truth the report's aggregates are derived from. See `docs/canonical-data-model.md` and `docs/codexprovider.md`.
 
 ## Work tracking & delivery (Tempo & Flow)
 
@@ -20,17 +20,20 @@ Work in this repo is planned and delivered with the **Tempo & Flow (`tempo`) ski
 
 **Lifecycle:** `/workflow-plan` (decompose into rows) → `/workflow-design` (approach + plan into the companion) → `/workflow-deliver <Key>` (worktree → TDD via `dev-agent` → QA → review-gate → PR → auto-merge, stamping the row). `/workflow-queue` shows what's selectable; dependency-readiness honors the `DependsOn` ULID edges.
 
-**Current roadmap** (epic = MVP, features = functional groups):
+**Current roadmap** (epic = MVP, features = functional groups). **Epic E1 is complete — all containers and leaves are `released`.**
 
 | Key | Item | Status |
 |---|---|---|
-| **E1** | Canonical usage store (MVP) | planned |
-| E1-F1 | Multi-provider ingest | planned |
-| E1-F1-S1 | CodexProvider: parse `~/.codex` rollout logs | **planned (ready)** |
-| E1-F2 | Canonical-backed aggregation | planned |
-| E1-F2-S1 | Aggregate flip: metrics via `GROUP BY` over `usage.db` | planned (blocked on E1-F1-S1) |
-| E1-F3 | Retention & storage hygiene | planned |
-| E1-F3-S1 | `raw_event` age-out: null raw payloads > 90d | planned (blocked on E1-F1-S1) |
+| **E1** | Canonical usage store (MVP) | **released** |
+| E1-F1 | Multi-provider ingest | released |
+| E1-F1-S1 | CodexProvider: parse `~/.codex` rollout logs | released |
+| E1-F2 | Canonical-backed aggregation | released |
+| E1-F2-S1 | Aggregate flip: metrics via `GROUP BY` over `usage.db` | released |
+| E1-F3 | Retention & storage hygiene | released |
+| E1-F3-S1 | `raw_event` age-out: null raw payloads > 90d | released |
+| T1 | tech-debt | released |
+
+With E1 delivered, the next planning cycle (a new epic/slice) starts from `/workflow-plan` off a triaged decision.
 
 ## Commands
 
