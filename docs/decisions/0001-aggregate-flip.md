@@ -89,6 +89,16 @@ counting extra events `aggregate()` couldn't see.
   `turn` + `tool_call` rows), `tool_results`/`tool_errors`/`errors`, and
   `by_tool[*].calls`/`.err` — these come from `tool_call` rows independent of
   model tier, exactly as in `analyze()`.
+- **`by_tool[*].calls` vs `.err` land on DIFFERENT days when a call and its
+  result straddle UTC midnight:** `.calls` is bucketed by the linked turn's
+  own day (`turn_id` → `turn.ts`), matching `analyze()`'s "a tool_use call
+  belongs to its assistant turn's line/day". `.err` (and day `tool_results`/
+  `tool_errors`/`errors`) stay bucketed by `tool_call.ts`'s own day, which
+  tracks `MAX(call, result)` — i.e. the RESULT's day once a result has
+  arrived — matching `analyze()`'s "a tool_result's error belongs to the
+  result line's own day". A `tool_call` row's own `ts` is the right source for
+  the latter but the wrong one for `.calls`, since it can drift to the next
+  day (e.g. an `AskUserQuestion` answered just after midnight).
 - **`by_tool` cost/out attribution:** per tier-not-null turn, a `turn_id` →
   `tool_call` join determines the tool-use count; 0 → `"(final response)"`,
   1 → that tool's name, >1 → `"(multi-tool turn)"` — the whole turn's cost and
@@ -129,3 +139,39 @@ With both fixes in place, `analyze(root) == aggregate(ingest(root))` (full
 deep equality on `days` and `sessions`) is expected to hold exactly across
 the real corpus — not just "within cost rounding" as originally scoped, but
 as an exact match, since every difference has a controlled cause.
+
+## Round 2 — two cosmetic residuals from real-corpus verification
+
+A first real-corpus comparison (300+ transcripts, static snapshot) matched to
+the cent on total cost and matched exactly on cost/token/msgs/`by_model`.
+Two smaller residuals remained, both fixed here:
+
+- **`by_tool[*].calls` day attribution.** Fixed as described above (`.calls`
+  now joins to the linked turn's day instead of using `tool_call.ts`'s day)
+  — a straddling-midnight `tool_use`/`tool_result` pair is locked by
+  `test_equivalence_tool_call_and_result_straddle_midnight`.
+- **Session `project` is first-cwd-wins, not last-wins.** `canonical.py`'s
+  `Session` upsert flipped `project`/`cwd`/`git_branch`/`cli_version` from
+  `COALESCE(excluded.x, session.x)` (last writer wins) to
+  `COALESCE(session.x, excluded.x)` (first writer wins), matching
+  `analyze()`'s first-seen-wins semantics for a session's project/meta. This
+  matters when one `session_id` spans two project directories across files
+  (e.g. a worktree switch mid-session) — locked by
+  `test_equivalence_session_project_first_wins_across_files`.
+
+**Known, separate, pre-existing caveat surfaced by the project-first-wins
+fixture (not fixed here, flagged for a possible follow-up):** when a session
+spans two project directories, `by_project` (the day-level "cost by project"
+breakdown) does NOT agree between the two paths, even after the fix above.
+This is not a bug in either fix — it's the original rule 5 design
+(`by_project` joins `turn.session_id → session.project`, i.e. session-level
+granularity) meeting a case it was never exercised against: `analyze()`
+attributes each turn's cost to the FILE it actually appeared in (per-turn
+granularity), while `aggregate()` has no per-turn project column to fall back
+on, so every turn in the session gets the session's one resolved project.
+Closing this exactly would mean adding a `project` column to `turn` itself
+(populated per-turn at ingest, with an additive `ALTER TABLE` migration for
+existing `usage.db` files) — a real, understood, buildable fix, deliberately
+deferred rather than folded into this round's two asks. If the real-corpus
+comparison surfaces a `by_project` (not `sessions[*].project`) difference,
+this is why, and the fix above is the fast follow-up.
