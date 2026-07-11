@@ -495,6 +495,12 @@ ways, both leaving the modeled tables untouched:
   `sha256` is always kept, so nothing is *undetectable*, just not fully retained.
 - **Age-out**: a periodic `UPDATE raw_event SET raw=NULL WHERE ts < now-90d`
   (structural columns and hashes survive; only the bulky verbatim JSON drops).
+  Shipped as `canonical.age_out(conn, days=None, now=None)` (called from the
+  `__main__` pass right after `ingest()`): it nulls `raw` for rows older than the
+  window, is idempotent (a `raw IS NOT NULL` guard makes a re-run a no-op and the
+  returned rowcount the count actually cleared), and takes an injectable `now=`
+  clock seam for tests. The window defaults to `RAW_RETENTION_DAYS` (90),
+  overridable via the `TRACEYIELD_RAW_RETENTION_DAYS` env var.
 
 That keeps the growth of the modeled store fully predictable (linear in turns)
 and quarantines the only variable-size risk.
