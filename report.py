@@ -933,14 +933,18 @@ def schema_drift(fp, provider):
                 out.append(f"required key not seen: {rk!r} (possible rename -- parser is blind to it)")
     return out
 
-def coverage(days, scan_dates, today=None):
+def coverage(days, scan_dates, today=None, zero_cost_suspicious=True):
     """Reconcile the stored day-series against the dates transcripts still cover.
     Separates benign idle days from SUSPICIOUS holes: a date transcripts cover
-    but the store never recorded, or a stored day with tool activity yet $0 cost
-    (usage rows silently dropped). Also a freshness watermark (days since the
-    store last advanced). Scoped from the first active day to `today`; ancient
-    dates whose transcripts have rotated away aren't actionable, so we don't
-    reconstruct them -- we only reconcile within the window we can still see."""
+    but the store never recorded, or (when `zero_cost_suspicious`) a stored day
+    with tool activity yet $0 cost (usage rows silently dropped). Set
+    `zero_cost_suspicious=False` for providers where a $0-cost active day is
+    legitimate (e.g. Codex's recognized-but-unpriced tiers, Decision 0007 D3)
+    -- the calendar-gap/corroborated-hole check still fires either way. Also a
+    freshness watermark (days since the store last advanced). Scoped from the
+    first active day to `today`; ancient dates whose transcripts have rotated
+    away aren't actionable, so we don't reconstruct them -- we only reconcile
+    within the window we can still see."""
     today = today or datetime.date.today().isoformat()
     active = sorted(days)
     out = {"active_days": len(active), "first": active[0] if active else None,
@@ -961,7 +965,8 @@ def coverage(days, scan_dates, today=None):
                     "reason": "transcript lines exist for this date but no usage was recorded"})
         else:
             D = days[ds]
-            if (D.get("tool_results", 0) or 0) > 0 and (D.get("cost", 0) or 0) == 0:
+            if (zero_cost_suspicious and (D.get("tool_results", 0) or 0) > 0
+                    and (D.get("cost", 0) or 0) == 0):
                 out["suspicious"].append({"date": ds,
                     "reason": "tool activity but $0 cost (usage rows dropped -- likely model/schema drift)"})
         cur += one
@@ -969,16 +974,27 @@ def coverage(days, scan_dates, today=None):
     return out
 
 def build_health(days, claude_fp, codex_fp):
-    """Assemble the per-run health record: schema drift + coverage for Claude,
-    schema fingerprint for Codex. This is the machine-readable artifact behind
-    the report's Data health panel and the run.log warnings."""
+    """Assemble the per-run health record: schema drift + coverage for both
+    providers. Claude's coverage reconciles the global day-series (unchanged
+    behavior). Codex's coverage is scoped to its `by_provider` facet -- a
+    day's Codex-only bucket, present on days with Codex activity -- and
+    suppresses the $0-cost heuristic (Codex's unpriced tiers legitimately
+    cost $0; Decision 0007 D3). If no day carries a `by_provider` facet (the
+    analyze() fallback path / a Claude-only machine) `codex_days` is empty
+    and coverage() degrades to a benign empty record. This is the
+    machine-readable artifact behind the report's Data health panel and the
+    run.log warnings."""
+    codex_days = {d: b["by_provider"]["codex"] for d, b in days.items()
+                  if isinstance(b.get("by_provider"), dict) and "codex" in b["by_provider"]}
     return {
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "machine": machine_id(),
         "providers": {
             "claude": {"scan": claude_fp, "drift": schema_drift(claude_fp, "claude"),
                        "coverage": coverage(days, claude_fp.get("dates", {}))},
-            "codex": {"scan": codex_fp, "drift": schema_drift(codex_fp, "codex")},
+            "codex": {"scan": codex_fp, "drift": schema_drift(codex_fp, "codex"),
+                      "coverage": coverage(codex_days, codex_fp.get("dates", {}),
+                                            zero_cost_suspicious=False)},
         },
     }
 
@@ -1014,15 +1030,17 @@ def print_health(health):
     xf = health["providers"]["codex"]["scan"].get("flags", {})
     if xf.get("files_without_usage"):
         print(f"      codex: {xf['files_without_usage']}/{xf.get('files_with_activity',0)} active sessions had NO token_count (would cost $0)")
-    cov = health["providers"]["claude"].get("coverage", {})
-    for s in cov.get("suspicious", []):
-        print(f"  DATA HOLE {s['date']}: {s['reason']}")
-    gaps = cov.get("calendar_gaps", [])
-    if gaps:
-        print(f"  {len(gaps)} calendar gap day(s) with no usage in [{cov.get('first')}..{cov.get('checked_through')}] (idle days are normal; see Data health panel)")
-    dsl = cov.get("days_since_last_active")
-    if dsl and dsl > 1:
-        print(f"  WARNING: no recorded usage for {dsl} day(s) (last active {cov.get('last')})")
+    for prov in ("claude", "codex"):
+        cov = health["providers"][prov].get("coverage")
+        if not cov: continue
+        for s in cov.get("suspicious", []):
+            print(f"  DATA HOLE [{prov}] {s['date']}: {s['reason']}")
+        gaps = cov.get("calendar_gaps", [])
+        if gaps:
+            print(f"  [{prov}] {len(gaps)} calendar gap day(s) with no usage in [{cov.get('first')}..{cov.get('checked_through')}] (idle days are normal; see Data health panel)")
+        dsl = cov.get("days_since_last_active")
+        if dsl and dsl > 1:
+            print(f"  WARNING [{prov}]: no recorded usage for {dsl} day(s) (last active {cov.get('last')})")
 
 # ---------------------------------------------------------------- html
 def top_sessions(sessions, n=50):

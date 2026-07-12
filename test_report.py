@@ -1162,6 +1162,30 @@ class TestCoverage(unittest.TestCase):
         self.assertEqual(cov["active_days"], 0)
         self.assertEqual(cov["suspicious"], [])
 
+    def test_zero_cost_suspicious_default_true(self):
+        # Default behavior (Claude): a $0-cost day with tool activity IS flagged.
+        days = {"2026-01-01": self._day(cost=0.0, tool_results=5)}
+        cov = report.coverage(days, scan_dates={}, today="2026-01-01")
+        self.assertEqual([s["date"] for s in cov["suspicious"]], ["2026-01-01"])
+
+    def test_zero_cost_suspicious_suppressed_for_codex(self):
+        # Codex: recognized-but-unpriced tiers legitimately cost $0, so the
+        # $0-cost-with-activity heuristic must be suppressed when asked.
+        days = {"2026-01-01": self._day(cost=0.0, tool_results=5)}
+        cov = report.coverage(days, scan_dates={}, today="2026-01-01",
+                               zero_cost_suspicious=False)
+        self.assertEqual(cov["suspicious"], [])
+
+    def test_codex_calendar_hole_still_fires_with_suppression(self):
+        # The calendar-gap check (transcripts cover a date the store never
+        # recorded) must still fire even with zero_cost_suspicious=False.
+        days = {"2026-01-01": self._day(), "2026-01-03": self._day()}
+        cov = report.coverage(days, scan_dates={"2026-01-02": 12}, today="2026-01-03",
+                               zero_cost_suspicious=False)
+        self.assertIn("2026-01-02", cov["calendar_gaps"])
+        self.assertEqual([s["date"] for s in cov["suspicious"]], ["2026-01-02"])
+        self.assertIn("transcript lines exist", cov["suspicious"][0]["reason"])
+
 
 class TestHealthRecord(unittest.TestCase):
     def test_build_and_slim(self):
@@ -1202,6 +1226,63 @@ class TestHealthRecord(unittest.TestCase):
         html = report.build_html({}, {}, {"2026-01-01": report.PRICING})
         blob = html.split("const DATA = ", 1)[1].split(";\nconst META", 1)[0]
         self.assertIsNone(json.loads(blob)["health"])
+
+    def test_build_health_codex_coverage_present_and_hole_flagged(self):
+        # AC scenario 1: a codex transcript date with no recorded codex usage
+        # is flagged as a suspicious hole in the codex coverage block, while a
+        # codex $0-cost-with-activity day is NOT flagged (zero_cost suppression).
+        days = {
+            "2026-04-01": {
+                "cost": 1.0, "tool_results": 0,
+                "by_provider": {"codex": {"cost": 0.0, "tool_results": 5}},
+            },
+        }
+        codex_fp = report._fp(0, 0, 0, {}, {"2026-04-02": 3},
+                               __import__("collections").Counter(), set())
+        claude_fp = report._fp(0, 0, 0, {}, {}, __import__("collections").Counter(), set())
+        h = report.build_health(days, claude_fp, codex_fp)
+        cov = h["providers"]["codex"]["coverage"]
+        self.assertIn("2026-04-02", cov["calendar_gaps"])
+        self.assertEqual([s["date"] for s in cov["suspicious"]], ["2026-04-02"])
+        # the codex $0-cost day is not flagged
+        self.assertNotIn("2026-04-01", [s["date"] for s in cov["suspicious"]])
+
+    def test_build_health_both_providers_have_coverage(self):
+        # AC scenario 2: both providers carry a coverage block.
+        days = {"2026-04-01": {"cost": 1.0, "tool_results": 0,
+                                "by_provider": {"codex": {"cost": 0.5, "tool_results": 1}}}}
+        claude_fp = report._fp(0, 0, 0, {}, {}, __import__("collections").Counter(), set())
+        codex_fp = report._fp(0, 0, 0, {}, {}, __import__("collections").Counter(), set())
+        h = report.build_health(days, claude_fp, codex_fp)
+        self.assertIsInstance(h["providers"]["claude"]["coverage"], dict)
+        self.assertIsInstance(h["providers"]["codex"]["coverage"], dict)
+
+    def test_build_health_codex_coverage_absent_by_provider_is_empty(self):
+        # analyze() fallback path / claude-only machine: no by_provider facet
+        # anywhere -- codex coverage should degrade to a benign empty record.
+        days = {"2026-04-01": {"cost": 1.0, "tool_results": 0}}
+        claude_fp = report._fp(0, 0, 0, {}, {}, __import__("collections").Counter(), set())
+        codex_fp = report._fp(0, 0, 0, {}, {}, __import__("collections").Counter(), set())
+        h = report.build_health(days, claude_fp, codex_fp)
+        self.assertEqual(h["providers"]["codex"]["coverage"]["active_days"], 0)
+
+    def test_print_health_reports_codex_hole(self):
+        days = {
+            "2026-04-01": {
+                "cost": 1.0, "tool_results": 0,
+                "by_provider": {"codex": {"cost": 0.0, "tool_results": 5}},
+            },
+        }
+        codex_fp = report._fp(0, 0, 0, {}, {"2026-04-02": 3},
+                               __import__("collections").Counter(), set())
+        claude_fp = report._fp(0, 0, 0, {}, {}, __import__("collections").Counter(), set())
+        h = report.build_health(days, claude_fp, codex_fp)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            report.print_health(h)
+        out = buf.getvalue()
+        self.assertIn("[codex]", out)
+        self.assertIn("2026-04-02", out)
 
 
 if __name__ == "__main__":

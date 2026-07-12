@@ -1,9 +1,10 @@
 # Architecture: how the tool is built
 
 *Living document. Update it whenever the tool changes: a new data source, a new
-panel, a schema change, a new provider. Last updated 2026-07-10 (data health
-monitoring landed: schema-drift fingerprinting + coverage-hole detection for
-Claude, plus Codex format baselining ahead of its parser).*
+panel, a schema change, a new provider. Last updated 2026-07-12 (data health
+monitoring now runs per provider: schema-drift fingerprinting + coverage-hole
+detection for Claude and Codex, the latter with its own rate card and $0-cost
+suppression — epic E2).*
 
 > Background: [`claude-usage-data-research.md`](./claude-usage-data-research.md)
 > is why the tool is shaped this way (parse local transcripts, five-line cost
@@ -182,14 +183,25 @@ warns, never raises, never changes parsing) does that in two independent ways:
   advanced: the actionable daily alarm if a scheduled run or parse is failing).
   Scoped from the first active day to today; dates whose transcripts have rotated
   away aren't reconstructable, so they're out of the actionable window.
+  Coverage now runs **per provider** (E2-F4-S2): `build_health()` scopes Claude
+  coverage to the global day-series and Codex coverage to each day's
+  `by_provider["codex"]` facet, and `print_health()` reports holes/gaps/staleness
+  labelled by provider. The **$0-cost suspicious** heuristic is gated by
+  `coverage(..., zero_cost_suspicious=)` — **on** for Claude, but **off** for
+  Codex, where a recognized-but-unpriced tier legitimately costs $0
+  (volume-always / dollars-when-priced, Decision 0007 D3), so it is never a hole.
 
-**Codex is fingerprint-only** for now: there's no cost model yet (see
-[`adding-openai-support.md`](./adding-openai-support.md)), but scanning
-`~/.codex/sessions` every run **baselines the format from day one**, so when the
-parser is built, drift is already caught and the research-doc schema is validated
-against reality. (On first run it already surfaced real divergences: a
-`model_context_window` key the doc didn't list, plain `gpt-5`, extra
-`payload.type` variants, and 15/37 sessions with no `token_count` events.)
+**Codex now has a cost model and coverage** (epic E2): a hand-verified rate card
+(`CODEX_PRICING` / `CACHE["codex"]`, E2-F1-S2) and per-provider coverage/health
+(E2-F4-S2). It is no longer fingerprint-only. Fingerprinting still runs every
+pass — scanning `~/.codex/sessions` **baselines the format** so vendor schema
+drift is caught as it happens (see
+[`adding-openai-support.md`](./adding-openai-support.md)). Pricing **drift-check**
+stays Claude-only, because OpenAI publishes no scrapeable pricing contract to
+diff against, so `CODEX_PRICING` is hand-maintained (Decision 0007 D5). (Early
+fingerprint runs surfaced real divergences: a `model_context_window` key the doc
+didn't list, plain `gpt-5`, extra `payload.type` variants, and sessions with no
+`token_count` events.)
 
 `build_health()` assembles the record; `write_health()` persists the full
 `health.json`; `_slim_health()` trims it (drops the per-date map + churny key
