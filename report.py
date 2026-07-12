@@ -742,6 +742,13 @@ def check_pricing_drift(url=PRICING_URL):
     Best-effort and non-authoritative: it never raises and never mutates
     PRICING. On any failure (offline, page moved, layout changed) it prints a
     'skipped' note and returns []. Returns a list of human-readable drift lines.
+
+    Claude-only by design (Decision 0007 D5): this only ever compares
+    RATE_CARDS["claude"] (== PRICING) against the scraped Anthropic page.
+    Codex/OpenAI pricing (CODEX_PRICING) is hand-maintained and has NO
+    automated drift alarm -- Anthropic publishes a scrapeable pricing doc we
+    diff against here, OpenAI does not, so Codex rates are verified by hand
+    (see the CODEX_PRICING comment) each time that dict is edited.
     """
     try:
         published = parse_pricing_page(_fetch_pricing_page(url))
@@ -752,7 +759,7 @@ def check_pricing_drift(url=PRICING_URL):
         print("  pricing drift check skipped (could not parse pricing page)")
         return []
     drift = []
-    for tier, (ci, co) in PRICING.items():
+    for tier, (ci, co) in RATE_CARDS["claude"].items():   # Claude only -- see docstring
         pub = published.get(tier)
         if pub is None:
             drift.append(f"{tier}: not found on pricing page")
