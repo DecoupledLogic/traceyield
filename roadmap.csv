@@ -24,4 +24,4 @@
 "01KX9R1ZW7DB13TC0W6R3G1P7Z","feature","E2-F5","01KX9QDK8WVK3Q6PCZKQA553M2","01KX9QDGR4XVY4D4ZDV159BH3G","Provider-neutral report branding and copy","planned","","3.85","","","","",""
 "01KX9R22B044CZ4YQ4B978MKR4","story","E2-F5-S1","01KX9R1ZW7DB13TC0W6R3G1P7Z","01KX9QDGR4XVY4D4ZDV159BH3G","Rename report to 'LLM Usage & Health' and neutralize Claude-specific copy","planned","","3.85","","","","",""
 "01KX9R24PPZJJ5YYCCNF346B7D","story","E2-F5-S2","01KX9R1ZW7DB13TC0W6R3G1P7Z","01KX9QDGR4XVY4D4ZDV159BH3G","Remove em dashes from the report output","planned","","3.85","","","","",""
-"01KX9R26XPV8BV70A7APY49VQG","story","E2-F3-S3","01KX9QE45FYS8J8HYNJMCXR54K","01KX9QDGR4XVY4D4ZDV159BH3G","Slice by model, unified with the provider filter","in_progress","01KX9QE6JVRXM9P7HP44HG196A","3.85","2026-07-12T12:10:07Z","","","",""
+"01KX9R26XPV8BV70A7APY49VQG","story","E2-F3-S3","01KX9QE45FYS8J8HYNJMCXR54K","01KX9QDGR4XVY4D4ZDV159BH3G","Slice by model, unified with the provider filter","in_review","01KX9QE6JVRXM9P7HP44HG196A","3.85","2026-07-12T12:10:07Z","2026-07-12T12:26:33Z","","https://github.com/DecoupledLogic/traceyield/pull/11",""
