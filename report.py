@@ -605,22 +605,40 @@ def aggregate(conn, provider=None, model=None):
                 sess.setdefault(sid, dict(ps, by_provider={}, by_model_full={}))
                 sess[sid]["by_provider"][p] = ps
             # provider x model intersection, nested under by_provider[p].
+            # Skip empty (provider,model) cells -- most of the cross-product is
+            # impossible (e.g. claude x a codex-only tier) and yields all-zero
+            # buckets that only bloat the payload. Empty cells contribute 0 to
+            # every sum, and the client's aggregate() already treats a missing
+            # bucket as "no data this day", so dropping them changes nothing but
+            # size (keeps the reconciliation invariant intact).
             for m in models:
                 pmdays, pmsess = aggregate(conn, provider=p, model=m)
                 for d, pmd in pmdays.items():
+                    if _empty_bucket(pmd): continue
                     out[d]["by_provider"][p]["by_model_full"][m] = pmd
                 for sid, pms in pmsess.items():
+                    if _empty_bucket(pms): continue
                     sess[sid]["by_provider"][p]["by_model_full"][m] = pms
         # top-level per-model (all providers, that one model).
         for m in models:
             mdays, msess = aggregate(conn, model=m)
             for d, md in mdays.items():
+                if _empty_bucket(md): continue
                 out.setdefault(d, dict(md, by_provider={}, by_model_full={}))
                 out[d]["by_model_full"][m] = md
             for sid, ms in msess.items():
+                if _empty_bucket(ms): continue
                 sess.setdefault(sid, dict(ms, by_provider={}, by_model_full={}))
                 sess[sid]["by_model_full"][m] = ms
     return out, sess
+
+def _empty_bucket(b):
+    """True when a scoped day/session bucket carries no activity at all --
+    zero cost, no turns, and no tool calls. Used to prune impossible
+    provider x model intersection cells from the nested facet (they add only
+    payload size; every sum over them is 0)."""
+    return (not b.get("cost") and not b.get("msgs")
+            and not b.get("tool_results") and not b.get("by_tool"))
 
 # ---------------------------------------------------------------- persist
 def merge_daily(newdays, path=DAILY_FILE):
