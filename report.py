@@ -297,12 +297,31 @@ def analyze(root=CLAUDE_PROJECTS):
         }
     return out, sess
 
-def aggregate(conn, provider=None):
+def aggregate(conn, provider=None, model=None):
     """Derive (days, sessions) — the SAME shapes analyze() returns — via SQL
     GROUP BY aggregation over an open canonical-db connection (canonical.py's
     usage.db). This is the live production path (see main()); analyze() is kept
     as the equivalence oracle this is proven against (TestAggregateEquivalence
     in test_report.py) and as a resilience fallback.
+
+    `model` scopes to one tier (e.g. 'opus'/'sonnet'/'haiku' for Claude, a
+    codex_tier() label for Codex), the SAME mechanism as `provider` but keyed
+    off `turn.tier` instead of `*.provider`. `model=None` (the default) adds NO
+    predicate and binds NO `:model` param anywhere -- every query and all
+    output stay byte-identical to before this parameter existed. A concrete
+    `model` adds `AND tier = :model` to the turn-cost SELECT, and (since a
+    tool_call row carries no tier of its own) an `AND t.tier = :model` on the
+    tool_call queries that need it (by_tool calls/err, tool_results,
+    tool_errors, errors), via a LEFT JOIN to turn keyed on
+    `turn_id`+`provider` (the same join `by_tool.calls` already used for its
+    day bucketing) -- a tool_call whose linked turn's tier doesn't match (or
+    has no linked turn) is excluded. `provider` and `model` compose freely
+    (both predicates can be active at once, for the provider×model
+    intersection); when BOTH are None the function additionally nests a
+    `by_model_full` facet alongside `by_provider` (see below) -- any concrete
+    `provider` and/or `model` takes a scoped branch and stays lean (no
+    `by_provider`/`by_model_full` added), exactly like the pre-existing
+    provider-only scoping.
 
     `provider` controls scope:
       - `provider=None` (the default): aggregate over ALL providers, and add a
@@ -339,7 +358,11 @@ def aggregate(conn, provider=None):
         CURRENT PRICING/cache_rates() — never read from a stored column;
       - day `sessions`, `tool_results`, `tool_errors`, `errors`, and
         `by_tool[*].calls`/`.err` are NOT tier-filtered (they come from
-        tool_call rows / the session-id union, independent of model tier);
+        tool_call rows / the session-id union, independent of model tier) --
+        UNLESS a concrete `model` is passed, in which case `tool_results`/
+        `tool_errors`/`errors`/`by_tool[*].calls`/`.err` (but NOT day
+        `sessions` or session start/end/tool_results/tool_errors) gain the
+        `t.tier = :model` join-filter described above;
       - `by_tool[*].calls` is bucketed by the linked TURN's day (join
         turn_id -> turn.ts), matching analyze()'s "a tool_use call belongs to
         its assistant turn's day". `by_tool[*].err`/`tool_results`/
@@ -375,6 +398,18 @@ def aggregate(conn, provider=None):
         scope, params = "provider = :prov", {"prov": provider}
         tc_scope = "tc.provider = :prov"
 
+    # Model scope fragment -- mirrors the provider one above, but keyed off
+    # `turn.tier` (a tool_call row has no tier of its own, so the tool_call
+    # queries that need it join to turn). model=None adds NO predicate and
+    # binds NO :model param anywhere, so every query/output stays
+    # byte-identical to before this parameter existed.
+    if model is None:
+        turn_model_pred, tc_model_pred = "", ""
+    else:
+        params = dict(params, model=model)
+        turn_model_pred = " AND tier = :model"
+        tc_model_pred = " AND t.tier = :model"
+
     # project per session, for by_project / session.project
     project_of_sess = dict(conn.execute(
         f"SELECT session_id, project FROM session WHERE {scope}", params))
@@ -397,11 +432,23 @@ def aggregate(conn, provider=None):
     # tier-filtered (rule 3); grouped by tool_call.ts, which tracks MAX(call,
     # result) -- i.e. the RESULT's day once a result has arrived. This matches
     # analyze(), which counts a tool_result's error/tool_results/tool_errors
-    # on the RESULT line's own day (a separate line from the call).
-    for day, sid, name, ok, ec in conn.execute(f"""
-        SELECT substr(ts,1,10), session_id, name, ok, error_class
-        FROM tool_call WHERE {scope} AND ts IS NOT NULL
-    """, params):
+    # on the RESULT line's own day (a separate line from the call). A concrete
+    # `model` additionally joins to the linked turn and requires its tier to
+    # match (a tool_call with no linked turn, or a turn of a different tier,
+    # is excluded) -- same join `by_tool.calls` below already uses.
+    if model is None:
+        tc_day_sql = f"""
+            SELECT substr(ts,1,10), session_id, name, ok, error_class
+            FROM tool_call WHERE {scope} AND ts IS NOT NULL
+        """
+    else:
+        tc_day_sql = f"""
+            SELECT substr(tc.ts,1,10), tc.session_id, tc.name, tc.ok, tc.error_class
+            FROM tool_call tc LEFT JOIN turn t
+              ON t.turn_id = tc.turn_id AND t.provider = tc.provider
+            WHERE {tc_scope} AND tc.ts IS NOT NULL{tc_model_pred}
+        """
+    for day, sid, name, ok, ec in conn.execute(tc_day_sql, params):
         if day is not None:
             D = days[day]
             if ok is not None:
@@ -425,7 +472,7 @@ def aggregate(conn, provider=None):
         SELECT tc.name, substr(t.ts,1,10), substr(tc.ts,1,10)
         FROM tool_call tc LEFT JOIN turn t
           ON t.turn_id = tc.turn_id AND t.provider = tc.provider
-        WHERE {tc_scope} AND tc.name IS NOT NULL
+        WHERE {tc_scope} AND tc.name IS NOT NULL{tc_model_pred}
     """, params):
         day = turn_day or tc_day
         if day is not None:
@@ -477,7 +524,7 @@ def aggregate(conn, provider=None):
     for turn_id, sid, day, tr, inp, cr, w5m, w1h, out, tproj, tprov in conn.execute(f"""
         SELECT turn_id, session_id, substr(ts,1,10), tier,
                input_fresh, cache_read, cache_write_5m, cache_write_1h, output, project, provider
-        FROM turn WHERE {scope} AND tier IS NOT NULL AND ts IS NOT NULL
+        FROM turn WHERE {scope} AND tier IS NOT NULL AND ts IS NOT NULL{turn_model_pred}
     """, params):
         cost = cost_of(tprov, tr, inp, out, cr, w5m, w1h)
 
@@ -524,29 +571,55 @@ def aggregate(conn, provider=None):
             "by_model": {m: round(c, 4) for m, c in S["by_model"].items()},
         }
 
-    # by_provider facet -- provider=None only. Reuses the proven-correct
-    # scoped path: aggregate(conn, provider=p) for each distinct provider
-    # present returns a FULL day/session bucket (same shape as the top-level
-    # one) already scoped to p, so nesting it as-is under by_provider[p]
-    # gives every panel a uniform shape to fold on client-side. Each of
-    # these recursive calls passes a concrete provider string, so it always
-    # takes the `else` scope branch above and can never recurse back into
-    # this block (no infinite recursion).
-    if provider is None:
+    # by_provider / by_model_full facets -- provider=None AND model=None only
+    # (the fully-unscoped call). Reuses the proven-correct scoped paths:
+    # aggregate(conn, provider=p) / aggregate(conn, model=m) / aggregate(conn,
+    # provider=p, model=m) each return a FULL day/session bucket (same shape
+    # as the top-level one) already scoped, so nesting them as-is gives every
+    # panel a uniform shape to fold on client-side. Each of these recursive
+    # calls passes a concrete provider and/or model string, so it always
+    # takes a scoped branch above and can never recurse back into this block
+    # (no infinite recursion). `by_model_full` is distinct from the existing
+    # `by_model` map (which stays the lean {cost, tok} summary driving the
+    # "Cost by model" bar / routing estimate) -- these are FULL buckets, one
+    # per model, nested both at the top level (all providers, that model) and
+    # inside each `by_provider[p]` (that provider, that model -- the
+    # intersection).
+    if provider is None and model is None:
         provs = sorted({r[0] for r in conn.execute(
             "SELECT DISTINCT provider FROM turn WHERE provider IS NOT NULL "
             "UNION SELECT DISTINCT provider FROM tool_call WHERE provider IS NOT NULL "
             "UNION SELECT DISTINCT provider FROM session WHERE provider IS NOT NULL")})
-        for d in out: out[d]["by_provider"] = {}
-        for sid in sess: sess[sid]["by_provider"] = {}
+        models = sorted({r[0] for r in conn.execute(
+            "SELECT DISTINCT tier FROM turn WHERE tier IS NOT NULL")})
+        for d in out: out[d]["by_provider"] = {}; out[d]["by_model_full"] = {}
+        for sid in sess: sess[sid]["by_provider"] = {}; sess[sid]["by_model_full"] = {}
         for p in provs:
             pdays, psess = aggregate(conn, provider=p)
             for d, pd in pdays.items():
-                out.setdefault(d, dict(pd, by_provider={}))
+                pd["by_model_full"] = {}
+                out.setdefault(d, dict(pd, by_provider={}, by_model_full={}))
                 out[d]["by_provider"][p] = pd
             for sid, ps in psess.items():
-                sess.setdefault(sid, dict(ps, by_provider={}))
+                ps["by_model_full"] = {}
+                sess.setdefault(sid, dict(ps, by_provider={}, by_model_full={}))
                 sess[sid]["by_provider"][p] = ps
+            # provider x model intersection, nested under by_provider[p].
+            for m in models:
+                pmdays, pmsess = aggregate(conn, provider=p, model=m)
+                for d, pmd in pmdays.items():
+                    out[d]["by_provider"][p]["by_model_full"][m] = pmd
+                for sid, pms in pmsess.items():
+                    sess[sid]["by_provider"][p]["by_model_full"][m] = pms
+        # top-level per-model (all providers, that one model).
+        for m in models:
+            mdays, msess = aggregate(conn, model=m)
+            for d, md in mdays.items():
+                out.setdefault(d, dict(md, by_provider={}, by_model_full={}))
+                out[d]["by_model_full"][m] = md
+            for sid, ms in msess.items():
+                sess.setdefault(sid, dict(ms, by_provider={}, by_model_full={}))
+                sess[sid]["by_model_full"][m] = ms
     return out, sess
 
 # ---------------------------------------------------------------- persist
@@ -1037,11 +1110,16 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
   <div class="seg" id="gran">
     <button data-g="day" class="on">Day</button><button data-g="week">Week</button><button data-g="month">Month</button>
   </div>
-  <label class="hint">Provider&nbsp;
+  <label class="hint" id="providerlbl">Provider&nbsp;
     <select id="provider">
       <option value="all">All</option>
       <option value="claude">Claude</option>
       <option value="codex">Codex</option>
+    </select>
+  </label>
+  <label class="hint" id="modellbl">Model&nbsp;
+    <select id="model">
+      <option value="all">All models</option>
     </select>
   </label>
   <label class="hint">Trend metric&nbsp;
@@ -1190,8 +1268,9 @@ function addProj(dst,src){for(const p in src){dst[p]=dst[p]||{cost:0,msgs:0};for
 function addTool(dst,src){for(const t in src){dst[t]=dst[t]||{calls:0,out:0,cost:0,err:0};for(const k in src[t])dst[t][k]=(dst[t][k]||0)+src[t][k];}}
 function addProvider(dst,src){for(const p in (src||{})){dst[p]=dst[p]||{cost:0,msgs:0,tok:{input:0,output:0,cache_read:0,cache_write_5m:0,cache_write_1h:0}};dst[p].cost+=src[p].cost||0;dst[p].msgs+=src[p].msgs||0;const st=src[p].tok||{};for(const k in dst[p].tok)dst[p].tok[k]+=st[k]||0;}}
 
-function aggregate(gran,provider){
+function aggregate(gran,provider,model){
   const groups=new Map();
+  const noProv=!provider||provider==="all", noModel=!model||model==="all";
   for(const dk of dayKeys){
     let key,label;
     if(gran==="day"){key=dk;label=dk;}
@@ -1200,12 +1279,31 @@ function aggregate(gran,provider){
     if(!groups.has(key))groups.set(key,blankPeriod(key,label));
     const P=groups.get(key),Dall=DATA.days[dk];
     P.dates.push(dk);
-    // "Cost by provider" always folds from the unfiltered ("all") bucket so
-    // the bar keeps showing every provider's split regardless of which
-    // provider is selected in the filter.
-    addProvider(P.by_provider,Dall.by_provider);
-    const D=(!provider||provider==="all")?Dall:(Dall.by_provider&&Dall.by_provider[provider]);
-    if(!D)continue; // no data for this provider on this day -- contributes nothing
+    // "Cost by provider" / "Tokens by provider" comparison bars fold from the
+    // unfiltered ("all") bucket's by_provider so they keep showing every
+    // provider's split -- unless a model is selected, in which case they fold
+    // each provider's by_model_full[model] instead, so the bars show that
+    // model's per-provider split.
+    if(noModel){
+      addProvider(P.by_provider,Dall.by_provider);
+    }else{
+      const perProvModel={};
+      for(const p in (Dall.by_provider||{})){
+        const b=(Dall.by_provider[p].by_model_full||{})[model];
+        if(b)perProvModel[p]=b;
+      }
+      addProvider(P.by_provider,perProvModel);
+    }
+    // Pick the FULL bucket for this (provider,model) selection -- one of 4
+    // cases, every one a FULL bucket (same shape as Dall), so every panel
+    // below folds uniformly regardless of which dimensions are scoped.
+    let D;
+    if(noProv&&noModel)D=Dall;
+    else if(noProv)D=Dall.by_model_full&&Dall.by_model_full[model];
+    else if(noModel)D=Dall.by_provider&&Dall.by_provider[provider];
+    else D=Dall.by_provider&&Dall.by_provider[provider]&&
+           Dall.by_provider[provider].by_model_full&&Dall.by_provider[provider].by_model_full[model];
+    if(!D)continue; // no data for this provider/model on this day -- contributes nothing
     P.cost+=D.cost; P.msgs+=D.msgs; P.tool_results+=D.tool_results; P.tool_errors+=D.tool_errors;
     P.sessions+=D.sessions;
     addNum(P.tok,D.tok,Object.keys(P.tok));
@@ -1224,7 +1322,7 @@ const METRICS={
   sessions:{f:p=>p.sessions,fmt:fmtInt,label:"Sessions"},
 };
 
-let state={gran:"day",metric:"cost",provider:"all",idx:0,periods:[]};
+let state={gran:"day",metric:"cost",provider:"all",model:"all",idx:0,periods:[]};
 
 function svgLine(xs,vals,fmt,sel,color){
   const w=880,h=230,pad=46,n=xs.length;
@@ -1360,7 +1458,7 @@ function renderSessions(){
 }
 
 function rebuild(keepEnd){
-  state.periods=aggregate(state.gran,state.provider);
+  state.periods=aggregate(state.gran,state.provider,state.model);
   state.idx=keepEnd?state.periods.length-1:Math.min(state.idx,state.periods.length-1);
   render();
 }
@@ -1382,6 +1480,25 @@ function rebuild(keepEnd){
   $("#pricechart").innerHTML=s;
 })();
 
+// ---- model slicer: populate #model from the payload (by_model keys, union
+// over every day) -- never hardcoded, since tiers vary by provider/vendor.
+// Degrades gracefully (hides the redundant control, no throw) when only one
+// provider and/or model is present in this payload.
+(function(){
+  const models=new Set(), providers=new Set();
+  for(const dk of dayKeys){
+    const D=DATA.days[dk]||{};
+    for(const m in (D.by_model||{}))models.add(m);
+    for(const p in (D.by_provider||{}))providers.add(p);
+  }
+  const modelSel=$("#model");
+  [...models].sort().forEach(m=>{
+    const o=document.createElement("option"); o.value=m; o.textContent=m; modelSel.appendChild(o);
+  });
+  if(providers.size<=1)$("#providerlbl").style.display="none";
+  if(models.size<=1)$("#modellbl").style.display="none";
+})();
+
 // wire controls
 document.querySelectorAll("#gran button").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("#gran button").forEach(x=>x.classList.remove("on"));
@@ -1389,6 +1506,7 @@ document.querySelectorAll("#gran button").forEach(b=>b.onclick=()=>{
 });
 $("#metric").onchange=e=>{state.metric=e.target.value;render();};
 $("#provider").onchange=e=>{state.provider=e.target.value;rebuild(false);};
+$("#model").onchange=e=>{state.model=e.target.value;rebuild(false);};
 $("#retry").oninput=()=>render();
 $("#routeshare").oninput=()=>render();
 $("#routetier").onchange=()=>render();

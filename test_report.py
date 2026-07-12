@@ -659,6 +659,141 @@ class TestAggregateByProvider(unittest.TestCase):
         self.assertNotIn("by_provider", sessions_c["s-claude"])
 
 
+# ----------------------------------------------------------------- by_model
+class TestAggregateByModel(unittest.TestCase):
+    """aggregate(conn) (provider=None, model=None -- the fully-unscoped call)
+    must additionally nest a by_model_full facet: one FULL bucket per model,
+    both at the top level (all providers, that model) and inside each
+    by_provider[p] (that provider, that model -- the provider x model
+    intersection). A concrete `model` (with or without a concrete `provider`)
+    takes a scoped branch and stays lean, exactly like provider-only
+    scoping (E2-F3-S1)."""
+
+    def _multi_model_conn(self):
+        from test_canonical import (codex_session_meta, codex_turn_context,
+                                     codex_token_count, tok, codex_message)
+
+        claude_root = tempfile.mkdtemp()
+        write_transcript(claude_root, "projX", "conv.jsonl", [
+            assistant("2026-07-01T10:00:00Z", "s-claude-1", "claude-sonnet-5",
+                      usage(inp=100, out=50, cr=10, w5m=5, w1h=0),
+                      tools=[("t1", "Read")]),
+            tool_result("2026-07-01T10:00:01Z", "s-claude-1", "t1"),
+            assistant("2026-07-01T10:05:00Z", "s-claude-2", "claude-opus-4-8",
+                      usage(inp=200, out=80, cr=0, w5m=0, w1h=0),
+                      tools=[("t2", "Write")]),
+            tool_result("2026-07-01T10:05:01Z", "s-claude-2", "t2"),
+        ])
+
+        codex_root = tempfile.mkdtemp()
+        write_transcript(codex_root, "2026", "rollout-x.jsonl", [
+            codex_session_meta("2026-07-01T11:00:00Z", "s-codex"),
+            codex_turn_context("2026-07-01T11:00:01Z", "gpt-5-codex"),
+            codex_message("2026-07-01T11:00:02Z", "user", "hello"),
+            codex_token_count("2026-07-01T11:00:03Z", total=tok(inp=1000, out=500)),
+        ])
+
+        conn = canonical.open_db(":memory:")
+        canonical.ingest(conn, [canonical.ClaudeProvider(root=claude_root),
+                                 canonical.CodexProvider(root=codex_root)])
+        return conn
+
+    def test_by_model_full_present_and_sums_match(self):
+        conn = self._multi_model_conn()
+        days, sessions = report.aggregate(conn)
+        conn.close()
+
+        seen_models = set()
+        checked_a_day = False
+        for d, D in days.items():
+            self.assertIn("by_model_full", D)
+            if not D["by_model_full"]:
+                continue
+            seen_models |= set(D["by_model_full"].keys())
+            self.assertAlmostEqual(sum(bm["cost"] for bm in D["by_model_full"].values()), D["cost"])
+            self.assertEqual(sum(bm["msgs"] for bm in D["by_model_full"].values()), D["msgs"])
+            for k in ("input", "output", "cache_read", "cache_write_5m", "cache_write_1h"):
+                self.assertEqual(sum(bm["tok"][k] for bm in D["by_model_full"].values()), D["tok"][k])
+            checked_a_day = True
+        self.assertTrue(checked_a_day)
+
+        checked_a_session = False
+        for sid, S in sessions.items():
+            self.assertIn("by_model_full", S)
+            if not S["by_model_full"]:
+                continue
+            self.assertAlmostEqual(sum(bm["cost"] for bm in S["by_model_full"].values()), S["cost"])
+            self.assertEqual(sum(bm["msgs"] for bm in S["by_model_full"].values()), S["msgs"])
+            checked_a_session = True
+        self.assertTrue(checked_a_session)
+
+        # guard: the fixture must have actually produced 2+ models, else the
+        # sums-invariant assertions above prove nothing.
+        self.assertGreaterEqual(len(seen_models), 2)
+        self.assertIn("sonnet", seen_models)
+        self.assertIn("opus", seen_models)
+
+    def test_provider_model_intersection_reconciles(self):
+        """AC2: summing by_provider[p].by_model_full[m].cost over all m equals
+        by_provider[p].cost, and summing over all p and m equals D.cost --
+        totals reconcile at the provider x model intersection."""
+        conn = self._multi_model_conn()
+        days, _ = report.aggregate(conn)
+        conn.close()
+
+        checked = False
+        for d, D in days.items():
+            if not D.get("by_provider"):
+                continue
+            grand_total = 0.0
+            for p, bp in D["by_provider"].items():
+                self.assertIn("by_model_full", bp)
+                if not bp["by_model_full"]:
+                    continue
+                psum = sum(bm["cost"] for bm in bp["by_model_full"].values())
+                self.assertAlmostEqual(psum, bp["cost"])
+                grand_total += psum
+                checked = True
+            self.assertAlmostEqual(grand_total, D["cost"])
+        self.assertTrue(checked)
+
+    def test_intersection_matches_direct_scoped_call(self):
+        """The nested by_provider[p].by_model_full[m] bucket is literally what
+        a direct aggregate(conn, provider=p, model=m) call returns for that
+        day -- it's built by reusing that same scoped call, not re-derived."""
+        conn = self._multi_model_conn()
+        days, _ = report.aggregate(conn)
+
+        found = False
+        for d, D in days.items():
+            for p, bp in D.get("by_provider", {}).items():
+                for m, bucket in bp.get("by_model_full", {}).items():
+                    direct_days, _ = report.aggregate(conn, provider=p, model=m)
+                    self.assertEqual(bucket, direct_days.get(d))
+                    found = True
+        conn.close()
+        self.assertTrue(found)
+
+    def test_model_scoped_mode_is_lean_and_filters_correctly(self):
+        conn = self._multi_model_conn()
+        days_sonnet, sessions_sonnet = report.aggregate(conn, model="sonnet")
+        conn.close()
+
+        self.assertTrue(days_sonnet)
+        for D in days_sonnet.values():
+            self.assertNotIn("by_provider", D)
+            self.assertNotIn("by_model_full", D)
+            # cost/tok/by_model only reflect the 'sonnet' tier
+            self.assertEqual(set(D["by_model"].keys()), {"sonnet"})
+            # by_tool: only the sonnet turn's tool ("Read") shows up, not the
+            # opus turn's ("Write") -- the tool_call<->turn tier join excludes it.
+            self.assertIn("Read", D["by_tool"])
+            self.assertNotIn("Write", D["by_tool"])
+        for S in sessions_sonnet.values():
+            self.assertNotIn("by_provider", S)
+            self.assertNotIn("by_model_full", S)
+
+
 # --------------------------------------------------------------- persistence
 class TestPersistence(unittest.TestCase):
     def test_merge_daily_new_authoritative_old_preserved(self):
@@ -747,6 +882,20 @@ class TestBuildHtml(unittest.TestCase):
         html = report.build_html(days, {}, {"2026-01-01": report.PRICING})
         self.assertIn('id="tokprovider"', html)
         self.assertIn("per-provider rate cards", html)
+
+    def test_model_slicer_control_present(self):
+        """Model selector, unified with the provider filter (E2-F3-S3).
+        There's no JS test harness, so we assert on the emitted template
+        string per project convention."""
+        days = {"2026-01-01": {"cost": 1.0, "by_model": {}, "by_project": {},
+                               "by_tool": {}, "errors": {},
+                               "tok": {"input": 0, "output": 0, "cache_read": 0,
+                                       "cache_write_5m": 0, "cache_write_1h": 0},
+                               "msgs": 0, "tool_results": 0, "tool_errors": 0, "sessions": 0}}
+        html = report.build_html(days, {}, {"2026-01-01": report.PRICING})
+        self.assertIn('id="model"', html)
+        self.assertIn('id="modellbl"', html)
+        self.assertIn('id="providerlbl"', html)
 
 
 # --------------------------------------------------------------- schema drift & coverage
