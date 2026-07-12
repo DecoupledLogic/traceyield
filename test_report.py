@@ -63,10 +63,12 @@ def write_transcript(root, project, name, lines):
 
 def ingest_and_aggregate(root):
     """Ingest a transcript root into an in-memory canonical db, then run
-    report.aggregate() over it — the equivalence-test twin of report.analyze(root)."""
+    report.aggregate(conn, provider='claude') over it — the equivalence-test
+    twin of report.analyze(root). Scoped to 'claude' so the comparison stays
+    byte-identical to analyze() (no by_provider facet in scoped mode)."""
     conn = canonical.open_db(":memory:")
     canonical.ingest(conn, [canonical.ClaudeProvider(root=root)])
-    days, sessions = report.aggregate(conn)
+    days, sessions = report.aggregate(conn, provider="claude")
     conn.close()
     return days, sessions
 
@@ -563,6 +565,98 @@ class TestAggregateEquivalence(unittest.TestCase):
             self.assertIn("projA", days_a["2026-06-01"]["by_project"])    # per-file split preserved
             self.assertIn("projB", days_a["2026-06-01"]["by_project"])
             self._check(root)
+
+
+# --------------------------------------------------------------- by_provider
+class TestAggregateByProvider(unittest.TestCase):
+    """aggregate(conn) (provider=None, the new default) must aggregate over
+    ALL providers and attach a by_provider facet to each day/session bucket,
+    while aggregate(conn, provider='claude') keeps omitting it (the
+    equivalence oracle from TestAggregateEquivalence)."""
+
+    def _mixed_conn(self):
+        from test_canonical import (codex_session_meta, codex_turn_context,
+                                     codex_token_count, tok, codex_message)
+
+        claude_root = tempfile.mkdtemp()
+        write_transcript(claude_root, "projX", "conv.jsonl", [
+            assistant("2026-07-01T10:00:00Z", "s-claude", "claude-sonnet-5",
+                      usage(inp=100, out=50, cr=10, w5m=5, w1h=0),
+                      tools=[("t1", "Read")]),
+            tool_result("2026-07-01T10:00:01Z", "s-claude", "t1"),
+        ])
+
+        codex_root = tempfile.mkdtemp()
+        write_transcript(codex_root, "2026", "rollout-x.jsonl", [
+            codex_session_meta("2026-07-01T11:00:00Z", "s-codex"),
+            codex_turn_context("2026-07-01T11:00:01Z", "gpt-5-codex"),
+            codex_message("2026-07-01T11:00:02Z", "user", "hello"),
+            codex_token_count("2026-07-01T11:00:03Z", total=tok(inp=1000, out=500)),
+        ])
+
+        conn = canonical.open_db(":memory:")
+        canonical.ingest(conn, [canonical.ClaudeProvider(root=claude_root),
+                                 canonical.CodexProvider(root=codex_root)])
+        return conn
+
+    def test_by_provider_facet_present_and_sums_match(self):
+        conn = self._mixed_conn()
+        days, sessions = report.aggregate(conn)
+        conn.close()
+
+        seen_providers = set()
+        checked_a_day = False
+        for d, D in days.items():
+            self.assertIn("by_provider", D)
+            if not D["by_provider"]:
+                continue
+            seen_providers |= set(D["by_provider"].keys())
+            self.assertAlmostEqual(sum(bp["cost"] for bp in D["by_provider"].values()), D["cost"])
+            self.assertEqual(sum(bp["msgs"] for bp in D["by_provider"].values()), D["msgs"])
+            for k in ("input", "output", "cache_read", "cache_write_5m", "cache_write_1h"):
+                self.assertEqual(sum(bp["tok"][k] for bp in D["by_provider"].values()), D["tok"][k])
+            checked_a_day = True
+        self.assertTrue(checked_a_day)
+
+        checked_a_session = False
+        for sid, S in sessions.items():
+            self.assertIn("by_provider", S)
+            if not S["by_provider"]:
+                continue
+            self.assertAlmostEqual(sum(bp["cost"] for bp in S["by_provider"].values()), S["cost"])
+            self.assertEqual(sum(bp["msgs"] for bp in S["by_provider"].values()), S["msgs"])
+            for k in ("input", "output", "cache_read", "cache_write_5m", "cache_write_1h"):
+                self.assertEqual(sum(bp["tok"][k] for bp in S["by_provider"].values()), S["tok"][k])
+            checked_a_session = True
+        self.assertTrue(checked_a_session)
+
+        # guard: the mixed fixture must have actually produced both providers,
+        # else the sums-invariant assertions above prove nothing.
+        self.assertIn("claude", seen_providers)
+        self.assertIn("codex", seen_providers)
+
+    def test_codex_unpriced_but_counted(self):
+        conn = self._mixed_conn()
+        days, _ = report.aggregate(conn)
+        conn.close()
+
+        codex_buckets = [D["by_provider"]["codex"] for D in days.values()
+                         if "codex" in D.get("by_provider", {})]
+        self.assertTrue(codex_buckets)
+        for cb in codex_buckets:
+            self.assertEqual(cb["cost"], 0.0)      # codex has no rate card yet
+            self.assertGreaterEqual(cb["msgs"], 1)
+            self.assertGreater(cb["tok"]["input"], 0)
+
+    def test_scoped_mode_omits_by_provider(self):
+        conn = self._mixed_conn()
+        days_c, sessions_c = report.aggregate(conn, provider="claude")
+        conn.close()
+
+        self.assertIn("2026-07-01", days_c)
+        self.assertNotIn("by_provider", days_c["2026-07-01"])
+        self.assertIn("s-claude", sessions_c)
+        self.assertNotIn("by_provider", sessions_c["s-claude"])
 
 
 # --------------------------------------------------------------- persistence
