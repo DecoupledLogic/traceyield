@@ -151,6 +151,51 @@ class TestRateCards(unittest.TestCase):
         self.assertAlmostEqual(w5m_only, ri * 1.25)
         self.assertAlmostEqual(w1h_only, ri * 2.0)
 
+    # ----------------------------------------------------- Codex rate card (E2-F1-S2)
+    def test_codex_rate_card_priced_tier_matches_hand_computed_dollars(self):
+        # AC1: gpt-5.3-codex is priced at (1.75, 14.00) per 1M with a 0.10x
+        # cache-read multiplier and NO cache-write premium (w5m/w1h -> $0).
+        self.assertEqual(report.rate_card("codex", "gpt-5.3-codex"), (1.75, 14.00))
+        ri, ro = 1.75, 14.00
+        inp = out = cr = w5m = w1h = 1_000_000
+        expected = (inp*ri + out*ro + cr*(ri*0.10) + w5m*0.0 + w1h*0.0) / 1e6
+        got = report.cost_of("codex", "gpt-5.3-codex", inp, out, cr, w5m, w1h)
+        self.assertAlmostEqual(got, expected)
+        # cache-write tokens contribute nothing regardless of magnitude.
+        write_only = report.cost_of("codex", "gpt-5.3-codex", 0, 0, 0, 1_000_000, 1_000_000)
+        self.assertEqual(write_only, 0.0)
+
+    def test_codex_rate_card_second_priced_tier_locks_the_card(self):
+        # Lock in the second priced tier so a future edit to CODEX_PRICING
+        # can't silently drift without a failing test.
+        self.assertEqual(report.rate_card("codex", "gpt-5.5"), (5.00, 30.00))
+        ri, ro = 5.00, 30.00
+        inp, out, cr = 1_000_000, 1_000_000, 1_000_000
+        expected = (inp*ri + out*ro + cr*(ri*0.10)) / 1e6
+        got = report.cost_of("codex", "gpt-5.5", inp, out, cr, 0, 0)
+        self.assertAlmostEqual(got, expected)
+
+    def test_codex_unpriced_tier_counts_volume_at_zero_dollars(self):
+        # AC2: gpt-5 and gpt-5-codex are recognized (codex_tier() gives a
+        # non-null label) but intentionally omitted from CODEX_PRICING, so
+        # they still count tokens/msgs while costing $0 (Decision 0007 D3,
+        # "volume-always / dollars-when-priced").
+        for unpriced_tier in ("gpt-5", "gpt-5-codex"):
+            self.assertIsNone(report.rate_card("codex", unpriced_tier))
+            self.assertEqual(
+                report.cost_of("codex", unpriced_tier, 1000, 500, 200, 100, 50), 0.0)
+
+    def test_codex_unrecognized_model_still_untiered(self):
+        # AC3: a model that isn't in the gpt-5* family stays untiered
+        # (codex_tier() -> None), so aggregate()'s `tier IS NOT NULL` filter
+        # excludes it entirely -- unchanged, direct-level assertion since no
+        # new aggregate fixture is needed just to prove codex_tier()'s
+        # boundary (see TestAggregateByProvider._mixed_conn for the existing
+        # aggregate()-level codex fixture, which already covers a recognized
+        # tier).
+        self.assertIsNone(canonical.codex_tier("some-unrelated-model"))
+        self.assertIsNone(canonical.codex_tier("o3-mini"))
+
 
 # --------------------------------------------------------------- machine identity
 class TestMachineId(unittest.TestCase):
