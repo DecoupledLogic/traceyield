@@ -323,6 +323,57 @@ class TestPricingDrift(unittest.TestCase):
         finally:
             report._fetch_pricing_page = orig
 
+    def test_drift_reads_through_rate_cards_claude_not_a_stale_pricing_ref(self):
+        # Swap RATE_CARDS["claude"] for a distinct dict (not PRICING itself) and
+        # confirm check_pricing_drift() picks up the swap. This proves the loop
+        # reads RATE_CARDS["claude"] live rather than closing over the PRICING
+        # name directly -- the page below still reflects the real PRICING rates,
+        # so a swapped opus rate must surface as drift.
+        orig_cards = report.RATE_CARDS
+        swapped_claude = {"opus": (99.0, 199.0), "sonnet": (2.00, 10.00), "haiku": (1.00, 5.00)}
+        report.RATE_CARDS = dict(orig_cards, claude=swapped_claude)
+        try:
+            drift = self._drift(self._page_from(report.PRICING))
+        finally:
+            report.RATE_CARDS = orig_cards
+        self.assertTrue(any(d.startswith("opus:") for d in drift))
+
+    def test_drift_never_looks_at_codex_tiers(self):
+        # Give the codex card a colliding "opus" key priced wildly differently,
+        # and salt the fixture page with a codex-looking row too. If the check
+        # ever iterated RATE_CARDS as a whole (rather than RATE_CARDS["claude"]
+        # specifically), this bogus codex "opus" entry -- or the codex row on
+        # the page -- would leak into the drift comparison.
+        orig_cards = report.RATE_CARDS
+        report.RATE_CARDS = dict(orig_cards,
+                                  codex={"opus": (999.0, 999.0), "gpt-5.3-codex": (1.75, 14.00)})
+        page = self._page_from(report.PRICING) + \
+            "| gpt-5.3-codex | $1.75 / MTok | $0 | $0 | $0.175 / MTok | $14 / MTok |\n"
+        try:
+            drift = self._drift(page)
+        finally:
+            report.RATE_CARDS = orig_cards
+        self.assertEqual(drift, [])
+        for d in drift:
+            self.assertNotIn("gpt-5", d.lower())
+            self.assertNotIn("codex", d.lower())
+
+    def test_codex_no_drift_gap_is_documented_in_source(self):
+        # Scenario 2 (E2-F4-S1 AC): the Codex no-drift gap must be documented as
+        # a comment/docstring near check_pricing_drift(), not just implied by
+        # behavior. Isolate the "pricing drift check" section of report.py and
+        # grep it for the key phrases.
+        src_path = os.path.join(os.path.dirname(os.path.abspath(report.__file__)), "report.py")
+        src = open(src_path, encoding="utf-8").read()
+        m = re.search(
+            r"# -+ pricing drift check(.*?)\n# -+ schema & coverage monitoring",
+            src, re.S)
+        self.assertIsNotNone(m, "could not locate the pricing drift check section in report.py")
+        region = re.sub(r"\s+", " ", m.group(1).lower())
+        self.assertIn("hand-maintained", region)
+        self.assertIn("codex", region)
+        self.assertIn("no automated drift alarm", region)
+
 
 # --------------------------------------------------------------- analyze()
 class TestAnalyze(unittest.TestCase):
