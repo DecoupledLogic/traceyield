@@ -734,6 +734,20 @@ class TestBuildHtml(unittest.TestCase):
         self.assertIn('id="byprovider"', html)
         self.assertIn("Cost by provider", html)
 
+    def test_token_neutral_currency_panel_and_projection_label(self):
+        """Tokens-by-provider neutral-currency comparison panel + a projection
+        label on the combined cost-by-provider dollar figures (E2-F3-S2).
+        There's no JS test harness, so we assert on the emitted template
+        string per project convention."""
+        days = {"2026-01-01": {"cost": 1.0, "by_model": {}, "by_project": {},
+                               "by_tool": {}, "errors": {},
+                               "tok": {"input": 0, "output": 0, "cache_read": 0,
+                                       "cache_write_5m": 0, "cache_write_1h": 0},
+                               "msgs": 0, "tool_results": 0, "tool_errors": 0, "sessions": 0}}
+        html = report.build_html(days, {}, {"2026-01-01": report.PRICING})
+        self.assertIn('id="tokprovider"', html)
+        self.assertIn("per-provider rate cards", html)
+
 
 # --------------------------------------------------------------- schema drift & coverage
 def codex_file(root, name, lines):

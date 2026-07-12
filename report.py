@@ -1071,7 +1071,10 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
   <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by project</div><div id="byproj"></div></div>
   <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by model tier</div><div id="bymodel"></div></div>
 </div>
-<div class="panel"><div class="muted" style="margin-bottom:10px">Cost by provider</div><div id="byprovider"></div></div>
+<div class="two">
+  <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by provider</div><div class="hint" style="margin-bottom:10px">Dollar totals are a <b>projection</b> at current per-provider rate cards &mdash; Codex has no rate card yet, so its tokens count at $0 here. Compare by tokens (neutral currency) for a pricing-independent view.</div><div id="byprovider"></div></div>
+  <div class="panel"><div class="muted" style="margin-bottom:10px">Tokens by provider <span class="hint">&mdash; neutral currency, pricing-independent</span></div><div id="tokprovider"></div></div>
+</div>
 <div class="panel" id="routepanel">
   <div class="muted" style="margin-bottom:6px">Model-routing savings estimate <span class="hint" id="routehint"></span></div>
   <div class="hint" style="margin-bottom:12px">Recomputes this period&rsquo;s <b>Opus</b> token usage at a cheaper tier&rsquo;s rates &mdash; the savings from routing routine work with <span class="mono">/model</span>. Assume <input id="routeshare" type="number" value="30" min="0" max="100" step="5">% of Opus is safely routable to <select id="routetier"><option value="sonnet">Sonnet</option><option value="haiku">Haiku</option></select>. Upper bound &mdash; keep quality-sensitive work on Opus.</div>
@@ -1131,6 +1134,7 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 <dt>vs prev</dt><dd>Change from the previous period at the current granularity.</dd>
 <dt>Top sessions</dt><dd>Highest-cost individual conversations across all history. A single session far above the rest is a runaway context &mdash; the cheapest thing to fix.</dd>
 <dt>Routing estimate</dt><dd>This period&rsquo;s Opus tokens recosted at Sonnet/Haiku rates, scaled by your routable-share assumption. An upper bound on <span class="mono">/model</span> savings, not a promise.</dd>
+<dt>Neutral currency (tokens) vs. dollar projection</dt><dd>Tokens are pricing-independent ground truth, so they&rsquo;re the honest way to compare providers. A combined dollar total across providers is a <b>projection</b> &mdash; it only means what each provider&rsquo;s per-provider rate card says, and a provider with no rate card (e.g. Codex today) shows $0 there even though it used real tokens.</dd>
 </dl>
 </div>
 
@@ -1270,6 +1274,7 @@ function render(){
   $("#byproj").innerHTML=hbars(Object.entries(cur.by_project).map(([p,d])=>[clean(p),d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#258CF8");
   $("#bymodel").innerHTML=hbars(Object.entries(cur.by_model).map(([m,d])=>[m,d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#7338FF");
   $("#byprovider").innerHTML=hbars(Object.entries(cur.by_provider||{}).map(([p,d])=>[p.charAt(0).toUpperCase()+p.slice(1),d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#10B7D8");
+  $("#tokprovider").innerHTML=hbars(Object.entries(cur.by_provider||{}).filter(([p,d])=>d.tok).map(([p,d])=>[p.charAt(0).toUpperCase()+p.slice(1),tokTotal(d.tok)]).sort((a,b)=>b[1]-a[1]),fmtTok,"#12C99A");
   const t=cur.tok;
   $("#comp").innerHTML=hbars([["Cache read",t.cache_read],["Cache write 1h",t.cache_write_1h],["Cache write 5m",t.cache_write_5m],["Output",t.output],["Fresh input",t.input]],fmtTok,"#10B7D8");
   $("#tools").innerHTML=hbars(Object.entries(cur.by_tool).filter(([t,v])=>v.calls>0).map(([t,v])=>[t,v.calls]).sort((a,b)=>b[1]-a[1]).slice(0,15),fmtInt,"#12C99A");
