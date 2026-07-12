@@ -1180,7 +1180,7 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 .hrow ul{margin:6px 0 0;padding-left:20px} .hrow li{margin:3px 0}
 </style></head><body><div class="wrap">
 <div class="brand"><span class="mk"><svg viewBox="0 0 1254 1254" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="tym" x1="300" y1="280" x2="900" y2="985" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#05b98a"/><stop offset="0.46" stop-color="#10b7d8"/><stop offset="0.72" stop-color="#258cf8"/><stop offset="1" stop-color="#7338ff"/></linearGradient></defs><path d="M627 228 L952 424 L952 806 L627 1002 L301 806 L301 424 Z" fill="none" stroke="url(#tym)" stroke-width="70" stroke-linecap="round" stroke-linejoin="round"/><g fill="url(#tym)"><rect x="432" y="603" width="77" height="165" rx="38.5"/><rect x="587" y="452" width="77" height="316" rx="38.5"/><rect x="741" y="571" width="77" height="197" rx="38.5"/></g></svg></span>
-<h1>Trace<span class="wm">Yield</span> <span class="ttl">— Claude Code Usage &amp; Health</span></h1></div>
+<h1>Trace<span class="wm">Yield</span> <span class="ttl">— LLM Usage &amp; Health</span></h1></div>
 <div class="sub" id="sub"></div>
 
 <div class="controls">
@@ -1275,7 +1275,7 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 <p class="muted">A cached token you reuse costs ~8% of writing it fresh at 1h TTL (0.1 vs 1.25), so caching pays off after ~2 reuses. The risk is <b>invalidation</b>: editing a file or changing tools near the front of the prompt forces an expensive re-write of everything after it.</p>
 <h3>How to use it to improve</h3>
 <ul>
-<li><b>Right-size the model.</b> ~98% of spend is Opus. Route routine work (reading, simple edits, exploration) to Sonnet with <span class="mono">/model</span> &mdash; cheaper input and 0.1&times; cache reads at $0.20 vs $0.50.</li>
+<li><b>Right-size the model.</b> For Claude usage, ~98% of spend is Opus. Route routine work (reading, simple edits, exploration) to Sonnet with <span class="mono">/model</span> &mdash; cheaper input and 0.1&times; cache reads at $0.20 vs $0.50.</li>
 <li><b>Keep context small.</b> Cost &asymp; context size &times; turns; the ~154K/turn re-read is the engine. <span class="mono">/clear</span> between tasks so each turn re-reads less.</li>
 <li><b>Cut errors = cut wasted turns.</b> Each tool error &asymp; one extra turn that re-reads the full context. The per-tool panel&rsquo;s <b>Est. waste</b> column puts a dollar figure on it. Top offenders: Windows shell errors (use PowerShell for Windows commands) and Write/Edit-before-Read (Read first).</li>
 <li><b>Watch the trend, not the day.</b> Switch to Week/Month and step with &larr;/&rarr; to see whether cost-per-turn and error rate improve after a change.</li>
@@ -1283,7 +1283,7 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 <h3>Glossary</h3>
 <dl>
 <dt>Turn</dt><dd>One assistant response (usually one tool call). &ldquo;Assistant turns&rdquo; counts these.</dd>
-<dt>Session</dt><dd>One Claude Code conversation (a distinct sessionId).</dd>
+<dt>Session</dt><dd>One assistant conversation (a distinct sessionId).</dd>
 <dt>Tool error rate</dt><dd>Share of tool results returned as errors. Lower is better.</dd>
 <dt>Est. waste</dt><dd>Modeled error cost = errors &times; avg cost/call &times; retry factor. Cost/call is exact; the retry factor (how many extra turns an error triggers) is your tunable assumption.</dd>
 <dt>vs prev</dt><dd>Change from the previous period at the current granularity.</dd>
@@ -1510,7 +1510,7 @@ function renderHealth(){
     : `<div class="hrow ok">${name} schema OK <span class="hint">(${(d==null?"—":"no new fields, models, or block types")})</span></div>`;
   let h=`<div class="hhdr"><span class="hpill ${warn?"warn":"ok"}">${warn?"Needs review":"All clear"}</span><span class="hint">schema drift &amp; coverage, checked every run · generated ${esc(H.generated||"")}</span></div>`;
   h+=driftRow("Claude",C.drift);
-  if(stale) h+=`<div class="hrow warn"><b>Stale:</b> no recorded usage for ${cov.days_since_last_active} day(s) — last active ${esc(cov.last||"?")}. If you used Claude Code since, a run or parse is failing.</div>`;
+  if(stale) h+=`<div class="hrow warn"><b>Stale:</b> no recorded usage for ${cov.days_since_last_active} day(s) — last active ${esc(cov.last||"?")}. If you used a coding assistant since, a run or parse is failing.</div>`;
   if(susp.length) h+=`<div class="hrow warn"><b>${susp.length} suspicious data hole(s)</b> — had activity but nothing was recorded:<ul>${susp.slice(0,25).map(s=>`<li><b>${esc(s.date)}</b> — ${esc(s.reason)}</li>`).join("")}</ul></div>`;
   h+=`<div class="hrow ok">Coverage: <b>${cov.active_days||0}</b> active days (${esc(cov.first||"?")} → ${esc(cov.last||"?")}) · <b>${gaps.length}</b> calendar gap day(s) with no usage${gaps.length?` <span class="hint">(${esc(gaps.slice(-10).join(", "))}${gaps.length>10?" …":""})</span>`:""}. <span class="hint">Idle days are normal — the flagged holes above are the ones to check.</span></div>`;
   h+=driftRow("Codex",X.drift);
