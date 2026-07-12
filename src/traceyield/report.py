@@ -26,7 +26,11 @@ import json, os, glob, html, datetime, re, socket, sys, urllib.request
 from collections import defaultdict, Counter
 
 # ---------------------------------------------------------------- config
-HERE = os.path.dirname(os.path.abspath(__file__))
+# This module now lives at <repo>/src/traceyield/report.py, but machines/ and
+# pricing_history.json are repo-level artifacts (see CLAUDE.md), so HERE walks
+# up from src/traceyield/ to the repo root rather than anchoring to this file's
+# own directory.
+HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CLAUDE_PROJECTS = os.path.expanduser(r"~/.claude/projects")
 
 def machine_id():
@@ -1079,7 +1083,7 @@ def metrics_via_canonical():
     it never partially commits -- merge_daily/merge_sessions only run on the
     result this returns. See docs/canonical-data-model.md and
     docs/decisions/0001-aggregate-flip.md."""
-    import canonical
+    from traceyield import canonical
     db = canonical.open_db()
     files, recs = canonical.ingest(db)
     print(f"Canonical store: {canonical.DB_FILE} (capture={canonical.CAPTURE}) "
