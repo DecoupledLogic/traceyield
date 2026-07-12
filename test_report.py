@@ -1046,6 +1046,55 @@ class TestNeutralBranding(unittest.TestCase):
         self.assertIn("Claude Code serializes tool calls", html)
 
 
+class TestNoEmDashes(unittest.TestCase):
+    """E2-F5-S2: the generated report must contain no em dashes -- neither the
+    literal U+2014 character nor the &mdash; HTML entity. HTML_TMPL is a static
+    string, so an empty-data build already exercises every line of copy; a
+    populated-data build additionally exercises the data-conditional health
+    branches (stale/hole strings) that are only reachable with real health data."""
+
+    def test_no_em_dashes_empty_data(self):
+        html = report.build_html({}, {}, {}, None)
+        self.assertNotIn("—", html)
+        self.assertNotIn("&mdash;", html)
+
+    def test_no_em_dashes_with_health_data(self):
+        days = {"2026-01-01": {"cost": 1.0, "by_model": {}, "by_project": {},
+                               "by_tool": {}, "errors": {},
+                               "tok": {"input": 0, "output": 0, "cache_read": 0,
+                                       "cache_write_5m": 0, "cache_write_1h": 0},
+                               "msgs": 0, "tool_results": 0, "tool_errors": 0, "sessions": 0}}
+        # Force the "stale" and "suspicious hole" health strings to render by
+        # asking for coverage against a "today" far past the last active date.
+        cov = report.coverage({"2026-01-01": {"cost": 1.0, "tool_results": 0}}, {}, "2026-02-01")
+        health = {"generated": "2026-02-01T00:00:00", "machine": "test",
+                  "providers": {"claude": {"scan": {"files": 1, "lines": 1, "json_errors": 0,
+                                "seen": {}, "dates": {}, "flags": {"unexpected_new_thing": 1},
+                                "unknown_models": []},
+                                "drift": ["unexpected_new_thing"], "coverage": cov},
+                                "codex": {"scan": report._fp(0, 0, 0, {}, {}, __import__("collections").Counter(), set()), "drift": []}}}
+        html = report.build_html(days, {}, {"2026-01-01": report.PRICING}, health)
+        self.assertNotIn("—", html)
+        self.assertNotIn("&mdash;", html)
+
+    def test_former_prose_em_dash_sites_now_read_cleanly(self):
+        # Representative former-prose em-dash sites: assert their replacement
+        # punctuation renders and the old &mdash; is gone from that context.
+        html = report.build_html({}, {}, {}, None)
+        self.assertIn("Full turn cost attributed to its single tool", html)
+        self.assertIn("Claude Code serializes tool calls", html)
+        self.assertIn("Upper bound", html)
+        self.assertIn("keep quality-sensitive work on Opus", html)
+
+    def test_former_placeholder_em_dash_sites_use_hyphen(self):
+        # Table-cell / JS placeholder sites formerly rendered a lone em dash
+        # for "no value"; they must now use a plain hyphen with the same
+        # semantics (still present verbatim in the static JS source).
+        html = report.build_html({}, {}, {}, None)
+        self.assertIn('v.calls?fmtInt(v.calls):"-"', html)
+        self.assertIn('s.tool_results?er.toFixed(1)+"%":"-"', html)
+
+
 # --------------------------------------------------------------- schema drift & coverage
 def codex_file(root, name, lines):
     os.makedirs(root, exist_ok=True)
