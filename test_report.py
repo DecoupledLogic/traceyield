@@ -720,6 +720,20 @@ class TestBuildHtml(unittest.TestCase):
         self.assertEqual(payload["sessions"][0]["id"], "s1")
         self.assertEqual(payload["pricing"]["opus"]["input"], report.PRICING["opus"][0])
 
+    def test_provider_filter_and_byprovider_panel_present(self):
+        """Cost-by-provider panel (bar) + provider filter control markers
+        (E2-F3-S1). There's no JS test harness, so we assert on the emitted
+        template string per project convention."""
+        days = {"2026-01-01": {"cost": 1.0, "by_model": {}, "by_project": {},
+                               "by_tool": {}, "errors": {},
+                               "tok": {"input": 0, "output": 0, "cache_read": 0,
+                                       "cache_write_5m": 0, "cache_write_1h": 0},
+                               "msgs": 0, "tool_results": 0, "tool_errors": 0, "sessions": 0}}
+        html = report.build_html(days, {}, {"2026-01-01": report.PRICING})
+        self.assertIn('id="provider"', html)
+        self.assertIn('id="byprovider"', html)
+        self.assertIn("Cost by provider", html)
+
 
 # --------------------------------------------------------------- schema drift & coverage
 def codex_file(root, name, lines):

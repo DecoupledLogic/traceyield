@@ -148,23 +148,20 @@ def result_text(b):
     return ""
 def new_tool(): return {"calls":0,"out":0,"cost":0.0,"err":0}
 def new_model(): return {"cost":0.0,"tok":{"input":0,"output":0,"cache_read":0,"cache_write_5m":0,"cache_write_1h":0}}
-def new_provider(): return {"cost":0.0,"msgs":0,"tok":{"input":0,"output":0,"cache_read":0,"cache_write_5m":0,"cache_write_1h":0}}
 def new_day():
     return {"cost":0.0,
             "tok":{"input":0,"output":0,"cache_read":0,"cache_write_5m":0,"cache_write_1h":0},
             "msgs":0,"tool_results":0,"tool_errors":0,
             "sids":set(), "by_model":defaultdict(new_model),
             "by_project":defaultdict(lambda:{"cost":0.0,"msgs":0}),
-            "by_tool":defaultdict(new_tool), "errors":Counter(),
-            "by_provider":defaultdict(new_provider)}
+            "by_tool":defaultdict(new_tool), "errors":Counter()}
 def new_session():
     # sessions span days; accumulated globally (keyed by sessionId) so a single
     # runaway conversation is visible even when its cost is split across dates.
     return {"cost":0.0,
             "tok":{"input":0,"output":0,"cache_read":0,"cache_write_5m":0,"cache_write_1h":0},
             "msgs":0,"tool_results":0,"tool_errors":0,
-            "project":None,"start":None,"end":None,"by_model":defaultdict(float),
-            "by_provider":defaultdict(new_provider)}
+            "project":None,"start":None,"end":None,"by_model":defaultdict(float)}
 
 def analyze(root=CLAUDE_PROJECTS):
     """Parse Claude transcripts directly into (days, sessions).
@@ -310,16 +307,29 @@ def aggregate(conn, provider=None):
     `provider` controls scope:
       - `provider=None` (the default): aggregate over ALL providers, and add a
         `by_provider` facet to each day/session bucket -- a dict keyed by
-        provider name, each value `{"cost","msgs","tok"}` -- accumulated from
-        the same tier-not-null cost loop that builds the top-level cost/msgs/
-        tok, so summing `by_provider[*].cost/msgs/tok[k]` always equals the
-        bucket's own top-level value. Codex has no rate card yet
-        (cost_of("codex", ...) returns 0.0), so its turns still add msgs/tok
-        at $0 cost -- the sums invariant holds regardless.
+        provider name, each value a FULL bucket with the SAME shape as the
+        top-level day/session bucket (cost, msgs, tok, tool_results,
+        tool_errors, sessions, by_model, by_project, by_tool, errors for
+        days; cost, msgs, tok, tool_results, tool_errors, project, start,
+        end, by_model for sessions). Each sub-bucket is produced by simply
+        calling this same function scoped to that one provider (see below)
+        and nesting the result -- the proven-correct scoped path, reused
+        rather than re-derived. cost/msgs/tok are accumulated from the same
+        tier-not-null cost loop that builds the top-level cost/msgs/tok, so
+        summing `by_provider[*].cost/msgs/tok[k]` always equals the bucket's
+        own top-level value. Codex has no rate card yet (cost_of("codex",
+        ...) returns 0.0), so its turns still add msgs/tok at $0 cost -- the
+        sums invariant holds regardless. tool_results/tool_errors/sessions/
+        by_tool are NOT tier-gated and are NOT guaranteed to sum to the
+        top-level value (e.g. a session that used both providers is counted
+        in each provider's own scoped bucket).
       - `provider='claude'` (or any specific provider string): scope every
         query to that provider and produce output byte-identical to
         analyze() -- NO `by_provider` key is added in scoped mode. This is
-        the preserved equivalence oracle (TestAggregateEquivalence).
+        the preserved equivalence oracle (TestAggregateEquivalence). Since
+        this branch is what the `provider=None` branch calls per-provider,
+        passing a concrete provider string always takes this branch and
+        never recurses back into the `provider=None` branch.
 
     Equivalence rules honored (see docs/decisions/0001-aggregate-flip.md),
     when scoped to provider='claude':
@@ -453,16 +463,17 @@ def aggregate(conn, provider=None):
     """, params):
         tool_names_by_turn[turn_id].append(name)
 
-    # cost/tok/msgs/by_model/by_project/session-cost/by_tool(cost,out)/
-    # by_provider -- tier-not-null turns only (rule 2). by_project keys on the
-    # TURN's OWN project (per-file, populated at ingest) -- NOT the session's
-    # resolved project -- so a session whose turns span two project
-    # directories still splits its cost exactly like analyze() (which
-    # attributes each turn to the file it was parsed from). Falls back to the
-    # session's project on the (should-never-happen-for-claude) chance a
-    # turn's own project is NULL. by_model/by_project are provider-blind
-    # (claude+codex share the same model/project keyspaces); by_provider is
-    # the new facet that separates them, added only when provider is None.
+    # cost/tok/msgs/by_model/by_project/session-cost/by_tool(cost,out) --
+    # tier-not-null turns only (rule 2). by_project keys on the TURN's OWN
+    # project (per-file, populated at ingest) -- NOT the session's resolved
+    # project -- so a session whose turns span two project directories still
+    # splits its cost exactly like analyze() (which attributes each turn to
+    # the file it was parsed from). Falls back to the session's project on
+    # the (should-never-happen-for-claude) chance a turn's own project is
+    # NULL. by_model/by_project are provider-blind (claude+codex share the
+    # same model/project keyspaces); the by_provider facet (added only when
+    # provider is None) is built separately below by recursing into this
+    # same function scoped per-provider, not accumulated inline here.
     for turn_id, sid, day, tr, inp, cr, w5m, w1h, out, tproj, tprov in conn.execute(f"""
         SELECT turn_id, session_id, substr(ts,1,10), tier,
                input_fresh, cache_read, cache_write_5m, cache_write_1h, output, project, provider
@@ -479,20 +490,12 @@ def aggregate(conn, provider=None):
         bmt["cache_write_5m"] += w5m; bmt["cache_write_1h"] += w1h
         proj = tproj or project_of_sess.get(sid)
         bp = D["by_project"][proj]; bp["cost"] += cost; bp["msgs"] += 1
-        if provider is None:
-            dbp = D["by_provider"][tprov]; dbp["cost"] += cost; dbp["msgs"] += 1
-            dbpt = dbp["tok"]; dbpt["input"] += inp; dbpt["output"] += out; dbpt["cache_read"] += cr
-            dbpt["cache_write_5m"] += w5m; dbpt["cache_write_1h"] += w1h
 
         S = sessions[sid]
         S["cost"] += cost; S["msgs"] += 1
         stk = S["tok"]; stk["input"] += inp; stk["output"] += out; stk["cache_read"] += cr
         stk["cache_write_5m"] += w5m; stk["cache_write_1h"] += w1h
         S["by_model"][tr] += cost
-        if provider is None:
-            sbp = S["by_provider"][tprov]; sbp["cost"] += cost; sbp["msgs"] += 1
-            sbpt = sbp["tok"]; sbpt["input"] += inp; sbpt["output"] += out; sbpt["cache_read"] += cr
-            sbpt["cache_write_5m"] += w5m; sbpt["cache_write_1h"] += w1h
 
         names = tool_names_by_turn.get(turn_id, [])
         tkey = names[0] if len(names) == 1 else ("(final response)" if not names else "(multi-tool turn)")
@@ -511,9 +514,6 @@ def aggregate(conn, provider=None):
                         for t, v in D["by_tool"].items()},
             "errors": dict(D["errors"]),
         }
-        if provider is None:
-            out[d]["by_provider"] = {p: {"cost": round(v["cost"], 4), "msgs": v["msgs"], "tok": v["tok"]}
-                                      for p, v in D["by_provider"].items()}
     sess = {}
     for sid, S in sessions.items():
         sess[sid] = {
@@ -523,9 +523,30 @@ def aggregate(conn, provider=None):
             "project": S["project"], "start": S["start"], "end": S["end"],
             "by_model": {m: round(c, 4) for m, c in S["by_model"].items()},
         }
-        if provider is None:
-            sess[sid]["by_provider"] = {p: {"cost": round(v["cost"], 4), "msgs": v["msgs"], "tok": v["tok"]}
-                                         for p, v in S["by_provider"].items()}
+
+    # by_provider facet -- provider=None only. Reuses the proven-correct
+    # scoped path: aggregate(conn, provider=p) for each distinct provider
+    # present returns a FULL day/session bucket (same shape as the top-level
+    # one) already scoped to p, so nesting it as-is under by_provider[p]
+    # gives every panel a uniform shape to fold on client-side. Each of
+    # these recursive calls passes a concrete provider string, so it always
+    # takes the `else` scope branch above and can never recurse back into
+    # this block (no infinite recursion).
+    if provider is None:
+        provs = sorted({r[0] for r in conn.execute(
+            "SELECT DISTINCT provider FROM turn WHERE provider IS NOT NULL "
+            "UNION SELECT DISTINCT provider FROM tool_call WHERE provider IS NOT NULL "
+            "UNION SELECT DISTINCT provider FROM session WHERE provider IS NOT NULL")})
+        for d in out: out[d]["by_provider"] = {}
+        for sid in sess: sess[sid]["by_provider"] = {}
+        for p in provs:
+            pdays, psess = aggregate(conn, provider=p)
+            for d, pd in pdays.items():
+                out.setdefault(d, dict(pd, by_provider={}))
+                out[d]["by_provider"][p] = pd
+            for sid, ps in psess.items():
+                sess.setdefault(sid, dict(ps, by_provider={}))
+                sess[sid]["by_provider"][p] = ps
     return out, sess
 
 # ---------------------------------------------------------------- persist
@@ -1016,6 +1037,13 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
   <div class="seg" id="gran">
     <button data-g="day" class="on">Day</button><button data-g="week">Week</button><button data-g="month">Month</button>
   </div>
+  <label class="hint">Provider&nbsp;
+    <select id="provider">
+      <option value="all">All</option>
+      <option value="claude">Claude</option>
+      <option value="codex">Codex</option>
+    </select>
+  </label>
   <label class="hint">Trend metric&nbsp;
     <select id="metric">
       <option value="cost">Cost ($)</option>
@@ -1043,6 +1071,7 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
   <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by project</div><div id="byproj"></div></div>
   <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by model tier</div><div id="bymodel"></div></div>
 </div>
+<div class="panel"><div class="muted" style="margin-bottom:10px">Cost by provider</div><div id="byprovider"></div></div>
 <div class="panel" id="routepanel">
   <div class="muted" style="margin-bottom:6px">Model-routing savings estimate <span class="hint" id="routehint"></span></div>
   <div class="hint" style="margin-bottom:12px">Recomputes this period&rsquo;s <b>Opus</b> token usage at a cheaper tier&rsquo;s rates &mdash; the savings from routing routine work with <span class="mono">/model</span>. Assume <input id="routeshare" type="number" value="30" min="0" max="100" step="5">% of Opus is safely routable to <select id="routetier"><option value="sonnet">Sonnet</option><option value="haiku">Haiku</option></select>. Upper bound &mdash; keep quality-sensitive work on Opus.</div>
@@ -1149,14 +1178,15 @@ function tokTotal(t){return t.input+t.output+t.cache_read+t.cache_write_5m+t.cac
 function blankPeriod(key,label){return{key,label,cost:0,
   tok:{input:0,output:0,cache_read:0,cache_write_5m:0,cache_write_1h:0},
   msgs:0,tool_results:0,tool_errors:0,sessions:0,
-  by_model:{},by_project:{},by_tool:{},errors:{},dates:[]};}
+  by_model:{},by_project:{},by_tool:{},by_provider:{},errors:{},dates:[]};}
 function addNum(dst,src,keys){keys.forEach(k=>dst[k]+=src[k]||0);}
 function addCounter(dst,src){for(const k in src)dst[k]=(dst[k]||0)+src[k];}
 function addModel(dst,src){for(const t in src){dst[t]=dst[t]||{cost:0,tok:{input:0,output:0,cache_read:0,cache_write_5m:0,cache_write_1h:0}};dst[t].cost+=src[t].cost||0;const st=src[t].tok||{};for(const k in dst[t].tok)dst[t].tok[k]+=st[k]||0;}}
 function addProj(dst,src){for(const p in src){dst[p]=dst[p]||{cost:0,msgs:0};for(const k in src[p])dst[p][k]=(dst[p][k]||0)+src[p][k];}}
 function addTool(dst,src){for(const t in src){dst[t]=dst[t]||{calls:0,out:0,cost:0,err:0};for(const k in src[t])dst[t][k]=(dst[t][k]||0)+src[t][k];}}
+function addProvider(dst,src){for(const p in (src||{})){dst[p]=dst[p]||{cost:0,msgs:0,tok:{input:0,output:0,cache_read:0,cache_write_5m:0,cache_write_1h:0}};dst[p].cost+=src[p].cost||0;dst[p].msgs+=src[p].msgs||0;const st=src[p].tok||{};for(const k in dst[p].tok)dst[p].tok[k]+=st[k]||0;}}
 
-function aggregate(gran){
+function aggregate(gran,provider){
   const groups=new Map();
   for(const dk of dayKeys){
     let key,label;
@@ -1164,9 +1194,16 @@ function aggregate(gran){
     else if(gran==="week"){key=mondayOf(dk);label="wk of "+key;}
     else{key=dk.slice(0,7);const[y,m]=key.split("-");label=MONTHS[+m-1]+" "+y;}
     if(!groups.has(key))groups.set(key,blankPeriod(key,label));
-    const P=groups.get(key),D=DATA.days[dk];
+    const P=groups.get(key),Dall=DATA.days[dk];
+    P.dates.push(dk);
+    // "Cost by provider" always folds from the unfiltered ("all") bucket so
+    // the bar keeps showing every provider's split regardless of which
+    // provider is selected in the filter.
+    addProvider(P.by_provider,Dall.by_provider);
+    const D=(!provider||provider==="all")?Dall:(Dall.by_provider&&Dall.by_provider[provider]);
+    if(!D)continue; // no data for this provider on this day -- contributes nothing
     P.cost+=D.cost; P.msgs+=D.msgs; P.tool_results+=D.tool_results; P.tool_errors+=D.tool_errors;
-    P.sessions+=D.sessions; P.dates.push(dk);
+    P.sessions+=D.sessions;
     addNum(P.tok,D.tok,Object.keys(P.tok));
     addModel(P.by_model,D.by_model); addProj(P.by_project,D.by_project);
     addTool(P.by_tool,D.by_tool); addCounter(P.errors,D.errors);
@@ -1183,7 +1220,7 @@ const METRICS={
   sessions:{f:p=>p.sessions,fmt:fmtInt,label:"Sessions"},
 };
 
-let state={gran:"day",metric:"cost",idx:0,periods:[]};
+let state={gran:"day",metric:"cost",provider:"all",idx:0,periods:[]};
 
 function svgLine(xs,vals,fmt,sel,color){
   const w=880,h=230,pad=46,n=xs.length;
@@ -1232,6 +1269,7 @@ function render(){
   // breakdowns
   $("#byproj").innerHTML=hbars(Object.entries(cur.by_project).map(([p,d])=>[clean(p),d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#258CF8");
   $("#bymodel").innerHTML=hbars(Object.entries(cur.by_model).map(([m,d])=>[m,d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#7338FF");
+  $("#byprovider").innerHTML=hbars(Object.entries(cur.by_provider||{}).map(([p,d])=>[p.charAt(0).toUpperCase()+p.slice(1),d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#10B7D8");
   const t=cur.tok;
   $("#comp").innerHTML=hbars([["Cache read",t.cache_read],["Cache write 1h",t.cache_write_1h],["Cache write 5m",t.cache_write_5m],["Output",t.output],["Fresh input",t.input]],fmtTok,"#10B7D8");
   $("#tools").innerHTML=hbars(Object.entries(cur.by_tool).filter(([t,v])=>v.calls>0).map(([t,v])=>[t,v.calls]).sort((a,b)=>b[1]-a[1]).slice(0,15),fmtInt,"#12C99A");
@@ -1317,7 +1355,7 @@ function renderSessions(){
 }
 
 function rebuild(keepEnd){
-  state.periods=aggregate(state.gran);
+  state.periods=aggregate(state.gran,state.provider);
   state.idx=keepEnd?state.periods.length-1:Math.min(state.idx,state.periods.length-1);
   render();
 }
@@ -1345,6 +1383,7 @@ document.querySelectorAll("#gran button").forEach(b=>b.onclick=()=>{
   b.classList.add("on"); state.gran=b.dataset.g; rebuild(true);
 });
 $("#metric").onchange=e=>{state.metric=e.target.value;render();};
+$("#provider").onchange=e=>{state.provider=e.target.value;rebuild(false);};
 $("#retry").oninput=()=>render();
 $("#routeshare").oninput=()=>render();
 $("#routetier").onchange=()=>render();
