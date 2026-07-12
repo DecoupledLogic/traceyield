@@ -868,14 +868,43 @@ class TestPersistence(unittest.TestCase):
             self.assertIn("s1", merged)   # old session survives even if not re-parsed
             self.assertIn("s2", merged)
 
-    def test_record_pricing_stamps_today(self):
+    def test_record_pricing_stamps_today_provider_nested(self):
         import datetime
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "pricing.json")
             hist = report.record_pricing(path=p)
             today = datetime.date.today().isoformat()
             self.assertIn(today, hist)
-            self.assertEqual(hist[today]["opus"]["input"], report.PRICING["opus"][0])
+            entry = hist[today]
+            self.assertIn("claude", entry)
+            self.assertIn("codex", entry)
+            self.assertEqual(entry["claude"]["opus"], {"input": 5.0, "output": 25.0})
+            self.assertEqual(entry["codex"]["gpt-5.3-codex"], {"input": 1.75, "output": 14.0})
+
+    def test_record_pricing_migrates_legacy_flat_entries(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "pricing.json")
+            legacy = {"2026-01-01": {"opus": {"input": 5.0, "output": 25.0},
+                                      "sonnet": {"input": 3.0, "output": 15.0}}}
+            json.dump(legacy, open(p, "w", encoding="utf-8"))
+            hist = report.record_pricing(path=p)
+            self.assertIn("claude", hist["2026-01-01"])
+            self.assertEqual(hist["2026-01-01"]["claude"]["opus"], {"input": 5.0, "output": 25.0})
+            self.assertEqual(hist["2026-01-01"]["claude"]["sonnet"], {"input": 3.0, "output": 15.0})
+            # values survive the migration unchanged, and file re-reads cleanly
+            reloaded = json.load(open(p, encoding="utf-8"))
+            self.assertEqual(reloaded["2026-01-01"]["claude"]["opus"]["input"], 5.0)
+
+    def test_norm_pricing_entry_upgrades_legacy_flat(self):
+        flat = {"opus": {"input": 5.0, "output": 25.0}, "sonnet": {"input": 3.0, "output": 15.0}}
+        normalized = report._norm_pricing_entry(flat)
+        self.assertEqual(normalized, {"claude": flat})
+
+    def test_norm_pricing_entry_leaves_nested_unchanged(self):
+        nested = {"claude": {"opus": {"input": 5.0, "output": 25.0}},
+                  "codex": {"gpt-5.3-codex": {"input": 1.75, "output": 14.0}}}
+        normalized = report._norm_pricing_entry(nested)
+        self.assertEqual(normalized, nested)
 
 
 # --------------------------------------------------------------- build_html
