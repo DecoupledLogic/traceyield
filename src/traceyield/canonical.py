@@ -22,7 +22,7 @@ raw text; the default ("structural") stores only length + sha256.
 """
 import os, glob, json, hashlib, sqlite3, datetime
 from dataclasses import dataclass
-import report   # reuse tier(), classify(), result_text(), project_of(), machine_id()
+from traceyield import report   # reuse tier(), classify(), result_text(), project_of(), machine_id()
 
 # ---------------------------------------------------------------- config
 CAPTURE = os.environ.get("TRACEYIELD_CAPTURE") or "structural"   # "structural" | "verbatim"

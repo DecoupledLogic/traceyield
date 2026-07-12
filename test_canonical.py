@@ -11,8 +11,14 @@ real ~/.claude: ClaudeProvider(root=tmp) and open_db(":memory:"). Where costs
 would be involved they aren't — the canonical store deliberately holds tokens,
 not dollars (cost stays a query-time projection).
 """
-import datetime, json, os, tempfile, unittest, warnings
-import report, canonical
+import datetime, json, os, sys, tempfile, unittest, warnings
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+SRC = os.path.join(ROOT, "src")
+if SRC not in sys.path:
+    sys.path.insert(0, SRC)
+
+from traceyield import report, canonical
 
 warnings.simplefilter("ignore", ResourceWarning)
 

@@ -11,8 +11,14 @@ features — per-session cost accumulation and the per-tier token breakdown the
 model-routing estimator consumes. Fixtures are built with hand-computable
 numbers so expected costs are checked exactly, not approximately.
 """
-import contextlib, io, json, os, re, socket, tempfile, unittest, warnings
-import report, canonical
+import contextlib, io, json, os, re, socket, sys, tempfile, unittest, warnings
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+SRC = os.path.join(ROOT, "src")
+if SRC not in sys.path:
+    sys.path.insert(0, SRC)
+
+from traceyield import report, canonical
 
 # report.py favors a terse `json.load(open(...))` idiom that leaks file handles
 # on CPython's GC schedule; that's a deliberate single-file style choice, not a
