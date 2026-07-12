@@ -677,12 +677,29 @@ def merge_sessions(newsess, path=SESSION_FILE):
     old.update(newsess)
     json.dump(old, open(path, "w", encoding="utf-8"), indent=0)
     return old
+def _norm_pricing_entry(entry):
+    """Upgrade a pricing_history.json date-entry to the provider-nested shape
+    {provider: {tier: {input, output}}}, tolerating the legacy flat shape
+    {tier: {input, output}} written before this snapshot carried a provider
+    dimension (Decision 0007 D7). An entry is legacy-flat iff any of its
+    values is itself a dict containing an "input" key -- a nested entry's
+    values are provider->tier maps, which never have "input" at that level.
+    Already-nested entries pass through unchanged (idempotent); numeric
+    values are never altered, only re-nested."""
+    if any(isinstance(v, dict) and "input" in v for v in entry.values()):
+        return {"claude": entry}
+    return entry
+
 def record_pricing(path=PRICING_FILE):
     hist = {}
     if os.path.exists(path):
         try: hist = json.load(open(path, encoding="utf-8"))
         except: hist = {}
-    hist[datetime.date.today().isoformat()] = {m:{"input":r[0],"output":r[1]} for m,r in PRICING.items()}
+    hist = {d: _norm_pricing_entry(e) for d, e in hist.items()}
+    hist[datetime.date.today().isoformat()] = {
+        provider: {m: {"input": r[0], "output": r[1]} for m, r in card.items()}
+        for provider, card in RATE_CARDS.items()
+    }
     json.dump(hist, open(path, "w", encoding="utf-8"), indent=2)
     return hist
 
@@ -1503,7 +1520,11 @@ function rebuild(keepEnd){
   const pd=Object.keys(DATA.pricing_history).sort();
   const colors={opus:"#7338FF",sonnet:"#12C99A",haiku:"#258CF8"};
   const w=880,h=200,pad=46,n=pd.length;
-  const series=["opus","sonnet","haiku"].map(m=>({m,vals:pd.map(d=>(DATA.pricing_history[d][m]||{}).input||0)}));
+  // pricing_history entries are provider-nested ({claude:{tier:{...}}}); this
+  // chart stays Claude-focused, but tolerate still-flat legacy entries too
+  // (self-healed on next `python report.py` run via record_pricing()).
+  const claudeTiers=e=>(e&&e.claude)?e.claude:(e||{});
+  const series=["opus","sonnet","haiku"].map(m=>({m,vals:pd.map(d=>(claudeTiers(DATA.pricing_history[d])[m]||{}).input||0)}));
   const mx=Math.max(1,...series.flatMap(s=>s.vals))*1.15;
   const X=i=>pad+i*(w-2*pad)/Math.max(n-1,1),Y=v=>h-pad-(v/mx)*(h-2*pad);
   let s=`<svg viewBox='0 0 ${w} ${h}' class='chart'>`;
