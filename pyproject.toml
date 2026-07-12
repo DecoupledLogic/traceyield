@@ -1,0 +1,31 @@
+# PEP 517 build configuration for the traceyield package (src layout).
+# E3-F1-S1: pyproject.toml + minimal console entry point only.
+# report.py / canonical.py are moved under src/traceyield in a later story.
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "traceyield"
+version = "0.1.0"
+description = "A self-contained usage/health dashboard for Claude Code and Codex transcripts."
+readme = "README.md"
+requires-python = ">=3.11"
+# The installed setuptools (75.1.0) predates PEP 639 SPDX license-expression
+# support, so the classifier form is used instead of `license = "Apache-2.0"`.
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+]
+# Deliberately empty: traceyield is stdlib-only, no runtime dependencies.
+dependencies = []
+
+[project.scripts]
+traceyield = "traceyield.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
