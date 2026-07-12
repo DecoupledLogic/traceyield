@@ -1023,6 +1023,29 @@ class TestBuildHtml(unittest.TestCase):
         self.assertIn('id="providerlbl"', html)
 
 
+class TestNeutralBranding(unittest.TestCase):
+    """Report copy must be provider-neutral in GLOBAL framing (E2-F5-S1); copy that
+    describes genuinely Claude-specific mechanics may remain as long as it's
+    explicitly attributed to Claude. Minimal empty inputs are fine since the
+    template copy under test is static."""
+
+    def test_header_is_neutral(self):
+        html = report.build_html({}, {}, {}, None)
+        self.assertIn("LLM Usage &amp; Health", html)
+        self.assertNotIn("Claude Code Usage", html)
+
+    def test_global_copy_generalized(self):
+        html = report.build_html({}, {}, {}, None)
+        self.assertNotIn("One Claude Code conversation", html)
+        self.assertIn("One assistant conversation", html)
+        self.assertNotIn("used Claude Code since", html)
+        self.assertIn("used a coding assistant since", html)
+
+    def test_attributed_claude_copy_preserved(self):
+        html = report.build_html({}, {}, {}, None)
+        self.assertIn("Claude Code serializes tool calls", html)
+
+
 # --------------------------------------------------------------- schema drift & coverage
 def codex_file(root, name, lines):
     os.makedirs(root, exist_ok=True)
