@@ -20,6 +20,8 @@
 
 Because every transcript line is timestamped, a single run reconstructs your **entire history** bucketed by activity date. Day / week / month aggregation happens client-side in the report, so you can step through any period and watch trends move.
 
+> **New here? Start with the [user guides](./docs/guides/).** They cover install, using the report, updating, troubleshooting, a full feature reference, and a [cost-optimization playbook](./docs/guides/07-cost-optimization-playbook.md) for cutting spend without losing capability. This README is the quick reference; the guides are the walkthrough.
+
 ```
 python report.py
 # Machine: dt-6cpyln3 -> .../machines/dt-6cpyln3
