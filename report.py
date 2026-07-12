@@ -1122,9 +1122,9 @@ def main():
 # ---------------------------------------------------------------- template
 HTML_TMPL = r"""<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TraceYield — Usage Report</title>
+<title>TraceYield: Usage Report</title>
 <style>
-/* TraceYield design system — brand tokens (see design-system/tokens.css). Swap these to retheme. */
+/* TraceYield design system: brand tokens (see design-system/tokens.css). Swap these to retheme. */
 :root{--bg:#0B1220;--panel:#141B2B;--panel2:#1B2436;--ink:#E8ECF3;--mut:#94A0B4;--line:#263149;--accent:#12C99A;--accent-contrast:#04140F;
 --grad:linear-gradient(120deg,#05B98A,#10B7D8 42%,#258CF8 70%,#7338FF);
 --c1:#12C99A;--c2:#258CF8;--c3:#7338FF;--c4:#10B7D8;--c5:#F0A35E;--c6:#E5709B;}
@@ -1180,7 +1180,7 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 .hrow ul{margin:6px 0 0;padding-left:20px} .hrow li{margin:3px 0}
 </style></head><body><div class="wrap">
 <div class="brand"><span class="mk"><svg viewBox="0 0 1254 1254" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="tym" x1="300" y1="280" x2="900" y2="985" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#05b98a"/><stop offset="0.46" stop-color="#10b7d8"/><stop offset="0.72" stop-color="#258cf8"/><stop offset="1" stop-color="#7338ff"/></linearGradient></defs><path d="M627 228 L952 424 L952 806 L627 1002 L301 806 L301 424 Z" fill="none" stroke="url(#tym)" stroke-width="70" stroke-linecap="round" stroke-linejoin="round"/><g fill="url(#tym)"><rect x="432" y="603" width="77" height="165" rx="38.5"/><rect x="587" y="452" width="77" height="316" rx="38.5"/><rect x="741" y="571" width="77" height="197" rx="38.5"/></g></svg></span>
-<h1>Trace<span class="wm">Yield</span> <span class="ttl">— LLM Usage &amp; Health</span></h1></div>
+<h1>Trace<span class="wm">Yield</span> <span class="ttl">LLM Usage &amp; Health</span></h1></div>
 <div class="sub" id="sub"></div>
 
 <div class="controls">
@@ -1221,18 +1221,18 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 <h2>Trend <span class="hint" id="trendhint"></span></h2>
 <div class="panel" id="trend"></div>
 
-<h2>Selected period — breakdown</h2>
+<h2>Selected period: breakdown</h2>
 <div class="two">
   <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by project</div><div id="byproj"></div></div>
   <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by model tier</div><div id="bymodel"></div></div>
 </div>
 <div class="two">
-  <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by provider</div><div class="hint" style="margin-bottom:10px">Dollar totals are a <b>projection</b> at current per-provider rate cards &mdash; Codex has no rate card yet, so its tokens count at $0 here. Compare by tokens (neutral currency) for a pricing-independent view.</div><div id="byprovider"></div></div>
-  <div class="panel"><div class="muted" style="margin-bottom:10px">Tokens by provider <span class="hint">&mdash; neutral currency, pricing-independent</span></div><div id="tokprovider"></div></div>
+  <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by provider</div><div class="hint" style="margin-bottom:10px">Dollar totals are a <b>projection</b> at current per-provider rate cards: Codex has no rate card yet, so its tokens count at $0 here. Compare by tokens (neutral currency) for a pricing-independent view.</div><div id="byprovider"></div></div>
+  <div class="panel"><div class="muted" style="margin-bottom:10px">Tokens by provider <span class="hint">(neutral currency, pricing-independent)</span></div><div id="tokprovider"></div></div>
 </div>
 <div class="panel" id="routepanel">
   <div class="muted" style="margin-bottom:6px">Model-routing savings estimate <span class="hint" id="routehint"></span></div>
-  <div class="hint" style="margin-bottom:12px">Recomputes this period&rsquo;s <b>Opus</b> token usage at a cheaper tier&rsquo;s rates &mdash; the savings from routing routine work with <span class="mono">/model</span>. Assume <input id="routeshare" type="number" value="30" min="0" max="100" step="5">% of Opus is safely routable to <select id="routetier"><option value="sonnet">Sonnet</option><option value="haiku">Haiku</option></select>. Upper bound &mdash; keep quality-sensitive work on Opus.</div>
+  <div class="hint" style="margin-bottom:12px">Recomputes this period&rsquo;s <b>Opus</b> token usage at a cheaper tier&rsquo;s rates: the savings from routing routine work with <span class="mono">/model</span>. Assume <input id="routeshare" type="number" value="30" min="0" max="100" step="5">% of Opus is safely routable to <select id="routetier"><option value="sonnet">Sonnet</option><option value="haiku">Haiku</option></select>. Upper bound; keep quality-sensitive work on Opus.</div>
   <div id="routeout"></div>
 </div>
 <div class="panel"><div class="muted" style="margin-bottom:10px">Token composition</div><div id="comp"></div></div>
@@ -1240,18 +1240,18 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 
 <h2>Tokens &amp; cost per tool <span class="hint" id="waste"></span></h2>
 <div class="panel">
-<div class="hint" style="margin-bottom:8px">Full turn cost attributed to its single tool — Claude Code serializes tool calls, so this is <b>exact</b> for tool turns (input/cache can't be split further until a custom harness logs per-tool usage). <b>Est. waste</b> = errors &times; avg cost/call &times; retry factor <input id="retry" type="number" value="1" min="0" step="0.5"> (assumed extra turns per error).</div>
+<div class="hint" style="margin-bottom:8px">Full turn cost attributed to its single tool: Claude Code serializes tool calls, so this is <b>exact</b> for tool turns (input/cache can't be split further until a custom harness logs per-tool usage). <b>Est. waste</b> = errors &times; avg cost/call &times; retry factor <input id="retry" type="number" value="1" min="0" step="0.5"> (assumed extra turns per error).</div>
 <table><thead><tr><th>Tool</th><th class="num">Calls</th><th class="num">Output tok</th><th class="num">Cost</th><th class="num">Errors</th><th class="num">Err rate</th><th class="num">Est. waste</th></tr></thead><tbody id="tooltbody"></tbody></table>
 </div>
 
-<h2>Selected period — errors &amp; fixes</h2>
+<h2>Selected period: errors &amp; fixes</h2>
 <div class="panel"><table><thead><tr><th>Pattern</th><th class="num">Count</th><th class="num">Share</th><th>Suggested fix</th></tr></thead><tbody id="errtbody"></tbody></table></div>
 
-<h2>Top sessions by cost <span class="hint">&mdash; all time &middot; catch runaway conversations</span></h2>
+<h2>Top sessions by cost <span class="hint">(all time &middot; catch runaway conversations)</span></h2>
 <div class="panel">
 <table><thead><tr><th>Session</th><th>Project</th><th>Span</th><th class="num">Turns</th><th class="num">Tokens</th><th class="num">Cost</th><th class="num">Err rate</th><th>Tier mix ($)</th></tr></thead>
 <tbody id="sesstbody"></tbody></table>
-<div class="muted" style="margin-top:8px">A session is one conversation (distinct sessionId), summed across every day it touched. Top 50 by cost. A single session far above the rest usually means a long, uncleared context re-read every turn &mdash; <span class="mono">/clear</span> between tasks.</div>
+<div class="muted" style="margin-top:8px">A session is one conversation (distinct sessionId), summed across every day it touched. Top 50 by cost. A single session far above the rest usually means a long, uncleared context re-read every turn: <span class="mono">/clear</span> between tasks.</div>
 </div>
 
 <h2>Model pricing (tracked daily)</h2>
@@ -1263,19 +1263,19 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 
 <h2>How to read this report</h2>
 <div class="panel doc">
-<h3>Where the money goes — the five token line-items</h3>
+<h3>Where the money goes: the five token line-items</h3>
 <p>Each request re-sends the whole conversation so far. To avoid re-billing all of it at full price, the API <b>caches</b> a stable prefix of the prompt. Your tokens split into five lines, each a multiple of the model's base <b>input</b> price:</p>
 <dl>
 <dt>Fresh input <span class="mono">1&times;</span></dt><dd>Brand-new tokens the model reads for the first time (a newly opened file, your latest message). Full input price.</dd>
-<dt>Cache write &mdash; 5&nbsp;min <span class="mono">1.25&times;</span></dt><dd>Storing a chunk in the cache the first time costs a 25% premium. It stays reusable for 5 minutes.</dd>
-<dt>Cache write &mdash; 1&nbsp;hour <span class="mono">2&times;</span></dt><dd>Same, kept for an hour &mdash; double the input price to write. Claude Code uses 1h caching, which is why this line is large.</dd>
-<dt>Cache read <span class="mono">0.1&times;</span></dt><dd>Reading tokens already in the cache costs a tenth of input price. This is the payoff of caching &mdash; but because your ~154K-token context is re-read on <em>every</em> turn, it&rsquo;s still your single biggest cost line by volume.</dd>
+<dt>Cache write: 5&nbsp;min <span class="mono">1.25&times;</span></dt><dd>Storing a chunk in the cache the first time costs a 25% premium. It stays reusable for 5 minutes.</dd>
+<dt>Cache write: 1&nbsp;hour <span class="mono">2&times;</span></dt><dd>Same, kept for an hour: double the input price to write. Claude Code uses 1h caching, which is why this line is large.</dd>
+<dt>Cache read <span class="mono">0.1&times;</span></dt><dd>Reading tokens already in the cache costs a tenth of input price. This is the payoff of caching, but because your ~154K-token context is re-read on <em>every</em> turn, it&rsquo;s still your single biggest cost line by volume.</dd>
 <dt>Output <span class="mono">output rate</span></dt><dd>Tokens the model generates (its reply + tool calls), billed at the separate, higher output price (Opus $25/1M).</dd>
 </dl>
 <p class="muted">A cached token you reuse costs ~8% of writing it fresh at 1h TTL (0.1 vs 1.25), so caching pays off after ~2 reuses. The risk is <b>invalidation</b>: editing a file or changing tools near the front of the prompt forces an expensive re-write of everything after it.</p>
 <h3>How to use it to improve</h3>
 <ul>
-<li><b>Right-size the model.</b> For Claude usage, ~98% of spend is Opus. Route routine work (reading, simple edits, exploration) to Sonnet with <span class="mono">/model</span> &mdash; cheaper input and 0.1&times; cache reads at $0.20 vs $0.50.</li>
+<li><b>Right-size the model.</b> For Claude usage, ~98% of spend is Opus. Route routine work (reading, simple edits, exploration) to Sonnet with <span class="mono">/model</span>: cheaper input and 0.1&times; cache reads at $0.20 vs $0.50.</li>
 <li><b>Keep context small.</b> Cost &asymp; context size &times; turns; the ~154K/turn re-read is the engine. <span class="mono">/clear</span> between tasks so each turn re-reads less.</li>
 <li><b>Cut errors = cut wasted turns.</b> Each tool error &asymp; one extra turn that re-reads the full context. The per-tool panel&rsquo;s <b>Est. waste</b> column puts a dollar figure on it. Top offenders: Windows shell errors (use PowerShell for Windows commands) and Write/Edit-before-Read (Read first).</li>
 <li><b>Watch the trend, not the day.</b> Switch to Week/Month and step with &larr;/&rarr; to see whether cost-per-turn and error rate improve after a change.</li>
@@ -1287,9 +1287,9 @@ input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid va
 <dt>Tool error rate</dt><dd>Share of tool results returned as errors. Lower is better.</dd>
 <dt>Est. waste</dt><dd>Modeled error cost = errors &times; avg cost/call &times; retry factor. Cost/call is exact; the retry factor (how many extra turns an error triggers) is your tunable assumption.</dd>
 <dt>vs prev</dt><dd>Change from the previous period at the current granularity.</dd>
-<dt>Top sessions</dt><dd>Highest-cost individual conversations across all history. A single session far above the rest is a runaway context &mdash; the cheapest thing to fix.</dd>
+<dt>Top sessions</dt><dd>Highest-cost individual conversations across all history. A single session far above the rest is a runaway context: the cheapest thing to fix.</dd>
 <dt>Routing estimate</dt><dd>This period&rsquo;s Opus tokens recosted at Sonnet/Haiku rates, scaled by your routable-share assumption. An upper bound on <span class="mono">/model</span> savings, not a promise.</dd>
-<dt>Neutral currency (tokens) vs. dollar projection</dt><dd>Tokens are pricing-independent ground truth, so they&rsquo;re the honest way to compare providers. A combined dollar total across providers is a <b>projection</b> &mdash; it only means what each provider&rsquo;s per-provider rate card says, and a provider with no rate card (e.g. Codex today) shows $0 there even though it used real tokens.</dd>
+<dt>Neutral currency (tokens) vs. dollar projection</dt><dd>Tokens are pricing-independent ground truth, so they&rsquo;re the honest way to compare providers. A combined dollar total across providers is a <b>projection</b>: it only means what each provider&rsquo;s per-provider rate card says, and a provider with no rate card (e.g. Codex today) shows $0 there even though it used real tokens.</dd>
 </dl>
 </div>
 
@@ -1443,7 +1443,7 @@ function render(){
   ].join("");
   $("#sub").innerHTML=`Generated ${esc(DATA.generated)} · ${dayKeys.length} active days (${dayKeys[0]} → ${dayKeys[dayKeys.length-1]}) · viewing <b>${cur.label}</b>${range}`;
   // trend
-  $("#trendhint").textContent="— "+M.label+" by "+state.gran+" · click a point or use ← →";
+  $("#trendhint").textContent=M.label+" by "+state.gran+" · click a point or use ← →";
   $("#trend").innerHTML=svgLine(P.map(p=>p.label),P.map(M.f),M.fmt,i,"#12C99A");
   // breakdowns
   $("#byproj").innerHTML=hbars(Object.entries(cur.by_project).map(([p,d])=>[clean(p),d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#258CF8");
@@ -1460,9 +1460,9 @@ function render(){
   $("#tooltbody").innerHTML=trows.map(([t,v])=>{
     const per=v.calls?v.cost/v.calls:0, w=v.err*per*rfac; waste+=w;
     const er=v.calls?v.err/v.calls*100:0;
-    return `<tr><td>${esc(t)}</td><td class='num'>${v.calls?fmtInt(v.calls):"—"}</td><td class='num'>${fmtTok(v.out)}</td><td class='num'>${fmtUSD(v.cost)}</td><td class='num'>${v.err||""}</td><td class='num'>${v.calls&&v.err?er.toFixed(1)+"%":""}</td><td class='num'>${w?fmtUSD(w):""}</td></tr>`;
+    return `<tr><td>${esc(t)}</td><td class='num'>${v.calls?fmtInt(v.calls):"-"}</td><td class='num'>${fmtTok(v.out)}</td><td class='num'>${fmtUSD(v.cost)}</td><td class='num'>${v.err||""}</td><td class='num'>${v.calls&&v.err?er.toFixed(1)+"%":""}</td><td class='num'>${w?fmtUSD(w):""}</td></tr>`;
   }).join("");
-  $("#waste").textContent=waste?`— ≈ ${fmtUSD(waste)} wasted on errors this period (retry ×${rfac})`:"";
+  $("#waste").textContent=waste?`≈ ${fmtUSD(waste)} wasted on errors this period (retry ×${rfac})`:"";
   // errors
   const te=Object.values(cur.errors).reduce((a,b)=>a+b,0)||1;
   $("#errtbody").innerHTML=Object.entries(cur.errors).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{
@@ -1494,7 +1494,7 @@ function renderRoute(cur){
     card("Savings @ "+Math.round(share*100)+"%",fmtUSD(sav),"routed to "+tier,"down"),
     card("New period total",fmtUSD(newTotal),"was "+fmtUSD(cur.cost)),
   ].join("")+"</div>";
-  hint.textContent="— "+tier+" input $"+rates.input.toFixed(2)+"/1M vs Opus $"+DATA.pricing.opus.input.toFixed(2)+"/1M";
+  hint.textContent=tier+" input $"+rates.input.toFixed(2)+"/1M vs Opus $"+DATA.pricing.opus.input.toFixed(2)+"/1M";
 }
 
 // ---- data health (schema drift + coverage; period-independent) ----
@@ -1506,13 +1506,13 @@ function renderHealth(){
   const stale=(cov.days_since_last_active||0)>1;
   const warn=(C.drift&&C.drift.length)||(X.drift&&X.drift.length)||susp.length||stale;
   const driftRow=(name,d)=> (d&&d.length)
-    ? `<div class="hrow warn"><b>${name} schema drift (${d.length})</b> — confirm, then update <span class="mono">SCHEMA_EXPECT</span> / <span class="mono">tier()</span> in report.py<ul>${d.map(x=>`<li class="mono">${esc(x)}</li>`).join("")}</ul></div>`
-    : `<div class="hrow ok">${name} schema OK <span class="hint">(${(d==null?"—":"no new fields, models, or block types")})</span></div>`;
+    ? `<div class="hrow warn"><b>${name} schema drift (${d.length})</b>: confirm, then update <span class="mono">SCHEMA_EXPECT</span> / <span class="mono">tier()</span> in report.py<ul>${d.map(x=>`<li class="mono">${esc(x)}</li>`).join("")}</ul></div>`
+    : `<div class="hrow ok">${name} schema OK <span class="hint">(${(d==null?"-":"no new fields, models, or block types")})</span></div>`;
   let h=`<div class="hhdr"><span class="hpill ${warn?"warn":"ok"}">${warn?"Needs review":"All clear"}</span><span class="hint">schema drift &amp; coverage, checked every run · generated ${esc(H.generated||"")}</span></div>`;
   h+=driftRow("Claude",C.drift);
-  if(stale) h+=`<div class="hrow warn"><b>Stale:</b> no recorded usage for ${cov.days_since_last_active} day(s) — last active ${esc(cov.last||"?")}. If you used a coding assistant since, a run or parse is failing.</div>`;
-  if(susp.length) h+=`<div class="hrow warn"><b>${susp.length} suspicious data hole(s)</b> — had activity but nothing was recorded:<ul>${susp.slice(0,25).map(s=>`<li><b>${esc(s.date)}</b> — ${esc(s.reason)}</li>`).join("")}</ul></div>`;
-  h+=`<div class="hrow ok">Coverage: <b>${cov.active_days||0}</b> active days (${esc(cov.first||"?")} → ${esc(cov.last||"?")}) · <b>${gaps.length}</b> calendar gap day(s) with no usage${gaps.length?` <span class="hint">(${esc(gaps.slice(-10).join(", "))}${gaps.length>10?" …":""})</span>`:""}. <span class="hint">Idle days are normal — the flagged holes above are the ones to check.</span></div>`;
+  if(stale) h+=`<div class="hrow warn"><b>Stale:</b> no recorded usage for ${cov.days_since_last_active} day(s), last active ${esc(cov.last||"?")}. If you used a coding assistant since, a run or parse is failing.</div>`;
+  if(susp.length) h+=`<div class="hrow warn"><b>${susp.length} suspicious data hole(s)</b>: had activity but nothing was recorded:<ul>${susp.slice(0,25).map(s=>`<li><b>${esc(s.date)}</b>: ${esc(s.reason)}</li>`).join("")}</ul></div>`;
+  h+=`<div class="hrow ok">Coverage: <b>${cov.active_days||0}</b> active days (${esc(cov.first||"?")} → ${esc(cov.last||"?")}) · <b>${gaps.length}</b> calendar gap day(s) with no usage${gaps.length?` <span class="hint">(${esc(gaps.slice(-10).join(", "))}${gaps.length>10?" …":""})</span>`:""}. <span class="hint">Idle days are normal: the flagged holes above are the ones to check.</span></div>`;
   h+=driftRow("Codex",X.drift);
   const xs=X.scan||{}, xf=xs.flags||{};
   if(xs.files!=null) h+=`<div class="hrow ok">Codex fingerprint (no cost model yet): <b>${xs.files}</b> session files, ${fmtInt(xs.lines||0)} lines · ${xf.files_without_usage||0}/${xf.files_with_activity||0} active sessions carried <b>no</b> token_count (would cost $0)${(xs.unknown_models&&xs.unknown_models.length)?` · unmapped models: <span class="mono">${esc(xs.unknown_models.join(", "))}</span>`:""}.</div>`;
@@ -1530,7 +1530,7 @@ function renderSessions(){
     const mix=Object.entries(s.by_model||{}).sort((a,b)=>b[1]-a[1]).map(([t,c])=>t+" "+fmtUSD(c)).join(", ");
     return `<tr><td class='mono'>${esc((s.id||"").slice(0,8))}</td><td class='hlabel'>${esc(clean(s.project||"(root)"))}</td>`+
       `<td class='mono'>${esc(span)}</td><td class='num'>${fmtInt(s.msgs)}</td><td class='num'>${fmtTok(tok)}</td>`+
-      `<td class='num'>${fmtUSD(s.cost)}</td><td class='num'>${s.tool_results?er.toFixed(1)+"%":"—"}</td><td>${esc(mix)}</td></tr>`;
+      `<td class='num'>${fmtUSD(s.cost)}</td><td class='num'>${s.tool_results?er.toFixed(1)+"%":"-"}</td><td>${esc(mix)}</td></tr>`;
   }).join("");
 }
 
