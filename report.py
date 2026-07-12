@@ -72,15 +72,32 @@ PRICING = {
 # API — the Models API returns capabilities but no rates — so this doc page is
 # the authoritative live source for the drift check.
 PRICING_URL = "https://platform.claude.com/docs/en/docs/about-claude/pricing.md"
+# Codex (OpenAI) per-1M-token rates for the tiers OpenAI currently prices.
+# Hand-verified 2026-07-12 (checked twice) against OpenAI's published pricing
+# page: https://developers.openai.com/api/docs/pricing -- same "authoritative,
+# re-verified, never auto-overwritten" posture as PRICING above (Decision 0007
+# D5). gpt-5 and gpt-5-codex are INTENTIONALLY OMITTED: they're no longer
+# listed on OpenAI's pricing page, so they stay unpriced and count volume
+# (tokens/msgs) at $0 rather than guessing a rate (Decision 0007 D3,
+# "volume-always / dollars-when-priced").
+CODEX_PRICING = {
+    "gpt-5.3-codex": (1.75, 14.00),
+    "gpt-5.5":       (5.00, 30.00),
+    "gpt-5.5-pro":   (30.00, 180.00),
+}
 # Per-provider cache multipliers (fractions of that provider's input rate).
-# Only claude is priced today; other providers can add an entry here without
-# touching the flat PRICING table above.
-CACHE = {"claude": {"read": 0.10, "w5m": 1.25, "w1h": 2.0}}
+# Claude: read=0.1x, write-5m=1.25x, write-1h=2x (see PRICING comment above).
+# Codex: read=0.1x only (verified 0.175/1.75 == 0.50/5.00 == 0.10 on OpenAI's
+# pricing page, same date/source as CODEX_PRICING) -- OpenAI has no cache-write
+# premium, so there are deliberately no w5m/w1h keys here; cost_of()'s
+# `.get(..., 0.0)` defaults make Codex cache-write tokens contribute $0.
+CACHE = {"claude": {"read": 0.10, "w5m": 1.25, "w1h": 2.0},
+         "codex":  {"read": 0.10}}
 # Per-provider rate card: provider -> tier -> (input, output) per 1M tokens.
 # Claude's card references the existing flat PRICING dict so there's one
 # source of truth -- this is NOT a replacement for PRICING, just a lookup
 # layer around it so other providers can register their own tier maps.
-RATE_CARDS = {"claude": PRICING}
+RATE_CARDS = {"claude": PRICING, "codex": CODEX_PRICING}
 def rate_card(provider, tier):
     """(input, output) per-1M rate for provider+tier, or None if either is unpriced."""
     return RATE_CARDS.get(provider, {}).get(tier)
