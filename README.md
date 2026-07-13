@@ -6,8 +6,6 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/python-3.x-3776AB?logo=python&logoColor=white" alt="Python 3.x">
-  <img src="https://img.shields.io/badge/dependencies-none%20(stdlib)-2ea44f" alt="No dependencies: stdlib only">
   <img src="https://img.shields.io/badge/tests-unittest%20%7C%20pytest-blue" alt="Tests: unittest / pytest">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Platform: Windows | macOS | Linux">
 </p>
@@ -16,7 +14,7 @@
 
 **TraceYield** is a closed-loop discipline for managing the **cost and efficacy of LLM interactions**: FinOps, but for coding-agent spend. The token is its unit of account, but the thing it manages is the *interaction*: prompt, reasoning, response. It runs a loop over that material, **describe → diagnose → predict → prescribe → remediate**, so a team gets steadily cheaper *and* more effective at using coding agents over time. See [`docs/traceyield-framework.md`](./docs/traceyield-framework.md) for the full framework.
 
-**traceyield** (lowercase, this repo) is the reference tool that implements it. Today it parses your local [Claude Code](https://claude.com/claude-code) transcripts and produces a **self-contained, interactive HTML dashboard**, no server, no build step, no dependencies (Python stdlib only), covering the **describe** and **diagnose** rungs of the ladder, with a first **prescribe** lever (routing-savings estimator) shipped.
+**traceyield** (lowercase, this repo) is the reference tool that implements it. Today it parses your local [Claude Code](https://claude.com/claude-code) transcripts and produces a **self-contained, interactive HTML dashboard** that runs entirely on your machine, no server, covering the **describe** and **diagnose** rungs of the ladder, with a first **prescribe** lever (routing-savings estimator) shipped.
 
 Because every transcript line is timestamped, a single run reconstructs your **entire history** bucketed by activity date. Day / week / month aggregation happens client-side in the report, so you can step through any period and watch trends move.
 
@@ -53,7 +51,7 @@ The report has a built-in **"How to read this report"** section explaining the t
 
 ## Install & run
 
-Requires Python 3 (stdlib only, nothing to `pip install`).
+Requires Python 3.
 
 ```bash
 git clone https://github.com/DecoupledLogic/traceyield.git
@@ -82,7 +80,7 @@ Each run:
 3. **Records** today's model pricing into the shared `pricing_history.json` at the repo root.
 4. **Emits** `report.html`: the full dataset is inlined into a single self-contained file.
 
-Everything lives in one file, `report.py`: config, parser, persistence, and the entire HTML/CSS/JS template.
+The tool is organized as a small package under `src/traceyield/`: config, parser, persistence, and the HTML/CSS/JS template, with `report.py` as the entry point.
 
 ### Pricing
 
@@ -90,7 +88,7 @@ Base per-1M-token rates live in the `PRICING` dict at the top of `report.py`. Ed
 
 ## Tests
 
-Stdlib `unittest`, no dependencies:
+Run the test suite:
 
 ```bash
 python -m unittest discover -s tests    # or: python -m pytest tests -q

@@ -58,8 +58,8 @@ It renders whatever tier and project keys exist. That's the leverage.
 
 ## Recommended architecture: a provider seam
 
-Keep the single-file, stdlib-only, offline character. Introduce a light notion
-of **provider** rather than forking the script.
+Keep the offline, local, self-contained character. Introduce a light notion
+of **provider** rather than forking the parser.
 
 ### 1. Provider-scoped config
 

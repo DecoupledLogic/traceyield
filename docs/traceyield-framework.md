@@ -125,7 +125,7 @@ quantifiable expected impact:
 ## 3. The tool: `traceyield`
 
 `traceyield` is the reference implementation of the framework in this repo. It is a
-single-file, stdlib-only Python tool today, growing along the ladder.
+self-contained, offline tool today, growing along the ladder.
 
 ### 3.1 What it is today
 
