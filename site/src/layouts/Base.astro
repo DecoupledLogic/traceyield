@@ -6,9 +6,12 @@ interface Props {
   description?: string;
 }
 const { title, description = 'Token-spend and health analytics for LLM coding assistants.' } = Astro.props;
+// import.meta.env.BASE_URL reflects `base` in astro.config (e.g. "/traceyield/"),
+// with a trailing slash, so links stay correct under the project Pages subpath.
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const nav = [
-  { href: '/', label: 'Home' },
-  { href: '/docs/overview', label: 'Docs' },
+  { href: base, label: 'Home' },
+  { href: `${base}docs/overview`, label: 'Docs' },
 ];
 const path = Astro.url.pathname;
 ---
@@ -19,7 +22,7 @@ const path = Astro.url.pathname;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="icon" type="image/svg+xml" href="/brand/mark.svg" />
+    <link rel="icon" type="image/svg+xml" href={`${base}brand/mark.svg`} />
     <link
       rel="preconnect"
       href="https://fonts.googleapis.com"
@@ -37,13 +40,13 @@ const path = Astro.url.pathname;
   <body>
     <header class="site-header">
       <div class="wrap">
-        <a class="brand" href="/">
-          <img class="logo-dark" src="/brand/logo-mark-dark.svg" alt="TraceYield" />
-          <img class="logo-light" src="/brand/logo-mark-light.svg" alt="TraceYield" />
+        <a class="brand" href={base}>
+          <img class="logo-dark" src={`${base}brand/logo-mark-dark.svg`} alt="TraceYield" />
+          <img class="logo-light" src={`${base}brand/logo-mark-light.svg`} alt="TraceYield" />
         </a>
         <nav class="nav">
           {nav.map((n) => (
-            <a href={n.href} aria-current={path === n.href || (n.href !== '/' && path.startsWith(n.href)) ? 'page' : undefined}>
+            <a href={n.href} aria-current={path === n.href || (n.href !== base && path.startsWith(n.href)) ? 'page' : undefined}>
               {n.label}
             </a>
           ))}
@@ -73,8 +76,8 @@ const path = Astro.url.pathname;
       <div class="pad"><div id="search"></div></div>
     </dialog>
 
-    <link rel="stylesheet" href="/pagefind/pagefind-ui.css" />
-    <script is:inline>
+    <link rel="stylesheet" href={`${base}pagefind/pagefind-ui.css`} />
+    <script is:inline define:vars={{ base }}>
       // Theme toggle (dark <-> light), persisted.
       document.getElementById('theme-toggle')?.addEventListener('click', function () {
         var cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
@@ -90,7 +93,7 @@ const path = Astro.url.pathname;
         if (!built) {
           built = true;
           var s = document.createElement('script');
-          s.src = '/pagefind/pagefind-ui.js';
+          s.src = base + 'pagefind/pagefind-ui.js';
           s.onload = function () {
             new window.PagefindUI({ element: '#search', showSubResults: true, showImages: false });
           };

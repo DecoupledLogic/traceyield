@@ -12,6 +12,7 @@
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { flatDocs } from './src/docs-nav.mjs';
+import { BASE } from './base.config.mjs';
 
 const SITE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SITE_DIR, '..');
@@ -46,7 +47,7 @@ export default function remarkDocLinks() {
       const suffix = hash ? `#${hash}` : '';
       const id = idOf(targetAbs);
       node.url = ID_TO_SLUG.has(id)
-        ? `/docs/${ID_TO_SLUG.get(id)}${suffix}`
+        ? `${BASE}/docs/${ID_TO_SLUG.get(id)}${suffix}`
         : `${GH_BLOB}/${repoRelOf(targetAbs)}${suffix}`;
     });
   };

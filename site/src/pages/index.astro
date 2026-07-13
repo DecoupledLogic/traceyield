@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const features = [
   { title: 'Daily time-series', body: 'Cost, tokens, turns, sessions, and tool-error rate bucketed by activity date, with day / week / month views and deltas.' },
   { title: 'Per-session cost', body: 'Sessions accumulated across every date they touch, so one runaway conversation surfaces instead of hiding in a daily average.' },
@@ -21,7 +22,7 @@ const features = [
         taxonomy, and model-routing savings. Single-file Python, zero runtime dependencies.
       </p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="/docs/overview">Read the docs</a>
+        <a class="btn btn-primary" href={`${base}docs/overview`}>Read the docs</a>
         <a class="btn btn-ghost" href="https://github.com/DecoupledLogic/traceyield">View on GitHub</a>
       </div>
     </div>
