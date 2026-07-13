@@ -1,0 +1,517 @@
+#!/usr/bin/env python3
+"""
+Presentation: the HTML_TMPL template and build_html(), which inlines the run
+payload into it via the __PAYLOAD__ / __PRICEROWS__ markers. No file I/O of
+its own -- report.main() writes the returned string to OUT_HTML.
+"""
+import datetime, json
+from traceyield import classification, pricing
+from traceyield.aggregation import top_sessions
+from traceyield.health import _slim_health
+
+PRICING = pricing.PRICING
+cache_rates = pricing.cache_rates
+ERROR_META = classification.ERROR_META
+
+def build_html(days, sessions, pricing_hist, health=None):
+    price_rows = []
+    for mdl in ("opus","sonnet","haiku"):
+        i,o = PRICING[mdl]; cr = cache_rates(i)
+        price_rows.append(f"<tr><td>{mdl}</td><td class='num'>${i:.2f}</td><td class='num'>${o:.2f}</td>"
+                          f"<td class='num'>${cr['read']:.2f}</td><td class='num'>${cr['w5m']:.2f}</td><td class='num'>${cr['w1h']:.2f}</td></tr>")
+    payload = json.dumps({
+        "generated": datetime.datetime.now().isoformat(timespec="seconds"),
+        "days": days,
+        "sessions": top_sessions(sessions),
+        "pricing": {m:{"input":r[0],"output":r[1]} for m,r in PRICING.items()},
+        "meta": ERROR_META,
+        "pricing_history": pricing_hist,
+        "health": _slim_health(health),
+    })
+    tmpl = HTML_TMPL
+    tmpl = tmpl.replace("__PAYLOAD__", payload)
+    tmpl = tmpl.replace("__PRICEROWS__", "".join(price_rows))
+    return tmpl
+
+# ---------------------------------------------------------------- template
+HTML_TMPL = r"""<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TraceYield: Usage Report</title>
+<style>
+/* TraceYield design system: brand tokens (see design-system/tokens.css). Swap these to retheme. */
+:root{--bg:#0B1220;--panel:#141B2B;--panel2:#1B2436;--ink:#E8ECF3;--mut:#94A0B4;--line:#263149;--accent:#12C99A;--accent-contrast:#04140F;
+--grad:linear-gradient(120deg,#05B98A,#10B7D8 42%,#258CF8 70%,#7338FF);
+--c1:#12C99A;--c2:#258CF8;--c3:#7338FF;--c4:#10B7D8;--c5:#F0A35E;--c6:#E5709B;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:28px 20px 90px}
+h1{font-size:25px;margin:0 0 4px} h2{font-size:17px;margin:30px 0 10px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.brand .mk{width:34px;height:34px;flex:none} .brand h1{margin:0}
+.brand .wm{color:var(--accent)} .brand .ttl{color:var(--mut);font-weight:500;font-size:18px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:20px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;position:sticky;top:0;z-index:5}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{background:transparent;color:var(--mut);border:0;padding:7px 14px;font-size:13px;cursor:pointer}
+.seg button.on{background:var(--accent);color:var(--accent-contrast);font-weight:600}
+select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px}
+.stepper{display:inline-flex;align-items:center;gap:8px;margin-left:auto}
+.stepper button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;width:34px;height:34px;font-size:16px;cursor:pointer}
+.stepper button:disabled{opacity:.35;cursor:default} .pname{font-weight:600;min-width:150px;text-align:center}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px}
+.klabel{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.kval{font-size:24px;font-weight:650;margin-top:5px} .delta{font-size:12px;margin-top:5px}
+.delta.up{color:#F0A35E} .delta.down{color:#34D399} .delta.flat{color:var(--mut)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:12px;overflow-x:auto}
+.chart{width:100%;height:auto} .grid{stroke:var(--line);stroke-width:1}
+.ytick{fill:var(--mut);font-size:10px;text-anchor:end} .xtick{fill:var(--mut);font-size:10px;text-anchor:middle}
+.dot{cursor:pointer} .legend{margin-top:8px;display:flex;flex-wrap:wrap;gap:14px}
+.leg{font-size:12px;color:var(--mut);display:flex;align-items:center;gap:6px} .leg i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.hbars{display:flex;flex-direction:column;gap:7px}
+.hbar{display:grid;grid-template-columns:160px 1fr 78px;align-items:center;gap:10px;font-size:13px}
+.hlabel{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.htrack{background:var(--panel2);border-radius:5px;height:15px;overflow:hidden}
+.hfill{display:block;height:100%;border-radius:5px} .hval{color:var(--mut);text-align:right;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.muted{color:var(--mut)} .mono{font-family:ui-monospace,Consolas,monospace;font-size:11px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:680px){.two{grid-template-columns:1fr}.hbar{grid-template-columns:110px 1fr 64px}}
+.foot{color:var(--mut);font-size:12px;margin-top:36px;border-top:1px solid var(--line);padding-top:16px}
+.hint{color:var(--mut);font-size:12px}
+input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:3px 6px;width:56px;font-size:12px}
+.doc h3{font-size:15px;margin:18px 0 8px;color:var(--ink)} .doc h3:first-child{margin-top:0}
+.doc dl{margin:0} .doc dt{font-weight:600;margin-top:11px} .doc dd{margin:2px 0 0;color:var(--mut)}
+.doc dt .mono{color:var(--accent);margin-left:4px} .doc ul{margin:6px 0 0;padding-left:20px} .doc li{margin:7px 0}
+.doc p{margin:8px 0}
+#health{margin-top:14px} .hhdr{margin-bottom:4px;font-size:15px}
+.hpill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-right:8px;vertical-align:middle}
+.hpill.ok{background:#062A20;color:#6EE7B7} .hpill.warn{background:#2E1D0A;color:#FBBF6E}
+.hrow{font-size:13px;padding:8px 0;border-top:1px solid var(--line)} .hrow:first-of-type{border-top:0}
+.hrow.warn{color:#FBBF6E} .hrow.ok{color:var(--mut)} .hrow b{color:var(--ink)}
+.hrow ul{margin:6px 0 0;padding-left:20px} .hrow li{margin:3px 0}
+</style></head><body><div class="wrap">
+<div class="brand"><span class="mk"><svg viewBox="0 0 1254 1254" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="tym" x1="300" y1="280" x2="900" y2="985" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#05b98a"/><stop offset="0.46" stop-color="#10b7d8"/><stop offset="0.72" stop-color="#258cf8"/><stop offset="1" stop-color="#7338ff"/></linearGradient></defs><path d="M627 228 L952 424 L952 806 L627 1002 L301 806 L301 424 Z" fill="none" stroke="url(#tym)" stroke-width="70" stroke-linecap="round" stroke-linejoin="round"/><g fill="url(#tym)"><rect x="432" y="603" width="77" height="165" rx="38.5"/><rect x="587" y="452" width="77" height="316" rx="38.5"/><rect x="741" y="571" width="77" height="197" rx="38.5"/></g></svg></span>
+<h1>Trace<span class="wm">Yield</span> <span class="ttl">LLM Usage &amp; Health</span></h1></div>
+<div class="sub" id="sub"></div>
+
+<div class="controls">
+  <div class="seg" id="gran">
+    <button data-g="day" class="on">Day</button><button data-g="week">Week</button><button data-g="month">Month</button>
+  </div>
+  <label class="hint" id="providerlbl">Provider&nbsp;
+    <select id="provider">
+      <option value="all">All</option>
+      <option value="claude">Claude</option>
+      <option value="codex">Codex</option>
+    </select>
+  </label>
+  <label class="hint" id="modellbl">Model&nbsp;
+    <select id="model">
+      <option value="all">All models</option>
+    </select>
+  </label>
+  <label class="hint">Trend metric&nbsp;
+    <select id="metric">
+      <option value="cost">Cost ($)</option>
+      <option value="tokens">Total tokens</option>
+      <option value="turns">Assistant turns</option>
+      <option value="errrate">Tool error rate (%)</option>
+      <option value="errors">Tool errors (count)</option>
+      <option value="sessions">Sessions</option>
+    </select>
+  </label>
+  <div class="stepper">
+    <button id="prev" title="Previous (←)">‹</button>
+    <span class="pname" id="pname"></span>
+    <button id="next" title="Next (→)">›</button>
+  </div>
+</div>
+
+<div class="cards" id="cards"></div>
+
+<h2>Trend <span class="hint" id="trendhint"></span></h2>
+<div class="panel" id="trend"></div>
+
+<h2>Selected period: breakdown</h2>
+<div class="two">
+  <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by project</div><div id="byproj"></div></div>
+  <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by model tier</div><div id="bymodel"></div></div>
+</div>
+<div class="two">
+  <div class="panel"><div class="muted" style="margin-bottom:10px">Cost by provider</div><div class="hint" style="margin-bottom:10px">Dollar totals are a <b>projection</b> at current per-provider rate cards: Codex has no rate card yet, so its tokens count at $0 here. Compare by tokens (neutral currency) for a pricing-independent view.</div><div id="byprovider"></div></div>
+  <div class="panel"><div class="muted" style="margin-bottom:10px">Tokens by provider <span class="hint">(neutral currency, pricing-independent)</span></div><div id="tokprovider"></div></div>
+</div>
+<div class="panel" id="routepanel">
+  <div class="muted" style="margin-bottom:6px">Model-routing savings estimate <span class="hint" id="routehint"></span></div>
+  <div class="hint" style="margin-bottom:12px">Recomputes this period&rsquo;s <b>Opus</b> token usage at a cheaper tier&rsquo;s rates: the savings from routing routine work with <span class="mono">/model</span>. Assume <input id="routeshare" type="number" value="30" min="0" max="100" step="5">% of Opus is safely routable to <select id="routetier"><option value="sonnet">Sonnet</option><option value="haiku">Haiku</option></select>. Upper bound; keep quality-sensitive work on Opus.</div>
+  <div id="routeout"></div>
+</div>
+<div class="panel"><div class="muted" style="margin-bottom:10px">Token composition</div><div id="comp"></div></div>
+<div class="panel"><div class="muted" style="margin-bottom:10px">Tool usage (calls)</div><div id="tools"></div></div>
+
+<h2>Tokens &amp; cost per tool <span class="hint" id="waste"></span></h2>
+<div class="panel">
+<div class="hint" style="margin-bottom:8px">Full turn cost attributed to its single tool: Claude Code serializes tool calls, so this is <b>exact</b> for tool turns (input/cache can't be split further until a custom harness logs per-tool usage). <b>Est. waste</b> = errors &times; avg cost/call &times; retry factor <input id="retry" type="number" value="1" min="0" step="0.5"> (assumed extra turns per error).</div>
+<table><thead><tr><th>Tool</th><th class="num">Calls</th><th class="num">Output tok</th><th class="num">Cost</th><th class="num">Errors</th><th class="num">Err rate</th><th class="num">Est. waste</th></tr></thead><tbody id="tooltbody"></tbody></table>
+</div>
+
+<h2>Selected period: errors &amp; fixes</h2>
+<div class="panel"><table><thead><tr><th>Pattern</th><th class="num">Count</th><th class="num">Share</th><th>Suggested fix</th></tr></thead><tbody id="errtbody"></tbody></table></div>
+
+<h2>Top sessions by cost <span class="hint">(all time &middot; catch runaway conversations)</span></h2>
+<div class="panel">
+<table><thead><tr><th>Session</th><th>Project</th><th>Span</th><th class="num">Turns</th><th class="num">Tokens</th><th class="num">Cost</th><th class="num">Err rate</th><th>Tier mix ($)</th></tr></thead>
+<tbody id="sesstbody"></tbody></table>
+<div class="muted" style="margin-top:8px">A session is one conversation (distinct sessionId), summed across every day it touched. Top 50 by cost. A single session far above the rest usually means a long, uncleared context re-read every turn: <span class="mono">/clear</span> between tasks.</div>
+</div>
+
+<h2>Model pricing (tracked daily)</h2>
+<div class="panel"><div class="muted" style="margin-bottom:6px">Input price $/1M over time</div><div id="pricechart"></div></div>
+<div class="panel"><table>
+<thead><tr><th>Model tier</th><th class="num">Input</th><th class="num">Output</th><th class="num">Cache read</th><th class="num">Write 5m</th><th class="num">Write 1h</th></tr></thead>
+<tbody>__PRICEROWS__</tbody></table>
+<div class="muted" style="margin-top:8px">Per 1M tokens. Cache read = 0.1&times; input, write-5m = 1.25&times;, write-1h = 2&times;. All-history cost is computed at current rates for comparability; this chart shows how the rates themselves moved. Edit <span class="mono">PRICING</span> in report.py when Anthropic changes prices.</div></div>
+
+<h2>How to read this report</h2>
+<div class="panel doc">
+<h3>Where the money goes: the five token line-items</h3>
+<p>Each request re-sends the whole conversation so far. To avoid re-billing all of it at full price, the API <b>caches</b> a stable prefix of the prompt. Your tokens split into five lines, each a multiple of the model's base <b>input</b> price:</p>
+<dl>
+<dt>Fresh input <span class="mono">1&times;</span></dt><dd>Brand-new tokens the model reads for the first time (a newly opened file, your latest message). Full input price.</dd>
+<dt>Cache write: 5&nbsp;min <span class="mono">1.25&times;</span></dt><dd>Storing a chunk in the cache the first time costs a 25% premium. It stays reusable for 5 minutes.</dd>
+<dt>Cache write: 1&nbsp;hour <span class="mono">2&times;</span></dt><dd>Same, kept for an hour: double the input price to write. Claude Code uses 1h caching, which is why this line is large.</dd>
+<dt>Cache read <span class="mono">0.1&times;</span></dt><dd>Reading tokens already in the cache costs a tenth of input price. This is the payoff of caching, but because your ~154K-token context is re-read on <em>every</em> turn, it&rsquo;s still your single biggest cost line by volume.</dd>
+<dt>Output <span class="mono">output rate</span></dt><dd>Tokens the model generates (its reply + tool calls), billed at the separate, higher output price (Opus $25/1M).</dd>
+</dl>
+<p class="muted">A cached token you reuse costs ~8% of writing it fresh at 1h TTL (0.1 vs 1.25), so caching pays off after ~2 reuses. The risk is <b>invalidation</b>: editing a file or changing tools near the front of the prompt forces an expensive re-write of everything after it.</p>
+<h3>How to use it to improve</h3>
+<ul>
+<li><b>Right-size the model.</b> For Claude usage, ~98% of spend is Opus. Route routine work (reading, simple edits, exploration) to Sonnet with <span class="mono">/model</span>: cheaper input and 0.1&times; cache reads at $0.20 vs $0.50.</li>
+<li><b>Keep context small.</b> Cost &asymp; context size &times; turns; the ~154K/turn re-read is the engine. <span class="mono">/clear</span> between tasks so each turn re-reads less.</li>
+<li><b>Cut errors = cut wasted turns.</b> Each tool error &asymp; one extra turn that re-reads the full context. The per-tool panel&rsquo;s <b>Est. waste</b> column puts a dollar figure on it. Top offenders: Windows shell errors (use PowerShell for Windows commands) and Write/Edit-before-Read (Read first).</li>
+<li><b>Watch the trend, not the day.</b> Switch to Week/Month and step with &larr;/&rarr; to see whether cost-per-turn and error rate improve after a change.</li>
+</ul>
+<h3>Glossary</h3>
+<dl>
+<dt>Turn</dt><dd>One assistant response (usually one tool call). &ldquo;Assistant turns&rdquo; counts these.</dd>
+<dt>Session</dt><dd>One assistant conversation (a distinct sessionId).</dd>
+<dt>Tool error rate</dt><dd>Share of tool results returned as errors. Lower is better.</dd>
+<dt>Est. waste</dt><dd>Modeled error cost = errors &times; avg cost/call &times; retry factor. Cost/call is exact; the retry factor (how many extra turns an error triggers) is your tunable assumption.</dd>
+<dt>vs prev</dt><dd>Change from the previous period at the current granularity.</dd>
+<dt>Top sessions</dt><dd>Highest-cost individual conversations across all history. A single session far above the rest is a runaway context: the cheapest thing to fix.</dd>
+<dt>Routing estimate</dt><dd>This period&rsquo;s Opus tokens recosted at Sonnet/Haiku rates, scaled by your routable-share assumption. An upper bound on <span class="mono">/model</span> savings, not a promise.</dd>
+<dt>Neutral currency (tokens) vs. dollar projection</dt><dd>Tokens are pricing-independent ground truth, so they&rsquo;re the honest way to compare providers. A combined dollar total across providers is a <b>projection</b>: it only means what each provider&rsquo;s per-provider rate card says, and a provider with no rate card (e.g. Codex today) shows $0 there even though it used real tokens.</dd>
+</dl>
+</div>
+
+<h2>Data health</h2>
+<div class="panel" id="health"></div>
+
+<div class="foot">Rerun daily: <span class="mono">python report.py</span>. Data bucketed by activity timestamp &rarr; <span class="mono">daily_metrics.json</span>; prices &rarr; <span class="mono">pricing_history.json</span>. Cost computed at current pricing. Use ← / → to step periods.</div>
+</div>
+
+<script>
+const DATA = __PAYLOAD__;
+const META = DATA.meta;
+const $ = s => document.querySelector(s);
+const fmtUSD = v => "$"+(v>=1000? v.toLocaleString(undefined,{maximumFractionDigits:0}) : v.toFixed(2));
+const fmtTok = v => v>=1e9?(v/1e9).toFixed(2)+"B":v>=1e6?(v/1e6).toFixed(1)+"M":v>=1e3?(v/1e3).toFixed(0)+"K":Math.round(v);
+const fmtInt = v => Math.round(v).toLocaleString();
+const esc = s => String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+// Claude Code encodes a project's absolute path as its dir name (path
+// separators → "-"), so every project on a machine shares a long, machine-
+// specific root (e.g. "C--Users-charl-source-repos-"). Compute the common
+// leading path SEGMENTS across all projects and strip them, so labels read as
+// just the repo name on ANY machine (no hardcoded prefix). Segment-wise (split
+// on "-") avoids cutting a name mid-word and handles the bare-root project.
+const PROJ_STRIP = (function(){
+  const lists=[];
+  const push=p=>{if(p)lists.push(p.split("-"));};
+  for(const dk in DATA.days){const bp=DATA.days[dk].by_project||{};for(const p in bp)push(p);}
+  (DATA.sessions||[]).forEach(s=>push(s.project));
+  if(lists.length<2)return 0;               // can't infer a shared root from one project
+  const n=Math.min(...lists.map(l=>l.length));
+  let common=0;
+  for(let i=0;i<n;i++){
+    const seg=lists[0][i];
+    if(lists.every(l=>l[i]===seg))common=i+1; else break;
+  }
+  return common;
+})();
+const clean = p => p ? (p.split("-").slice(PROJ_STRIP).join("-")||"(root)") : "(root)";
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+const dayKeys = Object.keys(DATA.days).sort();
+function mondayOf(ds){const d=new Date(ds+"T00:00:00Z");let wd=(d.getUTCDay()+6)%7;d.setUTCDate(d.getUTCDate()-wd);return d.toISOString().slice(0,10);}
+function tokTotal(t){return t.input+t.output+t.cache_read+t.cache_write_5m+t.cache_write_1h;}
+
+function blankPeriod(key,label){return{key,label,cost:0,
+  tok:{input:0,output:0,cache_read:0,cache_write_5m:0,cache_write_1h:0},
+  msgs:0,tool_results:0,tool_errors:0,sessions:0,
+  by_model:{},by_project:{},by_tool:{},by_provider:{},errors:{},dates:[]};}
+function addNum(dst,src,keys){keys.forEach(k=>dst[k]+=src[k]||0);}
+function addCounter(dst,src){for(const k in src)dst[k]=(dst[k]||0)+src[k];}
+function addModel(dst,src){for(const t in src){dst[t]=dst[t]||{cost:0,tok:{input:0,output:0,cache_read:0,cache_write_5m:0,cache_write_1h:0}};dst[t].cost+=src[t].cost||0;const st=src[t].tok||{};for(const k in dst[t].tok)dst[t].tok[k]+=st[k]||0;}}
+function addProj(dst,src){for(const p in src){dst[p]=dst[p]||{cost:0,msgs:0};for(const k in src[p])dst[p][k]=(dst[p][k]||0)+src[p][k];}}
+function addTool(dst,src){for(const t in src){dst[t]=dst[t]||{calls:0,out:0,cost:0,err:0};for(const k in src[t])dst[t][k]=(dst[t][k]||0)+src[t][k];}}
+function addProvider(dst,src){for(const p in (src||{})){dst[p]=dst[p]||{cost:0,msgs:0,tok:{input:0,output:0,cache_read:0,cache_write_5m:0,cache_write_1h:0}};dst[p].cost+=src[p].cost||0;dst[p].msgs+=src[p].msgs||0;const st=src[p].tok||{};for(const k in dst[p].tok)dst[p].tok[k]+=st[k]||0;}}
+
+function aggregate(gran,provider,model){
+  const groups=new Map();
+  const noProv=!provider||provider==="all", noModel=!model||model==="all";
+  for(const dk of dayKeys){
+    let key,label;
+    if(gran==="day"){key=dk;label=dk;}
+    else if(gran==="week"){key=mondayOf(dk);label="wk of "+key;}
+    else{key=dk.slice(0,7);const[y,m]=key.split("-");label=MONTHS[+m-1]+" "+y;}
+    if(!groups.has(key))groups.set(key,blankPeriod(key,label));
+    const P=groups.get(key),Dall=DATA.days[dk];
+    P.dates.push(dk);
+    // "Cost by provider" / "Tokens by provider" comparison bars fold from the
+    // unfiltered ("all") bucket's by_provider so they keep showing every
+    // provider's split -- unless a model is selected, in which case they fold
+    // each provider's by_model_full[model] instead, so the bars show that
+    // model's per-provider split.
+    if(noModel){
+      addProvider(P.by_provider,Dall.by_provider);
+    }else{
+      const perProvModel={};
+      for(const p in (Dall.by_provider||{})){
+        const b=(Dall.by_provider[p].by_model_full||{})[model];
+        if(b)perProvModel[p]=b;
+      }
+      addProvider(P.by_provider,perProvModel);
+    }
+    // Pick the FULL bucket for this (provider,model) selection -- one of 4
+    // cases, every one a FULL bucket (same shape as Dall), so every panel
+    // below folds uniformly regardless of which dimensions are scoped.
+    let D;
+    if(noProv&&noModel)D=Dall;
+    else if(noProv)D=Dall.by_model_full&&Dall.by_model_full[model];
+    else if(noModel)D=Dall.by_provider&&Dall.by_provider[provider];
+    else D=Dall.by_provider&&Dall.by_provider[provider]&&
+           Dall.by_provider[provider].by_model_full&&Dall.by_provider[provider].by_model_full[model];
+    if(!D)continue; // no data for this provider/model on this day -- contributes nothing
+    P.cost+=D.cost; P.msgs+=D.msgs; P.tool_results+=D.tool_results; P.tool_errors+=D.tool_errors;
+    P.sessions+=D.sessions;
+    addNum(P.tok,D.tok,Object.keys(P.tok));
+    addModel(P.by_model,D.by_model); addProj(P.by_project,D.by_project);
+    addTool(P.by_tool,D.by_tool); addCounter(P.errors,D.errors);
+  }
+  return [...groups.values()].sort((a,b)=>a.key<b.key?-1:1);
+}
+
+const METRICS={
+  cost:{f:p=>p.cost,fmt:fmtUSD,label:"Cost"},
+  tokens:{f:p=>tokTotal(p.tok),fmt:fmtTok,label:"Total tokens"},
+  turns:{f:p=>p.msgs,fmt:fmtInt,label:"Assistant turns"},
+  errrate:{f:p=>p.tool_results?p.tool_errors/p.tool_results*100:0,fmt:v=>v.toFixed(1)+"%",label:"Tool error rate"},
+  errors:{f:p=>p.tool_errors,fmt:fmtInt,label:"Tool errors"},
+  sessions:{f:p=>p.sessions,fmt:fmtInt,label:"Sessions"},
+};
+
+let state={gran:"day",metric:"cost",provider:"all",model:"all",idx:0,periods:[]};
+
+function svgLine(xs,vals,fmt,sel,color){
+  const w=880,h=230,pad=46,n=xs.length;
+  if(!n)return"<p class='muted'>No data.</p>";
+  const mx=Math.max(...vals,0)*1.1||1;
+  const X=i=>pad+i*(w-2*pad)/Math.max(n-1,1), Y=v=>h-pad-(v/mx)*(h-2*pad);
+  let s=`<svg viewBox='0 0 ${w} ${h}' class='chart'>`;
+  for(let g=0;g<5;g++){const gy=pad+g*(h-2*pad)/4,val=mx*(1-g/4);
+    s+=`<line x1='${pad}' y1='${gy}' x2='${w-pad}' y2='${gy}' class='grid'/><text x='${pad-6}' y='${gy+3}' class='ytick'>${fmt(val)}</text>`;}
+  s+=`<polyline points='${vals.map((v,i)=>X(i)+","+Y(v)).join(" ")}' fill='none' stroke='${color}' stroke-width='2'/>`;
+  vals.forEach((v,i)=>{const r=i===sel?5:2.6,c=i===sel?"#fff":color;
+    s+=`<circle class='dot' cx='${X(i)}' cy='${Y(v)}' r='${r}' fill='${c}' stroke='${color}' stroke-width='${i===sel?2:0}' onclick='pick(${i})'><title>${esc(xs[i])}: ${fmt(v)}</title></circle>`;});
+  const step=Math.max(1,Math.ceil(n/10));
+  for(let i=0;i<n;i+=step)s+=`<text x='${X(i)}' y='${h-pad+16}' class='xtick'>${esc(xs[i].length>7?xs[i].slice(5):xs[i])}</text>`;
+  return s+"</svg>";
+}
+function hbars(rows,fmt,color){
+  if(!rows.length)return"<p class='muted'>None.</p>";
+  const mx=Math.max(...rows.map(r=>r[1]))||1;
+  return"<div class='hbars'>"+rows.map(([l,v])=>
+    `<div class='hbar'><span class='hlabel'>${esc(l)}</span><span class='htrack'><span class='hfill' style='width:${v/mx*100}%;background:${color}'></span></span><span class='hval'>${fmt(v)}</span></div>`).join("")+"</div>";
+}
+
+function render(){
+  const P=state.periods, i=state.idx, cur=P[i], prev=P[i-1];
+  const M=METRICS[state.metric];
+  // stepper
+  $("#pname").textContent=cur.label; $("#prev").disabled=i<=0; $("#next").disabled=i>=P.length-1;
+  const range=cur.dates.length>1?` · ${cur.dates[0]} → ${cur.dates[cur.dates.length-1]}`:"";
+  // KPI cards
+  const kd=(label,val,d,dfmt)=>{let dh="";if(d!==null){const c=d>0?"up":d<0?"down":"flat",sg=d>0?"+":"";dh=`<div class='delta ${c}'>${sg}${dfmt(d)} vs prev</div>`;}
+    return `<div class='card'><div class='klabel'>${label}</div><div class='kval'>${val}</div>${dh}</div>`;};
+  const errRate=cur.tool_results?cur.tool_errors/cur.tool_results*100:0;
+  const prevErr=prev&&prev.tool_results?prev.tool_errors/prev.tool_results*100:null;
+  $("#cards").innerHTML=[
+    kd("Cost",fmtUSD(cur.cost),prev?cur.cost-prev.cost:null,v=>fmtUSD(Math.abs(v))),
+    kd("Total tokens",fmtTok(tokTotal(cur.tok)),prev?tokTotal(cur.tok)-tokTotal(prev.tok):null,v=>fmtTok(Math.abs(v))),
+    kd("Assistant turns",fmtInt(cur.msgs),prev?cur.msgs-prev.msgs:null,v=>fmtInt(Math.abs(v))),
+    kd("Sessions",fmtInt(cur.sessions),prev?cur.sessions-prev.sessions:null,v=>fmtInt(Math.abs(v))),
+    kd("Tool error rate",errRate.toFixed(1)+"%",prevErr!==null?errRate-prevErr:null,v=>Math.abs(v).toFixed(1)+"pp"),
+  ].join("");
+  $("#sub").innerHTML=`Generated ${esc(DATA.generated)} · ${dayKeys.length} active days (${dayKeys[0]} → ${dayKeys[dayKeys.length-1]}) · viewing <b>${cur.label}</b>${range}`;
+  // trend
+  $("#trendhint").textContent=M.label+" by "+state.gran+" · click a point or use ← →";
+  $("#trend").innerHTML=svgLine(P.map(p=>p.label),P.map(M.f),M.fmt,i,"#12C99A");
+  // breakdowns
+  $("#byproj").innerHTML=hbars(Object.entries(cur.by_project).map(([p,d])=>[clean(p),d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#258CF8");
+  $("#bymodel").innerHTML=hbars(Object.entries(cur.by_model).map(([m,d])=>[m,d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#7338FF");
+  $("#byprovider").innerHTML=hbars(Object.entries(cur.by_provider||{}).map(([p,d])=>[p.charAt(0).toUpperCase()+p.slice(1),d.cost]).sort((a,b)=>b[1]-a[1]),v=>fmtUSD(v),"#10B7D8");
+  $("#tokprovider").innerHTML=hbars(Object.entries(cur.by_provider||{}).filter(([p,d])=>d.tok).map(([p,d])=>[p.charAt(0).toUpperCase()+p.slice(1),tokTotal(d.tok)]).sort((a,b)=>b[1]-a[1]),fmtTok,"#12C99A");
+  const t=cur.tok;
+  $("#comp").innerHTML=hbars([["Cache read",t.cache_read],["Cache write 1h",t.cache_write_1h],["Cache write 5m",t.cache_write_5m],["Output",t.output],["Fresh input",t.input]],fmtTok,"#10B7D8");
+  $("#tools").innerHTML=hbars(Object.entries(cur.by_tool).filter(([t,v])=>v.calls>0).map(([t,v])=>[t,v.calls]).sort((a,b)=>b[1]-a[1]).slice(0,15),fmtInt,"#12C99A");
+  // tokens & cost per tool
+  const rf=parseFloat($("#retry").value); const rfac=isNaN(rf)?1:rf;
+  const trows=Object.entries(cur.by_tool).sort((a,b)=>b[1].cost-a[1].cost);
+  let waste=0;
+  $("#tooltbody").innerHTML=trows.map(([t,v])=>{
+    const per=v.calls?v.cost/v.calls:0, w=v.err*per*rfac; waste+=w;
+    const er=v.calls?v.err/v.calls*100:0;
+    return `<tr><td>${esc(t)}</td><td class='num'>${v.calls?fmtInt(v.calls):"-"}</td><td class='num'>${fmtTok(v.out)}</td><td class='num'>${fmtUSD(v.cost)}</td><td class='num'>${v.err||""}</td><td class='num'>${v.calls&&v.err?er.toFixed(1)+"%":""}</td><td class='num'>${w?fmtUSD(w):""}</td></tr>`;
+  }).join("");
+  $("#waste").textContent=waste?`≈ ${fmtUSD(waste)} wasted on errors this period (retry ×${rfac})`:"";
+  // errors
+  const te=Object.values(cur.errors).reduce((a,b)=>a+b,0)||1;
+  $("#errtbody").innerHTML=Object.entries(cur.errors).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{
+    const m=META[k]||{title:k,fix:""};
+    return `<tr><td><b>${esc(m.title)}</b><br><span class='muted mono'>${esc(k)}</span></td><td class='num'>${v}</td><td class='num'>${Math.round(v/te*100)}%</td><td>${esc(m.fix)}</td></tr>`;
+  }).join("")||"<tr><td colspan=4 class='muted'>No tool errors in this period. 🎉</td></tr>";
+  renderRoute(cur);
+}
+window.pick=i=>{state.idx=i;render();};
+
+// ---- model-routing savings estimate (selected period) ----
+function costAtRates(tok,r){return (tok.input*r.input + tok.output*r.output +
+  tok.cache_read*r.input*0.1 + tok.cache_write_5m*r.input*1.25 + tok.cache_write_1h*r.input*2.0)/1e6;}
+function renderRoute(cur){
+  const el=$("#routeout"), hint=$("#routehint");
+  const opus=cur.by_model&&cur.by_model.opus;
+  if(!opus||!opus.cost||!opus.tok){el.innerHTML="<p class='muted'>No Opus usage in this period.</p>";hint.textContent="";return;}
+  let share=parseFloat($("#routeshare").value); share=isNaN(share)?0:Math.max(0,Math.min(100,share))/100;
+  const tier=$("#routetier").value, rates=DATA.pricing[tier];
+  const atTier=costAtRates(opus.tok,rates);
+  const fullDelta=opus.cost-atTier;          // savings if 100% of Opus moved
+  const sav=share*fullDelta;                 // savings at the chosen routable share
+  const pct=opus.cost?fullDelta/opus.cost*100:0;
+  const newTotal=cur.cost-sav;
+  const card=(l,v,s,cls)=>`<div class='card'><div class='klabel'>${l}</div><div class='kval'>${v}</div>${s?`<div class='delta ${cls||"flat"}'>${s}</div>`:""}</div>`;
+  el.innerHTML="<div class='cards'>"+[
+    card("Opus spend",fmtUSD(opus.cost),"this period"),
+    card("If 100% → "+tier,fmtUSD(atTier),"−"+fmtUSD(fullDelta)+" ("+pct.toFixed(0)+"%)","down"),
+    card("Savings @ "+Math.round(share*100)+"%",fmtUSD(sav),"routed to "+tier,"down"),
+    card("New period total",fmtUSD(newTotal),"was "+fmtUSD(cur.cost)),
+  ].join("")+"</div>";
+  hint.textContent=tier+" input $"+rates.input.toFixed(2)+"/1M vs Opus $"+DATA.pricing.opus.input.toFixed(2)+"/1M";
+}
+
+// ---- data health (schema drift + coverage; period-independent) ----
+function renderHealth(){
+  const box=$("#health"), H=DATA.health;
+  if(!H){box.style.display="none";return;}
+  const P=H.providers||{}, C=P.claude||{}, X=P.codex||{}, cov=C.coverage||{};
+  const susp=cov.suspicious||[], gaps=cov.calendar_gaps||[];
+  const stale=(cov.days_since_last_active||0)>1;
+  const warn=(C.drift&&C.drift.length)||(X.drift&&X.drift.length)||susp.length||stale;
+  const driftRow=(name,d)=> (d&&d.length)
+    ? `<div class="hrow warn"><b>${name} schema drift (${d.length})</b>: confirm, then update <span class="mono">SCHEMA_EXPECT</span> / <span class="mono">tier()</span> in report.py<ul>${d.map(x=>`<li class="mono">${esc(x)}</li>`).join("")}</ul></div>`
+    : `<div class="hrow ok">${name} schema OK <span class="hint">(${(d==null?"-":"no new fields, models, or block types")})</span></div>`;
+  let h=`<div class="hhdr"><span class="hpill ${warn?"warn":"ok"}">${warn?"Needs review":"All clear"}</span><span class="hint">schema drift &amp; coverage, checked every run · generated ${esc(H.generated||"")}</span></div>`;
+  h+=driftRow("Claude",C.drift);
+  if(stale) h+=`<div class="hrow warn"><b>Stale:</b> no recorded usage for ${cov.days_since_last_active} day(s), last active ${esc(cov.last||"?")}. If you used a coding assistant since, a run or parse is failing.</div>`;
+  if(susp.length) h+=`<div class="hrow warn"><b>${susp.length} suspicious data hole(s)</b>: had activity but nothing was recorded:<ul>${susp.slice(0,25).map(s=>`<li><b>${esc(s.date)}</b>: ${esc(s.reason)}</li>`).join("")}</ul></div>`;
+  h+=`<div class="hrow ok">Coverage: <b>${cov.active_days||0}</b> active days (${esc(cov.first||"?")} → ${esc(cov.last||"?")}) · <b>${gaps.length}</b> calendar gap day(s) with no usage${gaps.length?` <span class="hint">(${esc(gaps.slice(-10).join(", "))}${gaps.length>10?" …":""})</span>`:""}. <span class="hint">Idle days are normal: the flagged holes above are the ones to check.</span></div>`;
+  h+=driftRow("Codex",X.drift);
+  const xs=X.scan||{}, xf=xs.flags||{};
+  if(xs.files!=null) h+=`<div class="hrow ok">Codex fingerprint (no cost model yet): <b>${xs.files}</b> session files, ${fmtInt(xs.lines||0)} lines · ${xf.files_without_usage||0}/${xf.files_with_activity||0} active sessions carried <b>no</b> token_count (would cost $0)${(xs.unknown_models&&xs.unknown_models.length)?` · unmapped models: <span class="mono">${esc(xs.unknown_models.join(", "))}</span>`:""}.</div>`;
+  box.innerHTML=h;
+}
+
+// ---- top sessions by cost (all time; period-independent) ----
+function renderSessions(){
+  const rows=DATA.sessions||[], body=$("#sesstbody");
+  if(!rows.length){body.innerHTML="<tr><td colspan=8 class='muted'>No sessions.</td></tr>";return;}
+  body.innerHTML=rows.map(s=>{
+    const tok=tokTotal(s.tok), er=s.tool_results?s.tool_errors/s.tool_results*100:0;
+    const d0=(s.start||"").slice(0,10), d1=(s.end||"").slice(0,10);
+    const span=d0===d1?d0:d0+" → "+d1;
+    const mix=Object.entries(s.by_model||{}).sort((a,b)=>b[1]-a[1]).map(([t,c])=>t+" "+fmtUSD(c)).join(", ");
+    return `<tr><td class='mono'>${esc((s.id||"").slice(0,8))}</td><td class='hlabel'>${esc(clean(s.project||"(root)"))}</td>`+
+      `<td class='mono'>${esc(span)}</td><td class='num'>${fmtInt(s.msgs)}</td><td class='num'>${fmtTok(tok)}</td>`+
+      `<td class='num'>${fmtUSD(s.cost)}</td><td class='num'>${s.tool_results?er.toFixed(1)+"%":"-"}</td><td>${esc(mix)}</td></tr>`;
+  }).join("");
+}
+
+function rebuild(keepEnd){
+  state.periods=aggregate(state.gran,state.provider,state.model);
+  state.idx=keepEnd?state.periods.length-1:Math.min(state.idx,state.periods.length-1);
+  render();
+}
+
+// pricing chart (static)
+(function(){
+  const pd=Object.keys(DATA.pricing_history).sort();
+  const colors={opus:"#7338FF",sonnet:"#12C99A",haiku:"#258CF8"};
+  const w=880,h=200,pad=46,n=pd.length;
+  // pricing_history entries are provider-nested ({claude:{tier:{...}}}); this
+  // chart stays Claude-focused, but tolerate still-flat legacy entries too
+  // (self-healed on next `python report.py` run via record_pricing()).
+  const claudeTiers=e=>(e&&e.claude)?e.claude:(e||{});
+  const series=["opus","sonnet","haiku"].map(m=>({m,vals:pd.map(d=>(claudeTiers(DATA.pricing_history[d])[m]||{}).input||0)}));
+  const mx=Math.max(1,...series.flatMap(s=>s.vals))*1.15;
+  const X=i=>pad+i*(w-2*pad)/Math.max(n-1,1),Y=v=>h-pad-(v/mx)*(h-2*pad);
+  let s=`<svg viewBox='0 0 ${w} ${h}' class='chart'>`;
+  for(let g=0;g<4;g++){const gy=pad+g*(h-2*pad)/3,val=mx*(1-g/3);s+=`<line x1='${pad}' y1='${gy}' x2='${w-pad}' y2='${gy}' class='grid'/><text x='${pad-6}' y='${gy+3}' class='ytick'>$${val.toFixed(1)}</text>`;}
+  series.forEach(se=>{s+=`<polyline points='${se.vals.map((v,i)=>X(i)+","+Y(v)).join(" ")}' fill='none' stroke='${colors[se.m]}' stroke-width='2'/>`;
+    se.vals.forEach((v,i)=>s+=`<circle cx='${X(i)}' cy='${Y(v)}' r='2.6' fill='${colors[se.m]}'/>`);});
+  const step=Math.max(1,Math.ceil(n/8));for(let i=0;i<n;i+=step)s+=`<text x='${X(i)}' y='${h-pad+16}' class='xtick'>${esc(pd[i].slice(5))}</text>`;
+  s+="</svg><div class='legend'>"+series.map(se=>`<span class='leg'><i style='background:${colors[se.m]}'></i>${se.m}</span>`).join("")+"</div>";
+  $("#pricechart").innerHTML=s;
+})();
+
+// ---- model slicer: populate #model from the payload (by_model keys, union
+// over every day) -- never hardcoded, since tiers vary by provider/vendor.
+// Degrades gracefully (hides the redundant control, no throw) when only one
+// provider and/or model is present in this payload.
+(function(){
+  const models=new Set(), providers=new Set();
+  for(const dk of dayKeys){
+    const D=DATA.days[dk]||{};
+    for(const m in (D.by_model||{}))models.add(m);
+    for(const p in (D.by_provider||{}))providers.add(p);
+  }
+  const modelSel=$("#model");
+  [...models].sort().forEach(m=>{
+    const o=document.createElement("option"); o.value=m; o.textContent=m; modelSel.appendChild(o);
+  });
+  if(providers.size<=1)$("#providerlbl").style.display="none";
+  if(models.size<=1)$("#modellbl").style.display="none";
+})();
+
+// wire controls
+document.querySelectorAll("#gran button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("#gran button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on"); state.gran=b.dataset.g; rebuild(true);
+});
+$("#metric").onchange=e=>{state.metric=e.target.value;render();};
+$("#provider").onchange=e=>{state.provider=e.target.value;rebuild(false);};
+$("#model").onchange=e=>{state.model=e.target.value;rebuild(false);};
+$("#retry").oninput=()=>render();
+$("#routeshare").oninput=()=>render();
+$("#routetier").onchange=()=>render();
+$("#prev").onclick=()=>{if(state.idx>0){state.idx--;render();}};
+$("#next").onclick=()=>{if(state.idx<state.periods.length-1){state.idx++;render();}};
+document.addEventListener("keydown",e=>{if(e.key==="ArrowLeft")$("#prev").click();if(e.key==="ArrowRight")$("#next").click();});
+
+renderHealth();
+renderSessions();
+rebuild(true);
+</script>
+</body></html>"""
+
