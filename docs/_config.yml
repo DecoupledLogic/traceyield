@@ -1,0 +1,23 @@
+# GitHub Pages (Jekyll, deploy-from-branch: main /docs).
+# Fast-path docs site. The internal work-tracking tree (delivery/) and the
+# decision log (decisions/) are excluded from the published site -- they stay
+# in the repo, just not on the website.
+title: TraceYield
+description: Token-spend and health analytics for LLMs. Single-file Python, zero runtime dependencies.
+remote_theme: just-the-docs/just-the-docs
+
+plugins:
+  - jekyll-remote-theme
+  - jekyll-relative-links
+
+# just-the-docs options
+search_enabled: true
+heading_anchors: true
+aux_links:
+  "GitHub":
+    - "https://github.com/DecoupledLogic/traceyield"
+
+# Keep the internal PM tree and decision records out of the built site.
+exclude:
+  - delivery/
+  - decisions/
