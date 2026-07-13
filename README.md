@@ -93,7 +93,7 @@ Base per-1M-token rates live in the `PRICING` dict at the top of `report.py`. Ed
 Stdlib `unittest`, no dependencies:
 
 ```bash
-python -m unittest test_report          # or: python -m pytest test_report.py -q
+python -m unittest discover -s tests    # or: python -m pytest tests -q
 ```
 
 The suite builds fixture transcripts with hand-computable token counts and checks exact costs, session accumulation, the per-tier token breakdown the routing estimator depends on, merge semantics, the error taxonomy, and HTML generation.
@@ -103,7 +103,7 @@ The suite builds fixture transcripts with hand-computable token counts and check
 | File | Role |
 |------|------|
 | `report.py` | The whole tool: parser, persistence, and HTML template |
-| `test_report.py` | Test suite |
+| `tests/` | Test suite |
 | `run.cmd` | Portable Windows daily-runner wrapper |
 | `pricing_history.json` | Daily snapshots of model pricing, **committed** (shared, non-personal) |
 | `machines/<id>/report.html` | Generated dashboard for that machine (open this), *git-ignored* |

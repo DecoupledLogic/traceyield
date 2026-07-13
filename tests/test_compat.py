@@ -2,6 +2,14 @@
 """
 Tests for the root compat wrappers report.py / canonical.py (E3-F1-S3).
 
+This is the ONE deliberate, intentional exception to the "no test imports a
+module directly from the repo root" rule (E3-F1-S4 AC2, enforced elsewhere by
+tests/test_layout.py's static scan): its entire purpose is to prove that
+`import report` / `import canonical` at the repo root still resolve, so it
+must import the root shims by definition. It is removed together with those
+shims in E3-F5-S1 -- at which point the allowlist in test_layout.py shrinks
+to zero.
+
 report.py and canonical.py moved into src/traceyield/ in E3-F1-S2, which
 broke `python report.py` and `import report` / `import canonical`. These
 tests prove the thin root wrappers restore both, and that they do so by
@@ -22,10 +30,15 @@ import tempfile
 import unittest
 from unittest import mock
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(ROOT, "src")
-if SRC not in sys.path:
-    sys.path.insert(0, SRC)
+# ROOT is the parent of tests/, i.e. the directory holding the root compat
+# shims report.py / canonical.py. It is put on sys.path here -- and only
+# here -- so `import report` / `import canonical` below resolve to those
+# shims regardless of how the suite was invoked (unittest discovery, pytest,
+# or a different cwd). traceyield itself comes from the installed package,
+# not from this path.
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
 from traceyield import canonical as pkg_canonical
 from traceyield import cli as pkg_cli
@@ -119,11 +132,11 @@ class TestMachineDirSubprocess(unittest.TestCase):
         self.assertEqual(result.stdout.strip(), pkg_report.MACHINE_DIR)
 
     def test_machine_dir_flag_matches_package_module_invocation(self):
-        env = dict(os.environ)
-        env["PYTHONPATH"] = SRC + os.pathsep + env.get("PYTHONPATH", "")
+        # traceyield is installed (editable install), so no PYTHONPATH
+        # manipulation is needed for `-m traceyield` to resolve.
         pkg_result = subprocess.run(
             [sys.executable, "-m", "traceyield", "--machine-dir"],
-            capture_output=True, text=True, cwd=ROOT, env=env,
+            capture_output=True, text=True, cwd=ROOT,
         )
         wrapper_result = subprocess.run(
             [sys.executable, REPORT_PY, "--machine-dir"],

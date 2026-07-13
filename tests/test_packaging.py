@@ -1,24 +1,21 @@
 """Tests for the pyproject.toml packaging metadata and the minimal
 src/traceyield console-entry-point package (E3-F1-S1).
 
-Stdlib-only, no dependency on real ~/.claude data or an installed
-traceyield package: src/ is added to sys.path so traceyield.cli can be
-imported directly from the worktree.
+Stdlib-only, no dependency on real ~/.claude data. traceyield.cli is imported
+from the installed package (`pip install -e .`); pyproject.toml is read
+directly off disk (a config file, not a module import) since it lives at the
+repo root regardless of how the package is installed.
 """
 
 import os
-import sys
 import tomllib
 import unittest
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(ROOT, "src")
-if SRC not in sys.path:
-    sys.path.insert(0, SRC)
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def load_pyproject():
-    path = os.path.join(ROOT, "pyproject.toml")
+    path = os.path.join(REPO_ROOT, "pyproject.toml")
     with open(path, "rb") as f:
         return tomllib.load(f)
 
