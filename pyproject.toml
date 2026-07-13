@@ -30,6 +30,12 @@ package-dir = { "" = "src" }
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# E3-F3-S2: traceyield/resources/report.html (the HTML dashboard template,
+# loaded via importlib.resources) is data, not code, so it needs an explicit
+# package-data declaration to be included in the built wheel/sdist.
+[tool.setuptools.package-data]
+"traceyield.resources" = ["*.html"]
+
 # E3-F1-S4: the test suite lives under tests/ and imports the installed
 # traceyield package rather than reaching into the source tree, so both
 # entry points CLAUDE.md documents work from the repo root:
