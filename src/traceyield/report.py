@@ -24,7 +24,7 @@ Run daily:  python report.py       (wire to a scheduled task; see README note)
 """
 import json, os, glob, html, datetime, re, sys, urllib.request
 from collections import defaultdict, Counter
-from traceyield import classification, paths, pricing
+from traceyield import classification, paths, pricing, transcripts
 
 # ---------------------------------------------------------------- config
 # Every writable location and env-driven config value is now centralized in
@@ -69,13 +69,15 @@ classify = classification.classify
 ERROR_META = classification.ERROR_META
 
 # ---------------------------------------------------------------- parse
-def project_of(path, root=CLAUDE_PROJECTS):
-    return os.path.relpath(path, root).split(os.sep)[0]
-def result_text(b):
-    c = b.get("content")
-    if isinstance(c, str): return c
-    if isinstance(c, list): return " ".join(x.get("text","") for x in c if isinstance(x, dict))
-    return ""
+# project_of()/result_text() are shared by both layers -- this module's own
+# analyze()/aggregate() below, AND canonical.py's ClaudeProvider (ingestion)
+# -- so they live in traceyield.transcripts (E3-F2-S3), the neutral module
+# BELOW both, rather than being defined here and reached into from
+# canonical.py (the last of that reverse ingestion->reporting coupling; see
+# traceyield.transcripts' module docstring). Re-exported here for backward
+# compatibility with existing call sites/tests.
+project_of = transcripts.project_of
+result_text = transcripts.result_text
 def new_tool(): return {"calls":0,"out":0,"cost":0.0,"err":0}
 def new_model(): return {"cost":0.0,"tok":{"input":0,"output":0,"cache_read":0,"cache_write_5m":0,"cache_write_1h":0}}
 def new_day():

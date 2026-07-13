@@ -39,10 +39,15 @@ class TestSharedModuleIdentity(unittest.TestCase):
     copies that happen to behave the same today and drift tomorrow."""
 
     def test_canonical_tier_is_the_shared_pricing_tier(self):
-        self.assertIs(canonical.report.tier, pricing.tier)
+        # Was `canonical.report.tier` prior to E3-F2-S3: canonical.py no
+        # longer imports report at all (the reverse ingestion->reporting
+        # dependency this story removes), so the identity check now goes
+        # through canonical's own direct `pricing` import instead of
+        # indirecting through report's re-export.
+        self.assertIs(canonical.pricing.tier, pricing.tier)
 
     def test_canonical_classify_is_the_shared_classification_classify(self):
-        self.assertIs(canonical.report.classify, classification.classify)
+        self.assertIs(canonical.classification.classify, classification.classify)
 
     def test_report_reexports_are_the_shared_objects(self):
         self.assertIs(report.tier, pricing.tier)
