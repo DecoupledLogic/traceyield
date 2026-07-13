@@ -12,14 +12,15 @@ Decision records for **traceyield**. Each captures a decision, its context, and 
 | 0006 | [TokenLens Context-health panel: context-occupancy and cache-efficiency diagnostics in report.html](0006-context-health-panel.md) | Drafted | 2026-07-11 |
 | 0007 | [Cross-provider reporting: provider as a first-class facet with per-provider rate cards](0007-cross-provider-reporting-per-provider-rate-cards.md) | Drafted | 2026-07-11 |
 | 0008 | [Repackage TraceYield as an installable src-layout package with a stable CLI](0008-installable-src-layout-package.md) | Drafted | 2026-07-12 |
+| 0009 | [Adopt the deterministic best of Claude Code /insights: a behavioral facet and a prescribe-to-remediate engine](0009-insights-behavioral-facet-and-remediate-engine.md) | Drafted | 2026-07-13 |
 
 ## Statistics
 
 | Status | Count |
 |--------|-------|
 | Accepted | 1 |
-| Drafted | 7 |
-| **Total** | **8** |
+| Drafted | 8 |
+| **Total** | **9** |
 
 ---
-*Last Updated: 2026-07-12*
+*Last Updated: 2026-07-13*
