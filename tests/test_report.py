@@ -368,10 +368,16 @@ class TestPricingDrift(unittest.TestCase):
         # a comment/docstring near check_pricing_drift(), not just implied by
         # behavior. Isolate the "pricing drift check" section of report.py and
         # grep it for the key phrases.
+        #
+        # As of E3-F3-S1 (module split), the schema & coverage monitoring
+        # section that used to immediately follow the pricing-drift section
+        # moved to traceyield/health.py, so the section's end boundary here is
+        # the next top-level def (metrics_via_canonical) rather than that
+        # (now relocated) header comment.
         src_path = os.path.join(os.path.dirname(os.path.abspath(report.__file__)), "report.py")
         src = open(src_path, encoding="utf-8").read()
         m = re.search(
-            r"# -+ pricing drift check(.*?)\n# -+ schema & coverage monitoring",
+            r"# -+ pricing drift check(.*?)\ndef metrics_via_canonical",
             src, re.S)
         self.assertIsNotNone(m, "could not locate the pricing drift check section in report.py")
         region = re.sub(r"\s+", " ", m.group(1).lower())
