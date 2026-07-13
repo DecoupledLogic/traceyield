@@ -95,7 +95,26 @@ const path = Astro.url.pathname;
           var s = document.createElement('script');
           s.src = base + 'pagefind/pagefind-ui.js';
           s.onload = function () {
-            new window.PagefindUI({ element: '#search', showSubResults: true, showImages: false });
+            new window.PagefindUI({
+              element: '#search',
+              showSubResults: true,
+              showImages: false,
+              // Pagefind records result URLs relative to the indexed dist root,
+              // i.e. without the base path, so they would 404 under the project
+              // Pages subpath. Prefix base onto any root-absolute result URL
+              // that does not already carry it (covers anchored sub-results too).
+              processResult: function (result) {
+                var prefix = base.replace(/\/$/, '');
+                var fix = function (u) {
+                  return u && u.charAt(0) === '/' && u.indexOf(prefix + '/') !== 0 ? prefix + u : u;
+                };
+                result.url = fix(result.url);
+                if (result.sub_results) {
+                  result.sub_results.forEach(function (s) { s.url = fix(s.url); });
+                }
+                return result;
+              },
+            });
           };
           document.head.appendChild(s);
         }
