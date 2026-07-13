@@ -24,7 +24,7 @@ Run daily:  python report.py       (wire to a scheduled task; see README note)
 """
 import json, os, glob, html, datetime, re, sys, urllib.request
 from collections import defaultdict, Counter
-from traceyield import paths
+from traceyield import classification, paths, pricing
 
 # ---------------------------------------------------------------- config
 # Every writable location and env-driven config value is now centralized in
@@ -44,105 +44,29 @@ OUT_HTML = paths.OUT_HTML
 HEALTH_FILE = paths.HEALTH_FILE
 PRICING_FILE = paths.PRICING_FILE
 
-# Base per-1M-token rates. Edit when Anthropic pricing changes.
-# Cache multipliers fixed by the API: read=0.1x, write-5m=1.25x, write-1h=2x.
-# Cost across all history is computed at THESE (current) rates for apples-to-
-# apples comparison; the pricing trend chart shows how rates themselves moved.
-# These are the authoritative source of truth (hand-verified against the
-# Anthropic pricing page); check_pricing_drift() below re-verifies them each
-# run and warns on mismatch — it never overwrites, since a bad scrape would
-# retroactively distort every day's reported cost.
-PRICING = {
-    "opus":   (5.00, 25.00),
-    "sonnet": (2.00, 10.00),   # Sonnet 5 intro pricing thru 2026-08-31 (std 3/15)
-    "haiku":  (1.00,  5.00),
-}
-# Anthropic's published pricing page (Markdown). Anthropic exposes no pricing
-# API — the Models API returns capabilities but no rates — so this doc page is
-# the authoritative live source for the drift check.
-PRICING_URL = "https://platform.claude.com/docs/en/docs/about-claude/pricing.md"
-# Codex (OpenAI) per-1M-token rates for the tiers OpenAI currently prices.
-# Hand-verified 2026-07-12 (checked twice) against OpenAI's published pricing
-# page: https://developers.openai.com/api/docs/pricing -- same "authoritative,
-# re-verified, never auto-overwritten" posture as PRICING above (Decision 0007
-# D5). gpt-5 and gpt-5-codex are INTENTIONALLY OMITTED: they're no longer
-# listed on OpenAI's pricing page, so they stay unpriced and count volume
-# (tokens/msgs) at $0 rather than guessing a rate (Decision 0007 D3,
-# "volume-always / dollars-when-priced").
-CODEX_PRICING = {
-    "gpt-5.3-codex": (1.75, 14.00),
-    "gpt-5.5":       (5.00, 30.00),
-    "gpt-5.5-pro":   (30.00, 180.00),
-}
-# Per-provider cache multipliers (fractions of that provider's input rate).
-# Claude: read=0.1x, write-5m=1.25x, write-1h=2x (see PRICING comment above).
-# Codex: read=0.1x only (verified 0.175/1.75 == 0.50/5.00 == 0.10 on OpenAI's
-# pricing page, same date/source as CODEX_PRICING) -- OpenAI has no cache-write
-# premium, so there are deliberately no w5m/w1h keys here; cost_of()'s
-# `.get(..., 0.0)` defaults make Codex cache-write tokens contribute $0.
-CACHE = {"claude": {"read": 0.10, "w5m": 1.25, "w1h": 2.0},
-         "codex":  {"read": 0.10}}
-# Per-provider rate card: provider -> tier -> (input, output) per 1M tokens.
-# Claude's card references the existing flat PRICING dict so there's one
-# source of truth -- this is NOT a replacement for PRICING, just a lookup
-# layer around it so other providers can register their own tier maps.
-RATE_CARDS = {"claude": PRICING, "codex": CODEX_PRICING}
-def rate_card(provider, tier):
-    """(input, output) per-1M rate for provider+tier, or None if either is unpriced."""
-    return RATE_CARDS.get(provider, {}).get(tier)
-def cost_of(provider, tier, inp, out, cr, w5m, w1h):
-    """Cost in dollars for one turn's token counts, priced off RATE_CARDS/CACHE.
-    Returns 0.0 for an unpriced (provider, tier) pair -- never raises."""
-    card = rate_card(provider, tier)
-    if card is None: return 0.0
-    ri, ro = card
-    mult = CACHE.get(provider, {})
-    read = ri * mult.get("read", 0.0); w5 = ri * mult.get("w5m", 0.0); w1 = ri * mult.get("w1h", 0.0)
-    return (inp*ri + out*ro + cr*read + w5m*w5 + w1h*w1) / 1e6
-def cache_rates(inp, provider="claude"): return {k: inp*v for k, v in CACHE[provider].items()}
-def tier(model):
-    if not model: return None
-    m = model.lower()
-    if "opus" in m or "fable" in m: return "opus"
-    if "sonnet" in m: return "sonnet"
-    if "haiku" in m: return "haiku"
-    return None
+# Rate cards, cost math, and tier() are centralized in traceyield.pricing
+# (E3-F2-S2) -- both report.py (here) and canonical.py consume that shared,
+# dependency-free module directly instead of one reaching into the other.
+# This module just re-exports the names call sites (and existing tests)
+# already depend on; see pricing.py for the values/formulas and the
+# rationale for keeping the I/O-bound pricing functions (parse_pricing_page,
+# check_pricing_drift, _fetch_pricing_page, record_pricing, below) here in
+# report.py rather than in pricing.py.
+PRICING = pricing.PRICING
+PRICING_URL = pricing.PRICING_URL
+CODEX_PRICING = pricing.CODEX_PRICING
+CACHE = pricing.CACHE
+RATE_CARDS = pricing.RATE_CARDS
+rate_card = pricing.rate_card
+cost_of = pricing.cost_of
+cache_rates = pricing.cache_rates
+tier = pricing.tier
 
-# ---------------------------------------------------------------- error taxonomy
-ERROR_RULES = [
-    ("read_before_write", ["file has not been read yet"], "Write/Edit before Read",
-     "Read a file before editing it — the harness tracks read state and rejects edits to unread files."),
-    ("stale_edit", ["file has been modified since read"], "Edit on stale file",
-     "Re-Read the file right before editing when a formatter/other edit/external process may have changed it."),
-    ("edit_no_match", ["string to replace not found","old_string","not unique","no replacement was performed"],
-     "Edit string didn't match",
-     "old_string must match byte-for-byte and be unique. Add surrounding context, or use replace_all."),
-    ("shell_cmd_not_found", ["command not found","exit code 127"], "Command not found (shell mismatch)",
-     "Windows: ls/python/etc aren't on the Bash PATH. Use the PowerShell tool for Windows commands."),
-    ("shell_syntax", ["unexpected eof","syntax error near","eval: line","unexpected token"],
-     "Shell quoting / path-escaping error",
-     "Windows backslash paths break Bash quoting. Prefer the PowerShell tool, or forward slashes / single quotes."),
-    ("user_rejected", ["user doesn't want to proceed","was rejected","permission for this action was denied","haven't granted"],
-     "User rejected / permission denied",
-     "Recurrent denials suggest an allowlist entry (settings.json) or a different approach for that action."),
-    ("is_directory", ["eisdir","illegal operation on a directory","is a directory","directory does not exist"],
-     "Treated a directory as a file", "Confirm the path is a file (Glob/LS) before Read/Write."),
-    ("file_not_found", ["no such file","does not exist","cannot access","cannot find","not found"],
-     "File / path not found", "Verify paths (Glob first); often a wrong relative path or an assumed file."),
-    ("blocked_dangerous", ["remove-item on system path","on system path '/'"],
-     "Blocked dangerous operation", "A destructive command hit a guard. Scope paths explicitly; avoid roots."),
-    ("input_validation", ["inputvalidationerror"], "Tool input validation error",
-     "Often a deferred/MCP tool called before its schema loaded via ToolSearch, or a bad parameter."),
-    ("json_field", ["unknown json field"], "Unknown JSON field", "Stale/misspelled payload field — check current schema."),
-    ("git_error", ["fatal:","exit code 128"], "Git error", "Bad ref / not a repo / cannot change dir — check repo state first."),
-]
-def classify(text):
-    low = text.lower()
-    for name, subs, _, _ in ERROR_RULES:
-        if any(s in low for s in subs): return name
-    return "other"
-ERROR_META = {n: {"title": t, "fix": f} for n, _, t, f in ERROR_RULES}
-ERROR_META["other"] = {"title": "Other / uncategorized", "fix": "Review examples; add a rule to ERROR_RULES if a pattern recurs."}
+# Tool-error taxonomy is centralized in traceyield.classification (E3-F2-S2)
+# for the same reason as pricing above; re-exported here for backward compat.
+ERROR_RULES = classification.ERROR_RULES
+classify = classification.classify
+ERROR_META = classification.ERROR_META
 
 # ---------------------------------------------------------------- parse
 def project_of(path, root=CLAUDE_PROJECTS):

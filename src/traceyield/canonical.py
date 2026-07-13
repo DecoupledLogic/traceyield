@@ -22,7 +22,10 @@ raw text; the default ("structural") stores only length + sha256.
 """
 import os, glob, json, hashlib, sqlite3, datetime
 from dataclasses import dataclass
-from traceyield import paths, report   # report: reuse tier(), classify(), result_text(), project_of()
+from traceyield import classification, paths, pricing, report
+# pricing/classification: shared, dependency-free tier()/classify() (E3-F2-S2).
+# report: reuse machine_id(), result_text(), project_of() -- the remaining
+# ingestion->reporting coupling, removed in E3-F2-S3 (neutral models module).
 
 # ---------------------------------------------------------------- config
 # CAPTURE / RAW_RETENTION_DAYS / DB_FILE are centralized in traceyield.paths
@@ -344,7 +347,7 @@ class ClaudeProvider:
                            stop_reason=m.get("stop_reason"), input_fresh=inp, cache_read=cr,
                            cache_write_5m=w5m, cache_write_1h=w1h, output=out,
                            reasoning_output=None,   # Claude has no separate reasoning count (§2.4)
-                           n_tool_calls=n_tools, wall_ms=wall, tier=report.tier(m.get("model")),
+                           n_tool_calls=n_tools, wall_ms=wall, tier=pricing.tier(m.get("model")),
                            project=proj)   # the FILE's own project, not the session's resolved one
                 for i, b in enumerate(content):
                     if not isinstance(b, dict): continue
@@ -372,7 +375,7 @@ class ClaudeProvider:
                     cur = _ms(ts)
                     lat = (cur - tm[1]) if (tm and cur is not None and tm[1] is not None) else None
                     yield ToolCall("claude", sid, cid, tm[0] if tm else None, ts, name=None,
-                                   ok=(not is_err), error_class=(report.classify(txt) if is_err else None),
+                                   ok=(not is_err), error_class=(classification.classify(txt) if is_err else None),
                                    output_bytes=len(txt), latency_ms=lat)
                     yield Segment("tool_output", "tool", tool_call_id=cid, text=txt)
 
@@ -583,7 +586,7 @@ class CodexProvider:
                 cur = _ms(ts)
                 lat = (cur - tm[1]) if (tm and cur is not None and tm[1] is not None) else None
                 yield ToolCall("codex", sid, cid, tm[0] if tm else None, ts, name=None,
-                               ok=(not failed), error_class=(report.classify(text) if failed else None),
+                               ok=(not failed), error_class=(classification.classify(text) if failed else None),
                                exit_code=exit_code, output_bytes=len(text or ""), latency_ms=lat)
                 yield Segment("tool_output", "tool", tool_call_id=cid, text=text)
                 continue
