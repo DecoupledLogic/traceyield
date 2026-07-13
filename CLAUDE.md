@@ -20,6 +20,8 @@ Work in this repo is planned and delivered with the **Tempo & Flow (`tempo`) ski
 
 **Lifecycle:** `/workflow-plan` (decompose into rows) → `/workflow-design` (approach + plan into the companion) → `/workflow-deliver <Key>` (worktree → TDD via `dev-agent` → QA → review-gate → PR → auto-merge, stamping the row). `/workflow-queue` shows what's selectable; dependency-readiness honors the `DependsOn` ULID edges.
 
+**Branch protection vs. the control plane.** `main` is branch-protected on GitHub: a pull request is required and the `ci` check must pass (strict/up-to-date) before code merges. **`enforce_admins` is deliberately left OFF** so the Tempo lib can keep committing `roadmap.csv`/companion row-stamps *directly to `main`* (the control-plane writes above happen outside any PR). Do **not** re-enable admin enforcement — it would reject every `/workflow-*` roadmap write. The gate still fully applies to non-admin contributors (fork → branch → PR → green `ci` → merge).
+
 **Current roadmap** (epic = MVP, features = functional groups). **Epic E1 is complete — all containers and leaves are `released`.**
 
 | Key | Item | Status |

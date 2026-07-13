@@ -106,6 +106,8 @@ A dependency proposal should explain:
 6. Run the relevant checks locally.
 7. Open a pull request with the required context.
 
+The `main` branch is protected: all changes land through a pull request, and the `ci` check (build + test suite, see below) must pass before a PR can be merged.
+
 Keep pull requests small enough to review. Separate unrelated refactoring from behavioral changes whenever practical.
 
 ## Testing expectations
