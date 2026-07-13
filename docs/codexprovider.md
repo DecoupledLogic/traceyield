@@ -1,6 +1,8 @@
 # CodexProvider: parsing Codex CLI rollout logs into the canonical store
 
-*Reference for the `CodexProvider` class in `canonical.py`. Read
+*Reference for the `CodexProvider` class in `traceyield.providers.codex`
+(moved out of `canonical.py` in E3-F2-S4; `canonical.CodexProvider` still
+resolves, re-exported, same class object). Read
 [`canonical-data-model.md`](./canonical-data-model.md) (esp. §4.1, §6) and
 [`openai-usage-data-research.md`](./openai-usage-data-research.md) (§1.2–1.7)
 first. This doc assumes both. Shipped in work item E1-F1-S1.*
@@ -8,18 +10,24 @@ first. This doc assumes both. Shipped in work item E1-F1-S1.*
 ## What it is
 
 `CodexProvider` is the second provider in the canonical store, parallel to
-`ClaudeProvider`. It parses OpenAI Codex CLI rollout logs
-(`~/.codex/sessions/**/*.jsonl`) and yields the **same neutral `Rec` stream**
-(`Session`/`Turn`/`ToolCall`/`Segment`/`RawEvent`) that `write()` upserts
-provider-blind, keyed by `provider='codex'`. It is the proof the abstraction
-holds: **one new class, no schema / `write()` / test-harness change.** Claude and
-Codex records coexist in one `usage.db`, distinguished only by the `provider`
-column.
+`ClaudeProvider` (`traceyield.providers.claude`). It parses OpenAI Codex CLI
+rollout logs (`~/.codex/sessions/**/*.jsonl`) and yields the **same neutral
+`Rec` stream** (`Session`/`Turn`/`ToolCall`/`Segment`/`RawEvent`) that
+`canonical.write()` upserts provider-blind, keyed by `provider='codex'`. It
+is the proof the abstraction holds: **one new class, no schema / `write()` /
+test-harness change.** Claude and Codex records coexist in one `usage.db`,
+distinguished only by the `provider` column.
 
 The seam mirrors `ClaudeProvider` exactly, `__init__(self, root=None)` (defaults
 to `$CODEX_HOME` or `~/.codex/sessions`, so tests pass a temp dir and never touch
 the real corpus), `roots()`, and `parse_file(path)` yielding `Rec`s, so
-`ingest()` calls it identically. It's registered in `default_providers()`.
+`ingest()` calls it identically -- formalized as the `traceyield.providers.base.Provider`
+protocol as of E3-F2-S4. It's registered in `canonical.default_providers()`.
+Both provider classes depend only on the neutral layer (`traceyield.models`,
+`traceyield.paths`, `traceyield.classification`, `traceyield.transcripts` --
+`ClaudeProvider` additionally uses `traceyield.pricing`; `CodexProvider`
+deliberately does not, since Codex tiers via its own `codex_tier()`, not
+`pricing.tier()`), never on `canonical.py` or `report.py`.
 
 ## Record-emission mapping (Codex line → neutral Rec)
 
@@ -93,6 +101,10 @@ seam: fresh-input math; `reasoning_output` not folded into `output`; both
 `token_count` → 0 turns / no crash; a mid-session model switch picking up the new
 tier; a reasoning summary → `Segment("reasoning")` with text vs. count-only → not;
 and idempotent re-ingest. Run: `python -m unittest tests.test_canonical`.
+`tests/test_providers.py` (E3-F2-S4) separately covers the protocol itself --
+`CodexProvider` (and `ClaudeProvider`) structurally satisfying
+`traceyield.providers.base.Provider`, and an `ast` guard proving
+`traceyield/providers/codex.py` imports only the neutral layer.
 
 ## Roadmap context
 

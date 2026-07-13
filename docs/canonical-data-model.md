@@ -369,19 +369,41 @@ class RawEvent:  # anything unmodeled: the escape hatch
 
 ### 6.2 The `Provider` interface
 
+*Shipped as a formal `typing.Protocol` in E3-F2-S4* (`traceyield.providers.base.Provider`,
+`@runtime_checkable`, structural rather than an `abc.ABC` base class — see
+that module's docstring for why: a new provider only needs to *look* like a
+Provider, not import/subclass anything, which is what lets it be registered
+with zero reporting-layer edits):
+
 ```python
-class Provider:
+class Provider(Protocol):
     name: str
     def roots(self) -> list[str]: ...          # glob roots to scan
     def parse_file(self, path) -> Iterator[Rec]: ...   # yield Session/Turn/ToolCall/Segment/RawEvent
+```
 
-PROVIDERS = [ClaudeProvider(), CodexProvider()]    # add a class → new provider supported
+`ClaudeProvider` (`traceyield.providers.claude`) and `CodexProvider`
+(`traceyield.providers.codex`) are the two shipped implementations;
+`canonical.default_providers()` is the registry `ingest()` uses when no
+explicit `providers=` list is passed:
+
+```python
+def default_providers():
+    return [ClaudeProvider(), CodexProvider()]    # add a class → new provider supported
 ```
 
 A provider owns exactly its own quirks: token-semantics reconciliation (§4.1),
 the id→turn join, its error heuristic, and mapping raw tool names to `kind`
-(§4.2), via the **shared** helpers `tool_kind()`, `error_class()`, `sha()` so the
-taxonomy stays unified across providers.
+(§4.2), via the **shared** helpers `tool_kind()`, `classify()`, `sha()` so the
+taxonomy stays unified across providers. As of E3-F2-S4, each provider module
+lives in its own file under `traceyield.providers` and depends **only** on
+the neutral layer (`models`/`paths`/`pricing`/`classification`/`transcripts`)
+-- never on `canonical.py` (the store) or `report.py` (reporting); the
+cross-provider parsing helpers `tool_kind()`/`iter_json_lines()`/`ms()` live
+in `traceyield.transcripts` for exactly that reason (both providers need
+them, and neither may reach into `canonical.py` to get them). See
+`docs/decisions/0008-installable-src-layout-package.md` Phase 2, whose exit
+criterion ("providers depend only on neutral models/utilities") this is.
 
 ### 6.3 The core is provider-blind
 
