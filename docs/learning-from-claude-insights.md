@@ -9,7 +9,9 @@ predict / prescribe / remediate loop) and the diagnostics doc
 economic catalog). Where those cover the economic half of the loop, this one argues
 for a second facet (behavioral signals) and a concrete design for the loop's
 unbuilt bottom rung (remediate). Grounded in the current code:
-`classification.py` (`ERROR_RULES`), `report.py`, and `cli.py`.*
+`classification.py` (`ERROR_RULES`), `report.py`, and `cli.py` — and, as of the
+2026-07-13 revision, in a captured `/insights` run dissected line by line (see
+"Grounding: the captured artifact" below).*
 
 ---
 
@@ -221,6 +223,55 @@ Three rules, each a direct response to a documented `/insights` miss:
   unknown, the report says so rather than inventing it.
 - No self-labeling as an audit or a verification the tool did not perform. The
   report describes what it counted, nothing more.
+
+## Grounding: the captured artifact (2026-07-13)
+
+The analysis above predated seeing a real report; a captured `/insights` run
+(625 messages, 47 sessions) was then dissected line by line. It confirmed the
+split and sharpened the take/leave calls. Two structural facts settle the design.
+
+**Where `/insights` data actually lives.** The narrative is rendered from a
+separate, `/insights`-only store at `~/.claude/usage-data/facets/<session>.json`,
+not from the raw transcripts TraceYield parses. Each facet is a bag of *LLM
+judgments* about one session:
+
+```
+outcome: "mostly_achieved"
+user_satisfaction_counts: { "likely_satisfied": 1 }
+claude_helpfulness, friction_counts, friction_detail, brief_summary, ...
+```
+
+Every field there is model-derived. TraceYield reads the transcripts underneath,
+which carry the deterministic substrate and none of these judgments — so nothing
+in `usage-data/facets` is a source TraceYield should trust as a count.
+
+**The report's sections, sorted by what TraceYield should do with each:**
+
+| `/insights` element | Nature | TraceYield verdict |
+|---|---|---|
+| Response-time distribution (user think-time) | Deterministic (timestamps) | **Take** — novel, honest describe-facet |
+| Messages by time-of-day; parallel-session overlap | Deterministic (timestamps) | **Take** |
+| Tool / language / session-type mix | Deterministic (counts) | **Take** — substrate already parsed |
+| Lines +/-, files touched | Deterministic (Edit/Write payloads) | **Take** |
+| Tool errors; friction clusters | Deterministic (taxonomy) | **Already have** (`ERROR_RULES`, B1-B5) |
+| "What You Work On" (semantic clusters) | LLM-named | **Relabel** — `by_project` (by cwd) is the countable version |
+| Outcomes (Fully/Mostly Achieved counts) | LLM-inferred | **Reject as counts** |
+| Inferred Satisfaction counts | LLM-inferred | **Reject** — see below |
+| "On the Horizon" | Speculation | **Reject** — run-rate/runway is the honest predict |
+| CLAUDE.md / Skill / Hook / MCP suggestions | Artifact + evidence + "why" | **Take the template** — the prescribe→remediate prize |
+
+**The satisfaction finding (a settled question).** The report's "Inferred
+Satisfaction" is labeled *model-estimated*, and it is: it comes from the
+`user_satisfaction_counts` bucket a model picked, not from the 1-5 the CLI's
+periodic "How am I doing?" prompt collects. That explicit rating is not persisted
+anywhere TraceYield can read — not in the transcripts, `history.jsonl`, or
+`sessions/`; it appears to be telemetry only. Consequence: **TraceYield shows no
+satisfaction number.** An explicit user rating would be the one honest, *measured*
+satisfaction signal, but the data does not contain it. If Anthropic ever persists
+the real rating into the transcripts, it becomes a legitimate describe-facet;
+until then, any satisfaction figure is inference the doctrine rejects. (Field
+note: even an honestly-given score would not help today — TraceYield never sees
+it, and `/insights` infers rather than reads it.)
 
 ## Suggested Next Steps
 
