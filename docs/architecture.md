@@ -257,6 +257,27 @@ reconstructs what transcripts still hold; the merge functions only *preserve* wh
 already on disk. Lose that local store after transcripts rotate and the pre-rotation
 history is **gone**. Back it up out-of-band.
 
+**Known gap: installed-package data directory (tracked by E3-F4-S1).**
+`src/traceyield/report.py`'s `HERE` anchor is `os.path.dirname` applied three
+times to `os.path.abspath(__file__)`, which correctly walks up from
+`src/traceyield/report.py` to the repo root in a source checkout (where
+`machines/` and `pricing_history.json` live). Once the package is installed
+from a wheel, `report.py` instead lives at
+`.../site-packages/traceyield/report.py`, and three levels up from there
+lands somewhere inside the Python install/venv — **not** a meaningful data
+directory. As of E3-F1-S5 (CI now builds and installs the wheel and runs the
+suite + `traceyield --help` / `--machine-dir` / `python -m traceyield` smoke
+checks against that install), `traceyield --machine-dir` under a wheel
+install exits 0 and prints *a* path, but that path is inside the install
+location, not a sensible per-machine data directory — and nothing in this
+package should ever write there. CI is deliberately restricted to the three
+smoke commands above and never runs the full `traceyield report` pipeline,
+specifically to avoid creating directories or files inside site-packages.
+Defining the real installed-application data-directory policy (env var
+override, XDG/platform-appropriate default, pipx-safe, never writing inside
+the install dir) is explicitly out of scope here and is **E3-F4-S1**'s job
+(see Decision 0008, Phase 4).
+
 ## Scheduling (`run.cmd`)
 
 `run.cmd` is the Windows Task Scheduler wrapper. It's machine-agnostic: resolves
@@ -302,6 +323,13 @@ session/`by_model` shapes, update the fixtures' expected numbers.
 
 ## Change log
 
+- **2026-07-12**: CI now builds and installs the wheel (`python -m build
+  --wheel` + `pip install dist/*.whl`) and runs the suite plus `traceyield
+  --help` / `--machine-dir` / `python -m traceyield` smoke checks against
+  that install, instead of only an editable install; a CI step asserts
+  `traceyield.__file__` resolves under `site-packages`, not the checkout, so
+  an editable-only run can't masquerade as a wheel run. Documented the
+  installed-package data-directory gap above (tracked by **E3-F4-S1**).
 - **2026-07-10**: Canonical store: `CodexProvider` added to `canonical.py`
   (parallel to `ClaudeProvider`, registered in `default_providers()`), parsing
   Codex CLI rollout logs (`~/.codex/sessions/**/*.jsonl`) into the same neutral
