@@ -124,5 +124,35 @@
         "output": 180.0
       }
     }
+  },
+  "2026-07-13": {
+    "claude": {
+      "opus": {
+        "input": 5.0,
+        "output": 25.0
+      },
+      "sonnet": {
+        "input": 2.0,
+        "output": 10.0
+      },
+      "haiku": {
+        "input": 1.0,
+        "output": 5.0
+      }
+    },
+    "codex": {
+      "gpt-5.3-codex": {
+        "input": 1.75,
+        "output": 14.0
+      },
+      "gpt-5.5": {
+        "input": 5.0,
+        "output": 30.0
+      },
+      "gpt-5.5-pro": {
+        "input": 30.0,
+        "output": 180.0
+      }
+    }
   }
 }
