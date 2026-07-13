@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1254" height="1254" viewBox="0 0 1254 1254">
+  <title>TraceYield mark</title>
+  <defs>
+    <linearGradient id="gradient" x1="300" y1="280" x2="900" y2="985" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#05b98a"/>
+      <stop offset="0.46" stop-color="#10b7d8"/>
+      <stop offset="0.72" stop-color="#258cf8"/>
+      <stop offset="1" stop-color="#7338ff"/>
+    </linearGradient>
+  </defs>
+  <path d="M627 228 L952 424 L952 806 L627 1002 L301 806 L301 424 Z"
+        fill="none" stroke="url(#gradient)" stroke-width="70"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="url(#gradient)">
+    <rect x="432" y="603" width="77" height="165" rx="38.5"/>
+    <rect x="587" y="452" width="77" height="316" rx="38.5"/>
+    <rect x="741" y="571" width="77" height="197" rx="38.5"/>
+  </g>
+</svg>

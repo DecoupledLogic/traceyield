@@ -1,0 +1,57 @@
+---
+import Base from '../layouts/Base.astro';
+
+const features = [
+  { title: 'Daily time-series', body: 'Cost, tokens, turns, sessions, and tool-error rate bucketed by activity date, with day / week / month views and deltas.' },
+  { title: 'Per-session cost', body: 'Sessions accumulated across every date they touch, so one runaway conversation surfaces instead of hiding in a daily average.' },
+  { title: 'Token composition', body: 'The five line items -- fresh input, cache write 5m / 1h, cache read, output -- so you see where the money actually goes.' },
+  { title: 'Routing savings estimator', body: "Recomputes a period's Opus usage at Sonnet / Haiku rates, scaled by a routable share, as an honest upper bound." },
+  { title: 'Error taxonomy', body: 'Tool failures classified into fixable categories, each with a dollar figure on the estimated waste.' },
+  { title: 'Cross-provider', body: 'Claude and Codex ingested into one neutral store. Tokens are the shared currency; dollars are a per-provider projection.' },
+];
+---
+<Base title="TraceYield - token-spend & health analytics for LLMs">
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Tokens are the meter, not the mission</p>
+      <h1>See where your <span class="grad">LLM spend</span> actually goes.</h1>
+      <p class="lede">
+        TraceYield parses your Claude Code and Codex transcripts and emits a self-contained,
+        interactive usage &amp; health dashboard: daily time-series, per-session cost, an error
+        taxonomy, and model-routing savings. Single-file Python, zero runtime dependencies.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="/docs/overview">Read the docs</a>
+        <a class="btn btn-ghost" href="https://github.com/DecoupledLogic/traceyield">View on GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <h2>What it measures</h2>
+      <p class="sub">Everything is derived per activity date from your own transcripts, so a single run can reconstruct the whole history.</p>
+      <div class="cards">
+        {features.map((f) => (
+          <div class="card">
+            <div class="dot"></div>
+            <h3>{f.title}</h3>
+            <p>{f.body}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <h2>Get started</h2>
+      <p class="sub">Clone, run, open the report. No build step, no framework.</p>
+      <div class="card" style="max-width: 640px">
+        <pre style="margin:0;background:var(--ty-surface-2);border:1px solid var(--ty-border);border-radius:var(--ty-radius-md);padding:var(--ty-space-4);overflow-x:auto"><code>git clone https://github.com/DecoupledLogic/traceyield.git
+cd traceyield
+python report.py        # parses transcripts, writes report.html</code></pre>
+      </div>
+    </div>
+  </section>
+</Base>
