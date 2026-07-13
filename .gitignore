@@ -2,6 +2,11 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
+# Editable-install / build artifacts from `pip install -e .` (E3-F1-S4).
+*.egg-info/
+build/
+dist/
+
 # Per-machine generated artifacts (daily_metrics.json, session_metrics.json,
 # report.html, run.log). Each machine produces its own under machines/<id>/ on
 # run; these are local-only so a clone doesn't carry another user's usage data.

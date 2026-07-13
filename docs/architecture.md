@@ -21,7 +21,7 @@ no framework, no server. One command does everything:
 
 ```bash
 python report.py                       # parse → merge → record pricing → emit report → drift check
-python -m unittest test_report         # tests (stdlib; also runs under pytest)
+python -m unittest discover -s tests   # tests (stdlib; also runs under pytest)
 python report.py --machine-dir         # print this machine's artifact dir and exit (used by run.cmd)
 ```
 
@@ -265,7 +265,7 @@ this machine's folder is, and appends a one-line summary to
 `machines\<machine_id>\run.log`. Interpreter is `python` on PATH unless `PYTHON`
 is set. On macOS/Linux, wire `python report.py` into cron/launchd.
 
-## Tests (`test_report.py`)
+## Tests (`tests/test_report.py`)
 
 Stdlib `unittest` (also runs under pytest), no dependencies. It builds fixture
 transcripts in a temp dir with **hand-computable token counts** and asserts exact

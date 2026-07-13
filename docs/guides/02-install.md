@@ -100,7 +100,7 @@ $env:TRACEYIELD_MACHINE = "my-laptop"; python report.py
 If you want to confirm the tool itself is healthy, run its test suite. It is standard-library only, so it needs no setup:
 
 ```bash
-python -m unittest test_report test_canonical
+python -m unittest discover -s tests
 ```
 
 Green means the cost math, merge logic, error taxonomy, and report generation all behave.

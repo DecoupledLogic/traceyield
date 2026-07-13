@@ -39,8 +39,8 @@ With E1 delivered, the next planning cycle (a new epic/slice) starts from `/work
 
 ```bash
 python report.py                          # parse transcripts, merge data, regenerate report.html
-python -m unittest test_report            # run the test suite (stdlib only, no deps)
-python -m pytest test_report.py -q        # same tests under pytest, if installed
+python -m unittest discover -s tests      # run the test suite (stdlib only, no deps)
+python -m pytest tests -q                 # same tests under pytest, if installed
 ```
 
 - `run.cmd` is the scheduled-task wrapper. It's machine-agnostic: it resolves the repo dir from its own location (`%~dp0`), asks `report.py --machine-dir` where this machine's folder is, and appends its one-line summary to `machines\<machine_id>\run.log`. The interpreter is `python` on PATH unless `PYTHON` is set (e.g. `set PYTHON=C:\Users\charl\anaconda3\python.exe` before scheduling). It runs daily via Windows Task Scheduler.
@@ -50,9 +50,9 @@ python -m pytest test_report.py -q        # same tests under pytest, if installe
 
 ## Tests
 
-`test_report.py` is stdlib `unittest` (runs under pytest too) so it needs no dependencies. It builds fixture transcripts in a temp dir with hand-computable token counts and asserts exact costs: the parametrized `analyze(root=...)`, `merge_daily(..., path=...)`, `merge_sessions(..., path=...)`, `record_pricing(path=...)`, `scan_claude(root=...)`, `scan_codex(root=...)`, and `coverage(days, scan_dates, today=...)` signatures exist specifically so tests never touch the real `~/.claude`/`~/.codex` dirs or a machine's real data files under `machines/`. If you change the cost formula, cache multipliers, error taxonomy, or the session/by_model shapes, update the fixtures' expected numbers. If you change the `SCHEMA_EXPECT` baseline, drift categories, or the coverage heuristics, update `TestSchemaScanClaude`/`TestSchemaScanCodex`/`TestCoverage`. Note: `report.py`'s terse `json.load(open(...))` idiom leaks file handles, so tests silence `ResourceWarning`. That's deliberate, not a masked bug.
+The suite lives under `tests/` (E3-F1-S4) and imports the installed `traceyield` package (`pip install -e .`), never the repo root or `src/` tree directly — `tests/test_layout.py` statically enforces that with an `ast` scan, so a stray root import fails the suite rather than silently working. `tests/test_compat.py` is the one deliberate exception: it exists specifically to test the root compat shims (`report.py`/`canonical.py`), so it imports them by definition, and that exception is named explicitly in `test_layout.py`'s allowlist. `tests/test_report.py` is stdlib `unittest` (runs under pytest too) so it needs no dependencies beyond the editable install. It builds fixture transcripts in a temp dir with hand-computable token counts and asserts exact costs: the parametrized `analyze(root=...)`, `merge_daily(..., path=...)`, `merge_sessions(..., path=...)`, `record_pricing(path=...)`, `scan_claude(root=...)`, `scan_codex(root=...)`, and `coverage(days, scan_dates, today=...)` signatures exist specifically so tests never touch the real `~/.claude`/`~/.codex` dirs or a machine's real data files under `machines/`. If you change the cost formula, cache multipliers, error taxonomy, or the session/by_model shapes, update the fixtures' expected numbers. If you change the `SCHEMA_EXPECT` baseline, drift categories, or the coverage heuristics, update `TestSchemaScanClaude`/`TestSchemaScanCodex`/`TestCoverage`. Note: `report.py`'s terse `json.load(open(...))` idiom leaks file handles, so tests silence `ResourceWarning`. That's deliberate, not a masked bug.
 
-Name test methods `test_<behavior>` and keep fixtures deterministic, synthetic, and free of real transcripts or identifiers. Behavioral changes should cover both the success and the meaningful failure paths — especially malformed data, schema drift, pricing math, persistence, and privacy behavior. Run the full suite (`python -m unittest test_report test_canonical`) before submitting.
+Name test methods `test_<behavior>` and keep fixtures deterministic, synthetic, and free of real transcripts or identifiers. Behavioral changes should cover both the success and the meaningful failure paths — especially malformed data, schema drift, pricing math, persistence, and privacy behavior. Run the full suite (`python -m unittest discover -s tests`) before submitting.
 
 ## Contribution conventions
 

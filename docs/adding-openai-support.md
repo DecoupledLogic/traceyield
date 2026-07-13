@@ -249,7 +249,7 @@ scrape-or-LiteLLM is the only option (research §1.6).
 
 ## Tests
 
-Extend `test_report.py` the same way it tests the Claude path: build **fixture
+Extend `tests/test_report.py` the same way it tests the Claude path: build **fixture
 Codex rollout `.jsonl`** in a temp dir with hand-computable token counts and
 assert exact costs through `analyze_codex(root=…)`. Cover specifically:
 

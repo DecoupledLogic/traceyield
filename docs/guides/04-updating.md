@@ -13,7 +13,7 @@ python report.py
 Because the tool is a single Python file plus its data, there is nothing to rebuild and nothing to reinstall. Pull, run, done. If the test suite matters to you, run it after pulling:
 
 ```bash
-python -m unittest test_report test_canonical
+python -m unittest discover -s tests
 ```
 
 ## What happens to your data on update

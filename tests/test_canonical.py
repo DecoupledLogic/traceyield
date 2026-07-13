@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """
-Tests for canonical.py — the provider-neutral SQLite usage store.
+Tests for traceyield.canonical — the provider-neutral SQLite usage store.
 
 Stdlib-only (unittest; also runs under pytest):
-    python -m unittest test_canonical
+    python -m unittest discover -s tests   (or: python -m pytest tests -q)
+
+Imports the installed traceyield package (`pip install -e .`), not the repo
+root or src/ tree directly, so the suite exercises the same import surface a
+consumer of the package would.
 
 Fixtures are hand-built transcript lines run through ClaudeProvider + ingest()
 into an in-memory db, then asserted with SQL. The seams that keep tests off the
@@ -12,11 +16,6 @@ would be involved they aren't — the canonical store deliberately holds tokens,
 not dollars (cost stays a query-time projection).
 """
 import datetime, json, os, sys, tempfile, unittest, warnings
-
-ROOT = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(ROOT, "src")
-if SRC not in sys.path:
-    sys.path.insert(0, SRC)
 
 from traceyield import report, canonical
 

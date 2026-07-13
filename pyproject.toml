@@ -29,3 +29,12 @@ package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# E3-F1-S4: the test suite lives under tests/ and imports the installed
+# traceyield package rather than reaching into the source tree, so both
+# entry points CLAUDE.md documents work from the repo root:
+#   python -m unittest discover -s tests
+#   python -m pytest tests -q          (pytest is an optional dev convenience,
+#                                        not a runtime or build dependency)
+[tool.pytest.ini_options]
+testpaths = ["tests"]

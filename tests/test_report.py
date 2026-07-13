@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """
-Tests for report.py.
+Tests for traceyield.report.
 
 Stdlib-only (unittest) so they run with no extra dependencies:
-    python -m unittest test_report       (or: python -m pytest test_report.py)
+    python -m unittest discover -s tests   (or: python -m pytest tests -q)
+
+Imports the installed traceyield package (`pip install -e .`), not the repo
+root or src/ tree directly, so the suite exercises the same import surface a
+consumer of the package would.
 
 The interesting surface is analyze(): it turns raw transcript lines into the
 day/session/tier aggregates the HTML report renders, including the two newer
@@ -12,11 +16,6 @@ model-routing estimator consumes. Fixtures are built with hand-computable
 numbers so expected costs are checked exactly, not approximately.
 """
 import contextlib, io, json, os, re, socket, sys, tempfile, unittest, warnings
-
-ROOT = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(ROOT, "src")
-if SRC not in sys.path:
-    sys.path.insert(0, SRC)
 
 from traceyield import report, canonical
 

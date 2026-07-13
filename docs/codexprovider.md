@@ -85,14 +85,14 @@ leaves it NULL). Plain-text output is treated as success with a NULL `exit_code`
 
 ## Test coverage
 
-`test_canonical.py` gains a `codex_rollout()` fixture next to the Claude helpers
-and asserts via SQL, using the `CodexProvider(root=tmp)` / `open_db(":memory:")`
+`tests/test_canonical.py` gains a `codex_rollout()` fixture next to the Claude
+helpers and asserts via SQL, using the `CodexProvider(root=tmp)` / `open_db(":memory:")`
 seam: fresh-input math; `reasoning_output` not folded into `output`; both
 `token_count` shapes (asserting the delta path); a failing `function_call_output`
 → `ok=0` + right `error_class` + `exit_code`; a `codex exec` file with no
 `token_count` → 0 turns / no crash; a mid-session model switch picking up the new
 tier; a reasoning summary → `Segment("reasoning")` with text vs. count-only → not;
-and idempotent re-ingest. Run: `python -m unittest test_canonical`.
+and idempotent re-ingest. Run: `python -m unittest tests.test_canonical`.
 
 ## Roadmap context
 
