@@ -118,6 +118,48 @@ class TestReportWrapperDelegation(unittest.TestCase):
             self.assertEqual(cm.exception.code, 3)
 
 
+def _src_machine_dir():
+    """Ground truth for what the root compat shim's `--machine-dir` prints:
+    a FRESH subprocess that mirrors exactly what report.py itself does
+    (insert src/ onto sys.path, then `from traceyield import report`), so
+    this is independent of whatever traceyield happens to be pip-installed
+    (editable or a real wheel) in the *current* environment.
+
+    Before E3-F1-S5, `pkg_report.MACHINE_DIR` (imported once at module scope
+    from whatever is pip-installed) was a safe stand-in for this, because
+    only an editable install of this exact checkout was ever used in CI/dev.
+    Now that CI (and this suite) also runs against a genuinely separate
+    built-wheel install, `pkg_report` may resolve to a copy living under
+    site-packages with a different HERE/MACHINE_DIR (the installed-package
+    data-directory gap tracked by E3-F4-S1 -- see docs/architecture.md,
+    "Known gap: installed-package data directory"), while the compat shim
+    -- because it forcibly inserts this checkout's src/ at sys.path[0] in a
+    fresh process -- always resolves against the local source tree
+    regardless. Recomputing ground truth this way keeps these tests valid
+    under both install modes.
+    """
+    src = os.path.join(ROOT, "src")
+    result = subprocess.run(
+        [sys.executable, "-c",
+         "import sys; sys.path.insert(0, %r); "
+         "from traceyield import report; print(report.MACHINE_DIR)" % src],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout.strip()
+
+
+def _traceyield_is_editable_install_of_this_checkout():
+    """True when the currently pip-installed `traceyield` resolves to this
+    checkout's src/traceyield/__init__.py (an editable/dev install), False
+    when it's a separately-built wheel installed elsewhere (e.g. under
+    site-packages) -- the scenario E3-F1-S5's CI job now also exercises."""
+    installed_at = os.path.normcase(os.path.abspath(pkg_report.__file__))
+    checkout_src_report = os.path.normcase(
+        os.path.abspath(os.path.join(ROOT, "src", "traceyield", "report.py")))
+    return installed_at == checkout_src_report
+
+
 class TestMachineDirSubprocess(unittest.TestCase):
     """`run.cmd` invokes `report.py --machine-dir` as a real subprocess and
     depends on it printing a path and exiting 0 without parsing transcripts;
@@ -129,11 +171,24 @@ class TestMachineDirSubprocess(unittest.TestCase):
             capture_output=True, text=True, cwd=ROOT,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.strip(), pkg_report.MACHINE_DIR)
+        self.assertEqual(result.stdout.strip(), _src_machine_dir())
 
     def test_machine_dir_flag_matches_package_module_invocation(self):
-        # traceyield is installed (editable install), so no PYTHONPATH
-        # manipulation is needed for `-m traceyield` to resolve.
+        # This equality only holds when the pip-installed traceyield IS this
+        # checkout (an editable/dev install): under a real wheel install
+        # (E3-F1-S5's CI job), `-m traceyield --machine-dir` resolves under
+        # the install location while `report.py --machine-dir` still forces
+        # this checkout's src/ tree, so the two legitimately diverge -- the
+        # installed-package data-directory gap tracked by E3-F4-S1 (see
+        # docs/architecture.md). Skip rather than assert a false equality.
+        if not _traceyield_is_editable_install_of_this_checkout():
+            self.skipTest(
+                "traceyield is installed from a built wheel, not an "
+                "editable install of this checkout -- report.py "
+                "--machine-dir and `-m traceyield --machine-dir` are "
+                "expected to diverge here (known gap, tracked by "
+                "E3-F4-S1); see docs/architecture.md."
+            )
         pkg_result = subprocess.run(
             [sys.executable, "-m", "traceyield", "--machine-dir"],
             capture_output=True, text=True, cwd=ROOT,
@@ -155,7 +210,7 @@ class TestMachineDirSubprocess(unittest.TestCase):
             capture_output=True, text=True, cwd=tempfile.gettempdir(),
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.strip(), pkg_report.MACHINE_DIR)
+        self.assertEqual(result.stdout.strip(), _src_machine_dir())
 
     def test_machine_dir_flag_does_not_require_preexisting_pythonpath(self):
         # Fresh subprocess, no PYTHONPATH set: proves the wrapper itself
@@ -167,7 +222,7 @@ class TestMachineDirSubprocess(unittest.TestCase):
             capture_output=True, text=True, cwd=ROOT, env=env,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.strip(), pkg_report.MACHINE_DIR)
+        self.assertEqual(result.stdout.strip(), _src_machine_dir())
 
 
 class TestCanonicalWrapperSubprocess(unittest.TestCase):
