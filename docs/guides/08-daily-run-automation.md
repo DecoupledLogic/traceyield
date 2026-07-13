@@ -14,13 +14,26 @@ Every run reparses whatever transcripts still exist and merges the results into 
 
 The repository ships `run.cmd`, a Task Scheduler wrapper. It is machine-agnostic: it resolves the repository directory from its own location, asks the tool where this machine's folder is, and appends a one-line summary to `machines\<machine-id>\run.log`. You do not edit it.
 
-Point a daily scheduled task at it:
+### The easy way: install-task.cmd
+
+The repository also ships `install-task.cmd`, which registers the daily task for you. It's self-locating like `run.cmd`, so on a fresh clone you just run it once from the repository root:
+
+```
+install-task.cmd            :: register the task at the default 06:00
+install-task.cmd 09:00      :: or pass a custom HH:MM start time
+```
+
+Re-running it overwrites the existing task, so it doubles as the way to change the time. To remove the task later, run `uninstall-task.cmd` (it deletes only the schedule; your data under `machines\` is left untouched).
+
+### The manual way
+
+If you'd rather register it by hand, point a daily scheduled task at `run.cmd` directly:
 
 ```
 schtasks /create /tn "TraceYield Usage Report" /tr "C:\path\to\traceyield\run.cmd" /sc daily /st 09:00
 ```
 
-Replace `C:\path\to\traceyield` with your clone's path and pick a time.
+Replace `C:\path\to\traceyield` with your clone's path and pick a time. This is exactly what `install-task.cmd` runs.
 
 ### If python is not on PATH
 
