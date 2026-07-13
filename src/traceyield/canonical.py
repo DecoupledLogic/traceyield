@@ -21,11 +21,16 @@ never mutates report.py's stores. Privacy: TRACEYIELD_CAPTURE=verbatim stores
 raw text; the default ("structural") stores only length + sha256.
 """
 import os, glob, json, hashlib, sqlite3, datetime
-from dataclasses import dataclass
-from traceyield import classification, paths, pricing, report
+from traceyield import classification, paths, pricing, transcripts
+from traceyield.models import RawEvent, Segment, Session, ToolCall, Turn
 # pricing/classification: shared, dependency-free tier()/classify() (E3-F2-S2).
-# report: reuse machine_id(), result_text(), project_of() -- the remaining
-# ingestion->reporting coupling, removed in E3-F2-S3 (neutral models module).
+# models: the five neutral record dataclasses (Session/Turn/ToolCall/Segment/
+# RawEvent) -- imported by name so canonical.Turn IS models.Turn (same class
+# object), not a copy. transcripts: shared project_of()/result_text().
+# paths.machine_id() replaces the last of these three. This module no longer
+# imports report.py at all -- the reverse ingestion->reporting dependency is
+# gone (E3-F2-S3; see docs/decisions/0008-installable-src-layout-package.md
+# Phase 2, "providers depend only on neutral models/utilities").
 
 # ---------------------------------------------------------------- config
 # CAPTURE / RAW_RETENTION_DAYS / DB_FILE are centralized in traceyield.paths
@@ -122,41 +127,9 @@ def open_db(path=DB_FILE):
     conn.commit()
     return conn
 
-# ---------------------------------------------------------------- neutral records
-@dataclass
-class Session:
-    provider: str; session_id: str
-    project: str = None; cwd: str = None; git_branch: str = None
-    cli_version: str = None; source: str = None
-    approval_policy: str = None; sandbox_policy: str = None
-    first_ts: str = None; last_ts: str = None
-
-@dataclass
-class Turn:
-    provider: str; session_id: str; turn_id: str; ts: str; model: str
-    parent_turn_id: str = None; request_id: str = None; stop_reason: str = None
-    input_fresh: int = 0; cache_read: int = 0; cache_write_5m: int = 0
-    cache_write_1h: int = 0; output: int = 0; reasoning_output: int = None
-    compacted: bool = False; n_tool_calls: int = 0; wall_ms: int = None
-    tier: str = None
-    project: str = None   # the project the SOURCE FILE lives in (per-turn, not
-                           # per-session -- a session can span project dirs)
-
-@dataclass
-class ToolCall:
-    provider: str; session_id: str; call_id: str; turn_id: str; ts: str
-    name: str = None; kind: str = None; ok: bool = None; error_class: str = None
-    exit_code: int = None; output_bytes: int = 0; latency_ms: int = None
-
-@dataclass
-class Segment:
-    kind: str; role: str = None; turn_id: str = None; tool_call_id: str = None
-    seq: int = 0; text: str = None; text_available: bool = True
-    hash_src: str = None    # hashed for provenance when text is absent (e.g. redacted reasoning signature)
-
-@dataclass
-class RawEvent:
-    provider: str; session_id: str; ts: str; type: str; raw: str = None
+# Session/Turn/ToolCall/Segment/RawEvent now live in traceyield.models
+# (E3-F2-S3) -- imported by name above, so canonical.Session IS
+# models.Session etc (same class object), not a redefinition here.
 
 # ---------------------------------------------------------------- shared helpers
 def sha(s):
@@ -263,7 +236,7 @@ def write(conn, rec, verbatim):
             "cli_version=COALESCE(session.cli_version, excluded.cli_version), "
             "first_ts=MIN(COALESCE(session.first_ts,excluded.first_ts),COALESCE(excluded.first_ts,session.first_ts)), "
             "last_ts=MAX(COALESCE(session.last_ts,excluded.last_ts),COALESCE(excluded.last_ts,session.last_ts))",
-            (rec.provider, rec.session_id, report.machine_id(), rec.project, rec.cwd, rec.git_branch,
+            (rec.provider, rec.session_id, paths.machine_id(), rec.project, rec.cwd, rec.git_branch,
              rec.cli_version, rec.source, rec.approval_policy, rec.sandbox_policy,
              rec.first_ts, rec.last_ts))
 
@@ -294,7 +267,7 @@ class ClaudeProvider:
         return [self.root]
 
     def parse_file(self, path):
-        proj = report.project_of(path, self.root)
+        proj = transcripts.project_of(path, self.root)
         sid = None
         meta = {}                 # cwd / git / version, first seen wins (file-level)
         idmeta = {}               # tool_use.id -> (turn_id, call_ts_ms) for the result join
@@ -369,7 +342,7 @@ class ClaudeProvider:
                     yield Segment("prompt", "user", turn_id=(o.get("uuid") or ""), text=m.get("content"))
                 for b in content:
                     if not isinstance(b, dict) or b.get("type") != "tool_result": continue
-                    cid = b.get("tool_use_id"); txt = report.result_text(b)
+                    cid = b.get("tool_use_id"); txt = transcripts.result_text(b)
                     is_err = bool(b.get("is_error"))
                     tm = idmeta.get(cid)
                     cur = _ms(ts)
