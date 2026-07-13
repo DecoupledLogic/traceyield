@@ -1,6 +1,7 @@
 ---
 import Base from './Base.astro';
 
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const { title, description, nav, current } = Astro.props;
 ---
 <Base title={`${title} - TraceYield docs`} description={description}>
@@ -12,7 +13,7 @@ const { title, description, nav, current } = Astro.props;
           <ul>
             {group.items.map((d) => (
               <li>
-                <a href={`/docs/${d.slug}`} aria-current={d.slug === current ? 'page' : undefined}>{d.title}</a>
+                <a href={`${base}docs/${d.slug}`} aria-current={d.slug === current ? 'page' : undefined}>{d.title}</a>
               </li>
             ))}
           </ul>
