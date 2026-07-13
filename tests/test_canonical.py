@@ -19,111 +19,14 @@ import datetime, json, os, sys, tempfile, unittest, warnings
 
 from traceyield import report, canonical
 
+from helpers import (
+    line, assistant, tool_result, prompt, usage, write_transcript, ingest_lines,
+    codex_line, codex_session_meta, codex_turn_context, codex_token_count, tok,
+    codex_message, codex_reasoning, codex_function_call, codex_function_call_output,
+    codex_rollout,
+)
+
 warnings.simplefilter("ignore", ResourceWarning)
-
-
-# --------------------------------------------------------------- fixture helpers
-def line(**kw):
-    return json.dumps(kw)
-
-def assistant(ts, sid, model, usage, tools=(), texts=(), thinking=None, uuid=None, parent=None):
-    content = []
-    for tid, name, inp in tools:
-        content.append({"type": "tool_use", "id": tid, "name": name, "input": inp})
-    for txt in texts:
-        content.append({"type": "text", "text": txt})
-    if thinking is not None:
-        content.append({"type": "thinking", "thinking": thinking, "signature": "SIG"})
-    o = {"timestamp": ts, "sessionId": sid,
-         "message": {"role": "assistant", "model": model, "usage": usage, "content": content}}
-    if uuid: o["uuid"] = uuid
-    if parent: o["parentUuid"] = parent
-    return line(**o)
-
-def tool_result(ts, sid, tool_use_id, is_error=False, text="ok"):
-    return line(timestamp=ts, sessionId=sid,
-                message={"role": "user", "content": [{"type": "tool_result",
-                         "tool_use_id": tool_use_id, "is_error": is_error, "content": text}]})
-
-def prompt(ts, sid, text, uuid=None):
-    o = {"timestamp": ts, "sessionId": sid, "message": {"role": "user", "content": text}}
-    if uuid: o["uuid"] = uuid
-    return line(**o)
-
-def usage(inp=0, out=0, cr=0, cc=0, w5m=None, w1h=None):
-    u = {"input_tokens": inp, "output_tokens": out,
-         "cache_read_input_tokens": cr, "cache_creation_input_tokens": cc}
-    if w5m is not None or w1h is not None:
-        u["cache_creation"] = {"ephemeral_5m_input_tokens": w5m or 0,
-                               "ephemeral_1h_input_tokens": w1h or 0}
-    return u
-
-def write_transcript(root, project, name, lines):
-    d = os.path.join(root, project)
-    os.makedirs(d, exist_ok=True)
-    with open(os.path.join(d, name), "w", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
-
-def ingest_lines(lines, project="projX", name="conv.jsonl", capture="structural"):
-    """Write a transcript, ingest it, return (conn, tmpdir-keepalive)."""
-    tmp = tempfile.TemporaryDirectory()
-    write_transcript(tmp.name, project, name, lines)
-    conn = canonical.open_db(":memory:")
-    canonical.ingest(conn, [canonical.ClaudeProvider(root=tmp.name)], capture=capture)
-    return conn, tmp
-
-
-# --------------------------------------------------------------- codex fixture helpers
-def codex_line(ts, type_, **payload):
-    return line(timestamp=ts, type=type_, payload=payload)
-
-def codex_session_meta(ts, sid, cwd="/home/u/proj", cli_version="0.39.0", originator="codex_cli_rs"):
-    return codex_line(ts, "session_meta", id=sid, timestamp=ts, cwd=cwd,
-                       originator=originator, cli_version=cli_version, instructions=None)
-
-def codex_turn_context(ts, model, approval_policy="on-request", sandbox_mode="read-only", cwd="/home/u/proj"):
-    return codex_line(ts, "turn_context", cwd=cwd, approval_policy=approval_policy,
-                       sandbox_policy={"mode": sandbox_mode}, model=model, summary="auto")
-
-def codex_token_count(ts, last=None, total=None, flat=None):
-    info = {}
-    if total is not None: info["total_token_usage"] = total
-    if last is not None: info["last_token_usage"] = last
-    if flat is not None:
-        return line(timestamp=ts, type="event_msg",
-                     payload=dict({"type": "token_count"}, **flat))
-    return codex_line(ts, "event_msg", **{"type": "token_count", "info": info})
-
-def tok(inp=0, cached=0, out=0, reasoning=0):
-    total = inp + out
-    return {"input_tokens": inp, "cached_input_tokens": cached,
-            "output_tokens": out, "reasoning_output_tokens": reasoning, "total_tokens": total}
-
-def codex_message(ts, role, text):
-    kind = "input_text" if role == "user" else "output_text"
-    return codex_line(ts, "response_item", type="message", role=role,
-                       content=[{"type": kind, "text": text}])
-
-def codex_reasoning(ts, summary_text=None, encrypted="gAAA"):
-    summary = [{"type": "summary_text", "text": summary_text}] if summary_text is not None else []
-    return codex_line(ts, "response_item", type="reasoning", summary=summary,
-                       content=None, encrypted_content=encrypted)
-
-def codex_function_call(ts, call_id, name, arguments="{}"):
-    return codex_line(ts, "response_item", type="function_call", name=name,
-                       arguments=arguments, call_id=call_id)
-
-def codex_function_call_output(ts, call_id, output):
-    return codex_line(ts, "response_item", type="function_call_output",
-                       call_id=call_id, output=output)
-
-def codex_rollout(lines, capture="structural"):
-    """Write a codex rollout transcript, ingest with CodexProvider, return (conn, tmpdir)."""
-    tmp = tempfile.TemporaryDirectory()
-    write_transcript(tmp.name, "2026", "rollout-x.jsonl", lines)
-    conn = canonical.open_db(":memory:")
-    canonical.ingest(conn, [canonical.CodexProvider(root=tmp.name)], capture=capture)
-    return conn, tmp
 
 
 # --------------------------------------------------------------- pure helpers
