@@ -110,6 +110,10 @@ The `main` branch is protected: all changes land through a pull request, and the
 
 Keep pull requests small enough to review. Separate unrelated refactoring from behavioral changes whenever practical.
 
+### How work is tracked
+
+Open work is surfaced as GitHub Issues so you can follow and claim it, but the source of truth is the repository's roadmap (`roadmap.csv` and the `docs/delivery` companions). Issues are a one-way mirror of that roadmap, maintained by the maintainer via `scripts/sync-issues.py`; a contributor never needs to touch the roadmap. To pick up an issue, comment to claim it and open a PR that references it (`Closes #123`). When your PR merges, the maintainer reconciles the roadmap. You do not edit `roadmap.csv` or the companions in your PR.
+
 ## Testing expectations
 
 Every behavioral change should include evidence that it works.
