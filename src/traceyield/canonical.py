@@ -11,22 +11,44 @@ query for questions we haven't thought of yet.
 
 The abstraction is a producer/consumer split:
   * a Provider *produces* a stream of neutral Rec dataclasses from its own log
-    format (ClaudeProvider here; CodexProvider is the planned twin),
+    format (ClaudeProvider, CodexProvider -- see traceyield.providers),
   * write() *consumes* that stream and upserts it into the schema, blind to
     which provider produced it.
-Adding a provider = adding one Provider class. Nothing else changes.
+Adding a provider = adding one Provider class. Nothing else changes (see
+traceyield.providers.base.Provider for the formal protocol, and
+traceyield.providers.__init__'s docstring for how to register one).
 
 Stdlib only (sqlite3). Runs alongside the existing pipeline (dual-write); it
 never mutates report.py's stores. Privacy: TRACEYIELD_CAPTURE=verbatim stores
 raw text; the default ("structural") stores only length + sha256.
+
+E3-F2-S4: ClaudeProvider/CodexProvider (the producers) moved out of this file
+into traceyield.providers.claude / traceyield.providers.codex, so this module
+is left holding only the store/consumer role -- schema, open_db(), write(),
+ingest(), age_out(), and the default provider registry. It imports the
+provider classes from traceyield.providers (re-exported below, same class
+objects, not copies) purely to preserve the pre-existing public names
+(canonical.ClaudeProvider, canonical.CodexProvider, canonical.codex_tier,
+canonical.default_providers) that the root compat shim, cli.py, and existing
+tests depend on. That's a NEW dependency edge (canonical -> providers), but
+not a re-introduction of the thing E3-F2 exists to prevent: providers is the
+producer layer, one step above the neutral modules, not report.py, and
+canonical.py still imports zero names from report.py.
 """
-import os, glob, json, hashlib, sqlite3, datetime
+import os, glob, hashlib, sqlite3, datetime
 from traceyield import classification, paths, pricing, transcripts
 from traceyield.models import RawEvent, Segment, Session, ToolCall, Turn
-# pricing/classification: shared, dependency-free tier()/classify() (E3-F2-S2).
+from traceyield.providers import CODEX_TIER, ClaudeProvider, CodexProvider, codex_tier
+# pricing/classification: kept imported here (not used by this module's own
+# code anymore now that the producers moved out) purely so canonical.pricing/
+# canonical.classification keep resolving to the shared modules for existing
+# call sites/tests (tests/test_pricing.py's identity checks) -- a deliberate
+# backward-compat re-export, not a real dependency of write()/ingest()/etc.
 # models: the five neutral record dataclasses (Session/Turn/ToolCall/Segment/
 # RawEvent) -- imported by name so canonical.Turn IS models.Turn (same class
-# object), not a copy. transcripts: shared project_of()/result_text().
+# object), not a copy. transcripts: shared project_of()/result_text() plus
+# (as of E3-F2-S4) iter_json_lines()/ms()/tool_kind(), re-exported below under
+# their original canonical.py names for backward compatibility.
 # paths.machine_id() replaces the last of these three. This module no longer
 # imports report.py at all -- the reverse ingestion->reporting dependency is
 # gone (E3-F2-S3; see docs/decisions/0008-installable-src-layout-package.md
@@ -136,35 +158,23 @@ def sha(s):
     if s is None: return None
     return hashlib.sha256(s.encode("utf-8", "replace")).hexdigest()
 
-def _ms(ts):
-    """ISO-8601 → epoch milliseconds (for wall/latency deltas); None on junk."""
-    if not ts: return None
-    try:
-        return int(datetime.datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp() * 1000)
-    except Exception:
-        return None
-
 def _b(x):
     return None if x is None else int(bool(x))
 
-# Raw tool name (either provider) → normalized kind. Cross-provider so tool
-# analysis works regardless of harness (§4.2). Codex names included for the
-# planned second provider even though ClaudeProvider won't emit them.
-TOOL_KIND = {
-    "edit": "file_edit", "write": "file_edit", "multiedit": "file_edit",
-    "notebookedit": "file_edit", "apply_patch": "file_edit",
-    "read": "file_read", "notebookread": "file_read", "read_file": "file_read",
-    "bash": "shell", "shell": "shell", "exec_command": "shell", "local_shell_call": "shell",
-    "grep": "search", "glob": "search",
-    "todowrite": "plan", "exitplanmode": "plan", "update_plan": "plan",
-    "webfetch": "web", "websearch": "web",
-    "task": "agent", "agent": "agent",
-}
-def tool_kind(name):
-    if not name: return None
-    n = name.lower()
-    if n.startswith("mcp__"): return "mcp"
-    return TOOL_KIND.get(n, "other")
+# _ms()/tool_kind()/TOOL_KIND (and the JSONL line reader, _iter_json_lines)
+# moved to traceyield.transcripts in E3-F2-S4 -- both ClaudeProvider and
+# CodexProvider need them (that's WHY they're "shared helpers"), and a
+# provider module reaching back into canonical.py for them would be the same
+# ingestion<-reporting-style layering mistake this feature exists to remove,
+# just pointed at a different file. Re-exported here under their original
+# names, same objects (not copies), for backward compatibility with existing
+# call sites (write() below still uses sha()/_b(); _ms()/tool_kind() were
+# only ever used by the providers, which now get them from transcripts
+# directly) and tests (tests/test_canonical.py's TestHelpers).
+_ms = transcripts.ms
+_iter_json_lines = transcripts.iter_json_lines
+tool_kind = transcripts.tool_kind
+TOOL_KIND = transcripts.TOOL_KIND
 
 # ---------------------------------------------------------------- consumer (provider-blind)
 def write(conn, rec, verbatim):
@@ -241,339 +251,13 @@ def write(conn, rec, verbatim):
              rec.first_ts, rec.last_ts))
 
 # ---------------------------------------------------------------- producers (providers)
-def _iter_json_lines(path):
-    try:
-        fh = open(path, encoding="utf-8")
-    except Exception:
-        return
-    with fh:
-        for line in fh:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                yield json.loads(line)
-            except Exception:
-                continue
-
-class ClaudeProvider:
-    """Produces neutral Recs from Claude Code transcripts (~/.claude/projects)."""
-    name = "claude"
-
-    def __init__(self, root=None):
-        self.root = root or paths.claude_projects()
-
-    def roots(self):
-        return [self.root]
-
-    def parse_file(self, path):
-        proj = transcripts.project_of(path, self.root)
-        sid = None
-        meta = {}                 # cwd / git / version, first seen wins (file-level)
-        idmeta = {}               # tool_use.id -> (turn_id, call_ts_ms) for the result join
-        prev_ms = {}              # sessionId -> last turn ts (ms), for wall_ms
-        spans = {}                 # sessionId -> [first_ts, last_ts] — PER SESSION, not per
-                                    # file: one file can hold multiple sessions (a rotated/
-                                    # resumed conversation), so a single file-wide span would
-                                    # bleed one session's timestamps into another's.
-        seq = 0
-        for o in _iter_json_lines(path):
-            ts = o.get("timestamp")
-            if o.get("sessionId"): sid = o.get("sessionId")
-            if ts and sid:
-                sp = spans.get(sid)
-                if sp is None: spans[sid] = [ts, ts]
-                else:
-                    if ts < sp[0]: sp[0] = ts
-                    if ts > sp[1]: sp[1] = ts
-            if o.get("cwd") and "cwd" not in meta: meta["cwd"] = o.get("cwd")
-            if o.get("gitBranch") and "git" not in meta: meta["git"] = o.get("gitBranch")
-            if o.get("version") and "ver" not in meta: meta["ver"] = o.get("version")
-
-            m = o.get("message")
-            if not isinstance(m, dict):
-                if ts:                                     # unmodeled line → escape hatch
-                    yield RawEvent("claude", sid, ts, o.get("type", "?"), json.dumps(o))
-                continue
-
-            content = m.get("content")
-            content = content if isinstance(content, list) else []
-            u = m.get("usage")
-
-            if isinstance(u, dict):                        # an assistant turn (billable)
-                seq += 1
-                tid = o.get("uuid") or f"{sid}:{seq}"
-                inp = u.get("input_tokens", 0) or 0
-                out = u.get("output_tokens", 0) or 0
-                cr = u.get("cache_read_input_tokens", 0) or 0
-                cc = u.get("cache_creation_input_tokens", 0) or 0
-                det = u.get("cache_creation") or {}
-                w1h = det.get("ephemeral_1h_input_tokens", 0) or 0
-                w5m = det.get("ephemeral_5m_input_tokens", 0) or 0
-                if w1h + w5m == 0 and cc > 0: w5m = cc     # aggregate → 5m fallback
-                cur = _ms(ts)
-                wall = (cur - prev_ms[sid]) if (sid in prev_ms and cur is not None and prev_ms[sid] is not None) else None
-                prev_ms[sid] = cur
-                n_tools = sum(1 for b in content if isinstance(b, dict) and b.get("type") == "tool_use")
-                yield Turn("claude", sid, tid, ts, m.get("model") or "",
-                           parent_turn_id=o.get("parentUuid"), request_id=o.get("requestId"),
-                           stop_reason=m.get("stop_reason"), input_fresh=inp, cache_read=cr,
-                           cache_write_5m=w5m, cache_write_1h=w1h, output=out,
-                           reasoning_output=None,   # Claude has no separate reasoning count (§2.4)
-                           n_tool_calls=n_tools, wall_ms=wall, tier=pricing.tier(m.get("model")),
-                           project=proj)   # the FILE's own project, not the session's resolved one
-                for i, b in enumerate(content):
-                    if not isinstance(b, dict): continue
-                    t = b.get("type")
-                    if t == "text":
-                        yield Segment("response", "assistant", turn_id=tid, seq=i, text=b.get("text") or "")
-                    elif t == "thinking":
-                        think = b.get("thinking") or ""    # redacted to "" in practice (§2.4)
-                        yield Segment("reasoning", "assistant", turn_id=tid, seq=i,
-                                      text=(think or None), text_available=bool(think),
-                                      hash_src=b.get("signature"))
-                    elif t == "tool_use":
-                        cid = b.get("id"); nm = b.get("name") or "?"
-                        idmeta[cid] = (tid, cur)
-                        yield ToolCall("claude", sid, cid, tid, ts, name=nm, kind=tool_kind(nm))
-                        yield Segment("tool_args", "tool", tool_call_id=cid, text=json.dumps(b.get("input", {})))
-            else:                                          # a user line: prompts and/or tool_results
-                if isinstance(m.get("content"), str) and m.get("role") == "user":
-                    yield Segment("prompt", "user", turn_id=(o.get("uuid") or ""), text=m.get("content"))
-                for b in content:
-                    if not isinstance(b, dict) or b.get("type") != "tool_result": continue
-                    cid = b.get("tool_use_id"); txt = transcripts.result_text(b)
-                    is_err = bool(b.get("is_error"))
-                    tm = idmeta.get(cid)
-                    cur = _ms(ts)
-                    lat = (cur - tm[1]) if (tm and cur is not None and tm[1] is not None) else None
-                    yield ToolCall("claude", sid, cid, tm[0] if tm else None, ts, name=None,
-                                   ok=(not is_err), error_class=(classification.classify(txt) if is_err else None),
-                                   output_bytes=len(txt), latency_ms=lat)
-                    yield Segment("tool_output", "tool", tool_call_id=cid, text=txt)
-
-        for s, (f_ts, l_ts) in spans.items():   # one Session row per distinct session_id
-            yield Session("claude", s, project=proj, cwd=meta.get("cwd"),
-                          git_branch=meta.get("git"), cli_version=meta.get("ver"),
-                          first_ts=f_ts, last_ts=l_ts)
-
-# Codex model family → tier label. NOT report.tier() (that's Claude-only:
-# opus/sonnet/haiku). Unknown model -> None, but the turn is still recorded
-# (raw model id never lost — same policy as ClaudeProvider/report.tier()).
-CODEX_TIER = {
-    "gpt-5-codex": "gpt-5-codex",
-    "gpt-5.3-codex": "gpt-5.3-codex",
-    "gpt-5.5": "gpt-5.5",
-    "gpt-5.5-pro": "gpt-5.5-pro",
-    "gpt-5": "gpt-5",
-}
-def codex_tier(model):
-    if not model: return None
-    m = model.lower()
-    if m in CODEX_TIER: return CODEX_TIER[m]
-    # forward-tolerant: an unseen gpt-5* id (new dot-revision/-codex variant) is
-    # still a recognizable family member — tier it by its own id rather than
-    # dropping to None, so the tier map doesn't need an edit for every point
-    # release. Truly unrelated models (a different vendor/family) → None.
-    if m.startswith("gpt-5"): return m
-    return None
-
-def _codex_text(content):
-    """Join text parts of a response_item message content list."""
-    out = []
-    for b in content or []:
-        if isinstance(b, dict) and isinstance(b.get("text"), str):
-            out.append(b["text"])
-    return "".join(out)
-
-def _codex_tool_output(raw):
-    """Parse a function_call_output's `output` field.
-
-    Usually a JSON string {"output": "<text>", "metadata": {"exit_code":...}}.
-    Sometimes a structured {"content":..., "success": bool}. Sometimes plain
-    text. Returns (text, exit_code, success) with success=None when unknown.
-    """
-    if not isinstance(raw, str):
-        return ("" if raw is None else str(raw)), None, None
-    try:
-        parsed = json.loads(raw)
-    except Exception:
-        return raw, None, None
-    if isinstance(parsed, dict):
-        if "output" in parsed:
-            text = parsed.get("output")
-            text = text if isinstance(text, str) else json.dumps(text)
-            meta = parsed.get("metadata") or {}
-            exit_code = meta.get("exit_code") if isinstance(meta, dict) else None
-            success = parsed.get("success")
-            return text, exit_code, success
-        if "content" in parsed or "success" in parsed:
-            text = parsed.get("content")
-            text = text if isinstance(text, str) else json.dumps(text)
-            return text, None, parsed.get("success")
-    return raw, None, None
-
-class CodexProvider:
-    """Produces neutral Recs from Codex CLI rollout logs (~/.codex/sessions)."""
-    name = "codex"
-
-    def __init__(self, root=None):
-        self.root = root or paths.codex_sessions()
-
-    def roots(self):
-        return [self.root]
-
-    def parse_file(self, path):
-        sid = None
-        meta = {}                 # cwd / cli_version / source, first seen wins
-        approval_policy = sandbox_policy = None
-        model = None               # active model from the most-recent turn_context
-        call_meta = {}             # call_id -> (turn_id, ts_ms)
-        cur_turn_id = ""          # most-recent synthesized turn_id (for tool_args w/o a turn yet)
-        prev_total = None          # last seen cumulative total_token_usage, for the diff fallback
-        pending_compacted = False  # set True after a `compacted` line; consumed by next Turn
-        first_ts = last_ts = None
-        seq = 0            # counts synthesized turns (for turn_id)
-        line_seq = 0        # monotonic per-line counter for segment ordering/uniqueness
-
-        for o in _iter_json_lines(path):
-            line_seq += 1
-            ts = o.get("timestamp")
-            if ts:
-                if first_ts is None or ts < first_ts: first_ts = ts
-                if last_ts is None or ts > last_ts: last_ts = ts
-            t = o.get("type")
-            p = o.get("payload")
-            p = p if isinstance(p, dict) else {}
-
-            if t == "session_meta":
-                sid = p.get("id") or sid
-                if p.get("cwd") and "cwd" not in meta: meta["cwd"] = p.get("cwd")
-                if p.get("cli_version") and "ver" not in meta: meta["ver"] = p.get("cli_version")
-                # tolerate old/new naming: originator (real data) vs source/model_provider
-                src = p.get("originator") or p.get("source") or p.get("model_provider")
-                if src and "src" not in meta: meta["src"] = src
-                continue
-
-            if t == "turn_context":
-                model = p.get("model") or model
-                approval_policy = p.get("approval_policy") or approval_policy
-                sp = p.get("sandbox_policy")
-                if sp is not None:
-                    sandbox_policy = sp if isinstance(sp, str) else json.dumps(sp)
-                continue
-
-            if t == "compacted":
-                pending_compacted = True
-                continue
-
-            pt = p.get("type")
-
-            if t == "event_msg" and pt == "token_count":
-                info = p.get("info")
-                if isinstance(info, dict):
-                    last = info.get("last_token_usage")
-                    total = info.get("total_token_usage")
-                    if isinstance(last, dict):
-                        delta = last
-                    elif isinstance(total, dict):
-                        if prev_total is not None:
-                            delta = {k: (total.get(k, 0) or 0) - (prev_total.get(k, 0) or 0)
-                                     for k in ("input_tokens", "cached_input_tokens",
-                                               "output_tokens", "reasoning_output_tokens")}
-                        else:
-                            delta = total
-                    else:
-                        delta = None
-                    if isinstance(total, dict):
-                        prev_total = total
-                else:
-                    # old flat shape: payload.input_tokens etc, no info nesting
-                    flat = {k: p.get(k) for k in ("input_tokens", "cached_input_tokens",
-                                                   "output_tokens", "reasoning_output_tokens")
-                            if k in p}
-                    if flat:
-                        if prev_total is not None:
-                            delta = {k: (flat.get(k, 0) or 0) - (prev_total.get(k, 0) or 0)
-                                     for k in ("input_tokens", "cached_input_tokens",
-                                               "output_tokens", "reasoning_output_tokens")}
-                        else:
-                            delta = flat
-                        prev_total = flat
-                    else:
-                        delta = None
-                if delta is not None:
-                    seq += 1
-                    tid = f"{sid}:{seq}"
-                    cur_turn_id = tid
-                    inp = delta.get("input_tokens", 0) or 0
-                    cached = delta.get("cached_input_tokens", 0) or 0
-                    out = delta.get("output_tokens", 0) or 0
-                    reasoning = delta.get("reasoning_output_tokens", 0) or 0
-                    yield Turn("codex", sid, tid, ts, model or "",
-                               input_fresh=max(inp - cached, 0), cache_read=cached,
-                               cache_write_5m=0, cache_write_1h=0, output=out,
-                               reasoning_output=reasoning, compacted=pending_compacted,
-                               tier=codex_tier(model),
-                               project=None)   # codex turns now participate in report.aggregate()'s
-                                                # default all-providers scope, but a codex turn's own
-                                                # project stays None -- by_project falls back to the
-                                                # session's resolved project for these rows
-                    pending_compacted = False
-                continue
-
-            if t == "response_item" and pt == "message":
-                role = p.get("role")
-                text = _codex_text(p.get("content"))
-                if role == "assistant":
-                    yield Segment("response", "assistant", turn_id=cur_turn_id, seq=line_seq, text=text)
-                elif role == "user":
-                    yield Segment("prompt", "user", turn_id=cur_turn_id, seq=line_seq, text=text)
-                continue
-
-            if t == "response_item" and pt == "reasoning":
-                summary = p.get("summary")
-                summary_text = None
-                if isinstance(summary, list) and summary:
-                    parts = [s.get("text", "") for s in summary if isinstance(s, dict)]
-                    summary_text = "".join(parts) or None
-                yield Segment("reasoning", "assistant", turn_id=cur_turn_id, seq=line_seq,
-                              text=summary_text, text_available=bool(summary_text),
-                              hash_src=p.get("encrypted_content"))
-                continue
-
-            if t == "response_item" and pt == "function_call":
-                cid = p.get("call_id") or "?"
-                nm = p.get("name") or "?"
-                cur = _ms(ts)
-                call_meta[cid] = (cur_turn_id, cur)
-                yield ToolCall("codex", sid, cid, cur_turn_id, ts, name=nm, kind=tool_kind(nm))
-                yield Segment("tool_args", "tool", tool_call_id=cid, text=p.get("arguments") or "")
-                continue
-
-            if t == "response_item" and pt == "function_call_output":
-                cid = p.get("call_id") or "?"
-                text, exit_code, success = _codex_tool_output(p.get("output"))
-                failed = (exit_code not in (None, 0)) or (success is False)
-                tm = call_meta.get(cid)
-                cur = _ms(ts)
-                lat = (cur - tm[1]) if (tm and cur is not None and tm[1] is not None) else None
-                yield ToolCall("codex", sid, cid, tm[0] if tm else None, ts, name=None,
-                               ok=(not failed), error_class=(classification.classify(text) if failed else None),
-                               exit_code=exit_code, output_bytes=len(text or ""), latency_ms=lat)
-                yield Segment("tool_output", "tool", tool_call_id=cid, text=text)
-                continue
-
-            # anything else (agent_reasoning/user_message/agent_message echoes,
-            # world_state, inter_agent_communication, turn_aborted, review-mode
-            # markers, unknown types) → escape hatch, no double-counting.
-            if ts:
-                yield RawEvent("codex", sid, ts, t or pt or "?", json.dumps(o))
-
-        if sid:
-            yield Session("codex", sid, cwd=meta.get("cwd"), cli_version=meta.get("ver"),
-                          source=meta.get("src"), approval_policy=approval_policy,
-                          sandbox_policy=sandbox_policy, first_ts=first_ts, last_ts=last_ts)
+# ClaudeProvider / CodexProvider (plus Codex-only helpers codex_tier(),
+# _codex_text(), _codex_tool_output(), CODEX_TIER) moved to
+# traceyield.providers.claude / traceyield.providers.codex in E3-F2-S4 -- see
+# that package for the parsing logic itself (unchanged). Imported and
+# re-exported at the top of this module (same class/function objects, not
+# copies) so canonical.ClaudeProvider / canonical.CodexProvider / canonical.codex_tier
+# keep resolving for the root compat shim, cli.py, and existing tests.
 
 def default_providers():
     return [ClaudeProvider(), CodexProvider()]

@@ -278,14 +278,22 @@ class TestNoScatteredWritablePathLiterals(unittest.TestCase):
     reads these env vars itself."""
 
     def test_no_module_other_than_paths_constructs_writable_paths(self):
+        # E3-F2-S4: os.listdir(SRC_DIR) alone only sees the top-level
+        # src/traceyield/*.py files, not the new src/traceyield/providers/
+        # subpackage it introduced -- os.walk() here so ClaudeProvider/
+        # CodexProvider (which resolve their default roots via
+        # paths.claude_projects()/paths.codex_sessions(), never a raw
+        # literal) are covered by this guard too, not exempted by omission.
         violations = {}
-        for name in sorted(os.listdir(SRC_DIR)):
-            if not name.endswith(".py") or name in ALLOWED_ROOT_BUILDERS:
-                continue
-            file_path = os.path.join(SRC_DIR, name)
-            hits = _scan_file_for_path_literal_violations(file_path)
-            if hits:
-                violations[name] = hits
+        for dirpath, _dirnames, filenames in os.walk(SRC_DIR):
+            for name in sorted(filenames):
+                if not name.endswith(".py") or name in ALLOWED_ROOT_BUILDERS:
+                    continue
+                file_path = os.path.join(dirpath, name)
+                rel = os.path.relpath(file_path, SRC_DIR)
+                hits = _scan_file_for_path_literal_violations(file_path)
+                if hits:
+                    violations[rel] = hits
 
         self.assertEqual(
             violations, {},

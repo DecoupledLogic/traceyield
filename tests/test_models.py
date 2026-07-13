@@ -11,7 +11,8 @@ Covers both acceptance-criteria scenarios of the story:
       the dependency direction for the WHOLE package: the neutral modules
       (models, paths, pricing, classification, transcripts) import neither
       report nor canonical, and canonical imports only neutral traceyield
-      submodules.
+      submodules -- plus, as of E3-F2-S4, the `providers` package (see the
+      NOTE on TestPackageDependencyDirection below).
 
   AC2 "Both layers consume neutral models" -- canonical.Session/.Turn/
       .ToolCall/.Segment/.RawEvent are the SAME class objects as
@@ -172,13 +173,32 @@ class TestPackageDependencyDirection(unittest.TestCase):
         )
 
     def test_canonical_imports_only_neutral_traceyield_submodules(self):
+        # NOTE (E3-F2-S4, deliberate change to a pre-existing assertion): this
+        # test originally asserted canonical.py's traceyield submodule
+        # imports were a subset of NEUTRAL_MODULES alone. E3-F2-S4 moved
+        # ClaudeProvider/CodexProvider (the producers) out of canonical.py
+        # into their own traceyield.providers package (see
+        # traceyield.providers.base.Provider + tests/test_providers.py), and
+        # canonical.py now imports that package to re-export
+        # ClaudeProvider/CodexProvider/codex_tier/CODEX_TIER for backward
+        # compatibility (canonical.ClaudeProvider is providers.ClaudeProvider,
+        # not a copy). That is a NEW, intentional dependency edge --
+        # canonical (the store/consumer + registry) depending on providers
+        # (the producer layer) -- NOT a regression of the thing this suite
+        # guards against: `providers` is not itself one of the neutral,
+        # dependency-free bottom-layer modules (it depends ON them), so it
+        # doesn't belong in NEUTRAL_MODULES, but canonical importing it does
+        # not reintroduce a dependency on report.py, which remains the one
+        # forbidden edge (asserted explicitly below, unchanged from before).
         file_path = os.path.join(SRC_DIR, "canonical.py")
         submodules = _traceyield_submodule_names(file_path)
         neutral_names = {name[:-3] for name in NEUTRAL_MODULES}   # strip ".py"
+        allowed = neutral_names | {"providers"}
         self.assertTrue(
-            submodules <= neutral_names,
-            f"canonical.py imports non-neutral traceyield submodule(s): "
-            f"{submodules - neutral_names}",
+            submodules <= allowed,
+            f"canonical.py imports traceyield submodule(s) outside the "
+            f"allowed set (neutral modules + providers): "
+            f"{submodules - allowed}",
         )
         self.assertNotIn("report", submodules)
 
