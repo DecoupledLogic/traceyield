@@ -1,0 +1,157 @@
+/*
+ * TraceYield — Design Tokens (SHARED SOURCE OF TRUTH)
+ * ===================================================
+ * One contract the product renders from. The interactive design-system page
+ * (design-system/index.html) imports this file; report.py's HTML_TMPL :root block
+ * mirrors the "report bridge" section at the bottom so the emitted report.html
+ * restyles to the brand by swapping a single block.
+ *
+ * Brand: TraceYield — "Tokens are the meter, not the mission." Closed-loop, data-first,
+ * trustworthy. Deep-navy surfaces, a four-stop teal→cyan→blue→violet gradient (the logo
+ * mark), one accent leading at a time, Inter for UI, mono for tokens/IDs/timestamps.
+ *
+ * Default theme is DARK (the report is a dark dashboard). A light theme is provided for
+ * the light surfaces (brand sheet, docs) via [data-theme="light"] and prefers-color-scheme.
+ */
+
+:root {
+  /* ---- Canonical gradient (the logo mark) ------------------------------ */
+  --ty-g0:#05B98A;  /* teal   */
+  --ty-g1:#10B7D8;  /* cyan   */
+  --ty-g2:#258CF8;  /* blue   */
+  --ty-g3:#7338FF;  /* violet */
+  --ty-gradient: linear-gradient(120deg, var(--ty-g0), var(--ty-g1) 42%, var(--ty-g2) 70%, var(--ty-g3));
+  --ty-gradient-soft: linear-gradient(120deg, rgba(5,185,138,.16), rgba(37,140,248,.16) 60%, rgba(115,56,255,.16));
+
+  /* ---- Brand anchors --------------------------------------------------- */
+  --ty-navy:   #0B1220;  /* Deep Navy — darkest surface, on-dark canvas */
+  --ty-ink:    #0F172A;  /* Ink — primary text on light */
+  --ty-teal:   #12C99A;  /* Yield Teal — primary accent, the wordmark green */
+  --ty-teal-strong:#0FA982;
+  --ty-sky:    #258CF8;  /* Sky Blue — secondary accent, links/active */
+  --ty-violet: #7338FF;  /* Violet — tertiary accent, evidence/inference */
+  --ty-slate:  #64748B;  /* Slate — neutral */
+
+  /* ---- Typography ------------------------------------------------------ */
+  --ty-font-ui:   "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ty-font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace;
+  --ty-fs-xs:11px; --ty-fs-sm:12px; --ty-fs-base:13px; --ty-fs-md:14px;
+  --ty-fs-lg:16px; --ty-fs-xl:18px; --ty-fs-2xl:22px; --ty-fs-3xl:26px;
+  --ty-w-normal:400; --ty-w-medium:500; --ty-w-semibold:600; --ty-w-bold:700;
+  --ty-track-eyebrow:.12em;
+
+  /* ---- Shape & elevation ---------------------------------------------- */
+  --ty-radius-sm:6px; --ty-radius-md:10px; --ty-radius-lg:14px; --ty-radius-pill:999px;
+
+  /* ---- Spacing (4 / 8 grid) ------------------------------------------- */
+  --ty-space-1:4px; --ty-space-2:8px; --ty-space-3:12px; --ty-space-4:16px;
+  --ty-space-5:20px; --ty-space-6:24px; --ty-space-8:32px; --ty-space-10:40px;
+
+  /* ---- Motion --------------------------------------------------------- */
+  --ty-ease: cubic-bezier(.4,0,.2,1); --ty-dur-fast:120ms; --ty-dur:180ms;
+
+  color-scheme: dark light;
+}
+
+/* ====================================================================== */
+/*  DARK THEME (default — the report canvas)                              */
+/* ====================================================================== */
+:root,
+:root[data-theme="dark"] {
+  --ty-bg:            #0B1220;  /* app background (Deep Navy) */
+  --ty-surface:       #141B2B;  /* cards, panels */
+  --ty-surface-2:     #1B2436;  /* wells, table headers, tracks */
+  --ty-border:        #263149;  /* hairline rules */
+  --ty-border-strong: #34405C;
+
+  --ty-text:          #E8ECF3;  /* primary text */
+  --ty-text-muted:    #94A0B4;  /* labels, metadata */
+  --ty-text-faint:    #64708A;  /* placeholders */
+
+  --ty-accent:        var(--ty-teal);
+  --ty-accent-contrast:#04140F; /* text on a teal fill */
+  --ty-link:          #5AA9FF;
+
+  /* Categorical series (charts, legends) — accent family + safe extras */
+  --ty-c1:#12C99A; --ty-c2:#258CF8; --ty-c3:#7338FF; --ty-c4:#10B7D8;
+  --ty-c5:#F0A35E; --ty-c6:#E5709B;
+
+  /* Status semantics — always paired with a label/icon, never color alone */
+  --ty-ok:   #34D399; --ty-ok-bg:  #062A20; --ty-ok-fg:  #6EE7B7;
+  --ty-warn: #F0A35E; --ty-warn-bg:#2E1D0A; --ty-warn-fg:#FBBF6E;
+  --ty-bad:  #F87171; --ty-bad-bg: #2E0F0F; --ty-bad-fg: #FCA5A5;
+  --ty-info: #5AA9FF; --ty-info-bg:#0B2340; --ty-info-fg:#93C5FD;
+  --ty-neutral:#94A0B4; --ty-neutral-bg:#1B2436; --ty-neutral-fg:#B4BECE;
+
+  --ty-shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+  --ty-shadow-card: 0 1px 3px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.35);
+  --ty-shadow-pop: 0 16px 40px rgba(0,0,0,.55);
+}
+
+/* ====================================================================== */
+/*  LIGHT THEME (brand sheet, docs, light dashboards)                     */
+/* ====================================================================== */
+:root[data-theme="light"] {
+  --ty-bg:            #F5F7FA;
+  --ty-surface:       #FFFFFF;
+  --ty-surface-2:     #EEF1F6;
+  --ty-border:        #E2E6EC;
+  --ty-border-strong: #CBD2DC;
+
+  --ty-text:          #0F172A;
+  --ty-text-muted:    #5B6577;
+  --ty-text-faint:    #8A93A5;
+
+  --ty-accent:        var(--ty-teal-strong);
+  --ty-accent-contrast:#FFFFFF;
+  --ty-link:          #1D6FE0;
+
+  --ty-c1:#0FA982; --ty-c2:#1D6FE0; --ty-c3:#6D31E8; --ty-c4:#0E9AB8;
+  --ty-c5:#D97706; --ty-c6:#DB2777;
+
+  --ty-ok:   #16A34A; --ty-ok-bg:  #DCFCE7; --ty-ok-fg:  #166534;
+  --ty-warn: #D97706; --ty-warn-bg:#FEF3C7; --ty-warn-fg:#92400E;
+  --ty-bad:  #DC2626; --ty-bad-bg: #FEE2E2; --ty-bad-fg: #991B1B;
+  --ty-info: #2563EB; --ty-info-bg:#DBEAFE; --ty-info-fg:#1E40AF;
+  --ty-neutral:#64748B; --ty-neutral-bg:#E2E8F0; --ty-neutral-fg:#475569;
+
+  --ty-shadow-sm: 0 1px 2px rgba(15,23,42,.06);
+  --ty-shadow-card: 0 1px 3px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.04);
+  --ty-shadow-pop: 0 16px 40px rgba(15,23,42,.18);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --ty-bg:#F5F7FA; --ty-surface:#FFFFFF; --ty-surface-2:#EEF1F6;
+    --ty-border:#E2E6EC; --ty-border-strong:#CBD2DC;
+    --ty-text:#0F172A; --ty-text-muted:#5B6577; --ty-text-faint:#8A93A5;
+    --ty-accent:var(--ty-teal-strong); --ty-accent-contrast:#FFFFFF; --ty-link:#1D6FE0;
+    --ty-c1:#0FA982; --ty-c2:#1D6FE0; --ty-c3:#6D31E8; --ty-c4:#0E9AB8; --ty-c5:#D97706; --ty-c6:#DB2777;
+    --ty-ok:#16A34A; --ty-ok-bg:#DCFCE7; --ty-ok-fg:#166534;
+    --ty-warn:#D97706; --ty-warn-bg:#FEF3C7; --ty-warn-fg:#92400E;
+    --ty-bad:#DC2626; --ty-bad-bg:#FEE2E2; --ty-bad-fg:#991B1B;
+    --ty-info:#2563EB; --ty-info-bg:#DBEAFE; --ty-info-fg:#1E40AF;
+    --ty-neutral:#64748B; --ty-neutral-bg:#E2E8F0; --ty-neutral-fg:#475569;
+    --ty-shadow-sm:0 1px 2px rgba(15,23,42,.06);
+    --ty-shadow-card:0 1px 3px rgba(15,23,42,.08),0 1px 2px rgba(15,23,42,.04);
+    --ty-shadow-pop:0 16px 40px rgba(15,23,42,.18);
+  }
+}
+
+/* ====================================================================== */
+/*  REPORT BRIDGE                                                          */
+/*  Legacy variable names used by report.py's HTML_TMPL, remapped onto the */
+/*  brand tokens above. Paste THIS block over report.py's current :root    */
+/*  (line ~5) — the accent, panels, and rules become on-brand with no      */
+/*  other markup change. Charts still read series via --ty-c1..--ty-c6 or  */
+/*  the JS palette (see design-system/README.md).                          */
+/* ====================================================================== */
+:root {
+  --bg:     var(--ty-bg);
+  --panel:  var(--ty-surface);
+  --panel2: var(--ty-surface-2);
+  --ink:    var(--ty-text);
+  --mut:    var(--ty-text-muted);
+  --line:   var(--ty-border);
+  --accent: var(--ty-accent);
+}

@@ -1,0 +1,105 @@
+/*
+ * TraceYield — Components
+ * =======================
+ * Built entirely on tokens.css custom properties. These class names mirror the
+ * report's component vocabulary so the design system is a live spec for report.py.
+ * No hard-coded colors — everything resolves through --ty-* tokens (theme-aware).
+ */
+
+.ty-body{
+  margin:0;background:var(--ty-bg);color:var(--ty-text);
+  font-family:var(--ty-font-ui);font-size:var(--ty-fs-md);line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.ty-mono{font-family:var(--ty-font-mono);font-variant-numeric:tabular-nums}
+.ty-num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.ty-muted{color:var(--ty-text-muted)}
+.ty-eyebrow{font-size:var(--ty-fs-xs);font-weight:var(--ty-w-bold);letter-spacing:var(--ty-track-eyebrow);text-transform:uppercase;color:var(--ty-text-muted)}
+.ty-grad-text{background:var(--ty-gradient);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* ---- Headings / section rules ---------------------------------------- */
+.ty-h1{font-size:var(--ty-fs-3xl);font-weight:var(--ty-w-bold);letter-spacing:-.01em;margin:0}
+.ty-h2{font-size:var(--ty-fs-xl);font-weight:var(--ty-w-semibold);margin:0 0 var(--ty-space-3);
+  padding-bottom:var(--ty-space-2);border-bottom:1px solid var(--ty-border)}
+
+/* ---- KPI cards ------------------------------------------------------- */
+.ty-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--ty-space-3)}
+.ty-card{background:var(--ty-surface);border:1px solid var(--ty-border);border-radius:var(--ty-radius-lg);
+  padding:var(--ty-space-4);box-shadow:var(--ty-shadow-sm)}
+.ty-card .k-label{color:var(--ty-text-muted);font-size:var(--ty-fs-xs);text-transform:uppercase;letter-spacing:.04em}
+.ty-card .k-val{font-size:var(--ty-fs-3xl);font-weight:var(--ty-w-semibold);margin-top:var(--ty-space-1);font-variant-numeric:tabular-nums}
+.ty-card .k-delta{font-size:var(--ty-fs-sm);margin-top:var(--ty-space-1)}
+.ty-delta-up{color:var(--ty-warn)}      /* cost rising = attention */
+.ty-delta-down{color:var(--ty-ok)}      /* cost falling = good */
+.ty-delta-flat{color:var(--ty-text-muted)}
+
+/* ---- Panels ---------------------------------------------------------- */
+.ty-panel{background:var(--ty-surface);border:1px solid var(--ty-border);border-radius:var(--ty-radius-lg);
+  padding:var(--ty-space-4);box-shadow:var(--ty-shadow-card);overflow-x:auto}
+.ty-panel + .ty-panel{margin-top:var(--ty-space-3)}
+
+/* ---- Segmented control ---------------------------------------------- */
+.ty-seg{display:inline-flex;border:1px solid var(--ty-border);border-radius:var(--ty-radius-md);overflow:hidden}
+.ty-seg button{background:transparent;color:var(--ty-text-muted);border:0;padding:7px 14px;
+  font-size:var(--ty-fs-base);font-family:inherit;cursor:pointer;transition:background var(--ty-dur-fast),color var(--ty-dur-fast)}
+.ty-seg button:hover{color:var(--ty-text)}
+.ty-seg button.on{background:var(--ty-accent);color:var(--ty-accent-contrast);font-weight:var(--ty-w-semibold)}
+
+/* ---- Buttons / inputs ------------------------------------------------ */
+.ty-btn{display:inline-flex;align-items:center;gap:var(--ty-space-2);font-family:inherit;
+  border:1px solid var(--ty-border);background:var(--ty-surface-2);color:var(--ty-text);
+  border-radius:var(--ty-radius-sm);padding:7px 12px;font-size:var(--ty-fs-base);cursor:pointer}
+.ty-btn.primary{background:var(--ty-accent);color:var(--ty-accent-contrast);border-color:transparent;font-weight:var(--ty-w-semibold)}
+.ty-btn:disabled{opacity:.4;cursor:default}
+.ty-select{background:var(--ty-surface-2);color:var(--ty-text);border:1px solid var(--ty-border);
+  border-radius:var(--ty-radius-sm);padding:7px 10px;font-size:var(--ty-fs-base);font-family:inherit}
+
+/* ---- Horizontal bar rows (breakdowns) ------------------------------- */
+.ty-hbars{display:flex;flex-direction:column;gap:7px}
+.ty-hbar{display:grid;grid-template-columns:160px 1fr 78px;align-items:center;gap:var(--ty-space-3);font-size:var(--ty-fs-base)}
+.ty-hlabel{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ty-htrack{background:var(--ty-surface-2);border-radius:5px;height:15px;overflow:hidden}
+.ty-hfill{display:block;height:100%;border-radius:5px;background:var(--ty-accent)}
+.ty-hfill.grad{background:var(--ty-gradient)}
+.ty-hval{color:var(--ty-text-muted);text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---- Tables ---------------------------------------------------------- */
+.ty-table{width:100%;border-collapse:collapse;font-size:var(--ty-fs-base)}
+.ty-table th,.ty-table td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--ty-border);vertical-align:top}
+.ty-table th{color:var(--ty-text-muted);font-weight:var(--ty-w-semibold);font-size:var(--ty-fs-xs);
+  text-transform:uppercase;letter-spacing:.03em}
+.ty-table td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ty-table tbody tr:hover{background:var(--ty-surface-2)}
+
+/* ---- Status pills / badges ------------------------------------------ */
+.ty-pill{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:var(--ty-radius-pill);
+  font-size:var(--ty-fs-xs);font-weight:var(--ty-w-bold);text-transform:uppercase;letter-spacing:.04em}
+.ty-pill.ok{background:var(--ty-ok-bg);color:var(--ty-ok-fg)}
+.ty-pill.warn{background:var(--ty-warn-bg);color:var(--ty-warn-fg)}
+.ty-pill.bad{background:var(--ty-bad-bg);color:var(--ty-bad-fg)}
+.ty-pill.info{background:var(--ty-info-bg);color:var(--ty-info-fg)}
+.ty-pill.neutral{background:var(--ty-neutral-bg);color:var(--ty-neutral-fg)}
+.ty-pill i{width:7px;height:7px;border-radius:50%;background:currentColor}
+
+/* ---- Chart legend ---------------------------------------------------- */
+.ty-legend{margin-top:var(--ty-space-2);display:flex;flex-wrap:wrap;gap:14px}
+.ty-legend .leg{font-size:var(--ty-fs-sm);color:var(--ty-text-muted);display:flex;align-items:center;gap:6px}
+.ty-legend .leg i{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+/* ---- Recommendation card (the prescribe rung) ----------------------- */
+.ty-rec{border:1px solid var(--ty-border);border-radius:var(--ty-radius-lg);padding:16px 18px;background:var(--ty-surface);
+  position:relative;overflow:hidden}
+.ty-rec::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--ty-gradient)}
+.ty-rec .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.ty-rec .money{font-size:var(--ty-fs-3xl);font-weight:var(--ty-w-bold);font-variant-numeric:tabular-nums}
+
+/* ---- Sticky control bar --------------------------------------------- */
+.ty-controls{display:flex;flex-wrap:wrap;gap:var(--ty-space-3);align-items:center;
+  background:var(--ty-surface);border:1px solid var(--ty-border);border-radius:var(--ty-radius-lg);
+  padding:12px 14px;position:sticky;top:0;z-index:5}
+
+/* ---- Brand lockup / app header -------------------------------------- */
+.ty-brandbar{display:flex;align-items:center;gap:12px}
+.ty-brandbar .mark{width:34px;height:34px;flex:none}
+.ty-brandbar .wm{font-weight:var(--ty-w-bold);font-size:var(--ty-fs-xl);letter-spacing:-.01em}
+.ty-brandbar .wm .y{color:var(--ty-teal)}

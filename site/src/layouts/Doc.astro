@@ -1,0 +1,29 @@
+---
+import Base from './Base.astro';
+
+interface DocLink { id: string; title: string; order: number; }
+interface Props {
+  title: string;
+  description?: string;
+  docs: DocLink[];
+  current: string;
+}
+const { title, description, docs, current } = Astro.props;
+---
+<Base title={`${title} - TraceYield docs`} description={description}>
+  <div class="wrap docs">
+    <aside class="docs-nav">
+      <h4>Guides</h4>
+      <ul>
+        {docs.map((d) => (
+          <li>
+            <a href={`/docs/${d.id}`} aria-current={d.id === current ? 'page' : undefined}>{d.title}</a>
+          </li>
+        ))}
+      </ul>
+    </aside>
+    <article class="prose" data-pagefind-body>
+      <slot />
+    </article>
+  </div>
+</Base>
