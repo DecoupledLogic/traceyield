@@ -36,16 +36,15 @@ code, kbd, samp, pre { font-family: var(--ty-font-mono); }
 }
 .site-header .wrap {
   display: flex; align-items: center; gap: var(--ty-space-6);
-  height: 60px;
+  height: 96px;
 }
-.brand { display: flex; align-items: center; gap: var(--ty-space-3); font-weight: var(--ty-w-bold); color: var(--ty-text); }
-.brand img { height: 26px; width: auto; display: block; }
+.brand { display: flex; align-items: center; font-weight: var(--ty-w-bold); color: var(--ty-text); }
+.brand img { height: 76px; width: auto; display: block; }
+/* Show the logo variant that matches the active theme. Default is dark. */
+[data-theme="light"] .brand .logo-dark { display: none; }
+[data-theme="light"] .brand .logo-light { display: block; }
+.brand .logo-light { display: none; }
 .brand:hover { text-decoration: none; }
-.brand .wordmark { font-size: var(--ty-fs-lg); letter-spacing: -0.01em; }
-.brand .wordmark b {
-  background: var(--ty-gradient);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-}
 
 .nav { display: flex; align-items: center; gap: var(--ty-space-5); margin-left: auto; }
 .nav a { color: var(--ty-text-muted); font-weight: var(--ty-w-medium); font-size: var(--ty-fs-md); }
