@@ -22,14 +22,16 @@ raw text; the default ("structural") stores only length + sha256.
 """
 import os, glob, json, hashlib, sqlite3, datetime
 from dataclasses import dataclass
-from traceyield import report   # reuse tier(), classify(), result_text(), project_of(), machine_id()
+from traceyield import paths, report   # report: reuse tier(), classify(), result_text(), project_of()
 
 # ---------------------------------------------------------------- config
-CAPTURE = os.environ.get("TRACEYIELD_CAPTURE") or "structural"   # "structural" | "verbatim"
-RAW_CAP = 32 * 1024      # max bytes of raw_event.raw kept in verbatim mode (§7)
-RAW_RETENTION_DAYS = int(os.environ.get("TRACEYIELD_RAW_RETENTION_DAYS") or 90)   # age_out() window (§7)
+# CAPTURE / RAW_RETENTION_DAYS / DB_FILE are centralized in traceyield.paths
+# (E3-F2-S1) -- re-exported here so existing call sites/tests keep working.
+CAPTURE = paths.CAPTURE   # "structural" | "verbatim"
+RAW_CAP = 32 * 1024      # max bytes of raw_event.raw kept in verbatim mode (§7); not env-driven, stays here
+RAW_RETENTION_DAYS = paths.RAW_RETENTION_DAYS   # age_out() window (§7)
 SCHEMA_VERSION = 2   # v2: turn.project (per-turn project, see MIGRATIONS)
-DB_FILE = os.path.join(report.MACHINE_DIR, "usage.db")
+DB_FILE = paths.DB_FILE
 
 # ---------------------------------------------------------------- schema
 SCHEMA = """
@@ -283,7 +285,7 @@ class ClaudeProvider:
     name = "claude"
 
     def __init__(self, root=None):
-        self.root = root or report.CLAUDE_PROJECTS
+        self.root = root or paths.claude_projects()
 
     def roots(self):
         return [self.root]
@@ -440,7 +442,7 @@ class CodexProvider:
     name = "codex"
 
     def __init__(self, root=None):
-        self.root = root or os.environ.get("CODEX_HOME") or os.path.expanduser(r"~/.codex/sessions")
+        self.root = root or paths.codex_sessions()
 
     def roots(self):
         return [self.root]
@@ -650,7 +652,7 @@ def age_out(conn, days=None, now=None):
 
 
 if __name__ == "__main__":
-    os.makedirs(report.MACHINE_DIR, exist_ok=True)
+    os.makedirs(paths.machine_dir(), exist_ok=True)
     db = open_db()
     files, recs = ingest(db)
     cleared = age_out(db)
