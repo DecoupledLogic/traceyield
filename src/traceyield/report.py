@@ -22,42 +22,27 @@ Each run:
 
 Run daily:  python report.py       (wire to a scheduled task; see README note)
 """
-import json, os, glob, html, datetime, re, socket, sys, urllib.request
+import json, os, glob, html, datetime, re, sys, urllib.request
 from collections import defaultdict, Counter
+from traceyield import paths
 
 # ---------------------------------------------------------------- config
-# This module now lives at <repo>/src/traceyield/report.py, but machines/ and
-# pricing_history.json are repo-level artifacts (see CLAUDE.md), so HERE walks
-# up from src/traceyield/ to the repo root rather than anchoring to this file's
-# own directory.
-HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-CLAUDE_PROJECTS = os.path.expanduser(r"~/.claude/projects")
-
-def machine_id():
-    """Identity of the machine whose transcripts we're parsing.
-
-    Each machine has its own ~/.claude/projects, so the artifacts derived from
-    it (daily_metrics/session_metrics/report.html/run.log) are namespaced under
-    machines/<machine_id>/ — otherwise one machine's run would clobber another's
-    data in the shared repo. Defaults to the sanitized hostname; the
-    TRACEYIELD_MACHINE env var overrides it (e.g. to make a machine write into a
-    pre-existing directory whose name doesn't match its hostname)."""
-    raw = (os.environ.get("TRACEYIELD_MACHINE") or "").strip() or socket.gethostname() or "unknown"
-    slug = re.sub(r"[^a-z0-9._-]+", "-", raw.strip().lower()).strip("-._")
-    return slug or "unknown"
-
-MACHINES_DIR = os.path.join(HERE, "machines")
-MACHINE_DIR = os.path.join(MACHINES_DIR, machine_id())
-DAILY_FILE = os.path.join(MACHINE_DIR, "daily_metrics.json")
-SESSION_FILE = os.path.join(MACHINE_DIR, "session_metrics.json")
-OUT_HTML = os.path.join(MACHINE_DIR, "report.html")
-HEALTH_FILE = os.path.join(MACHINE_DIR, "health.json")
-# Codex (OpenAI) CLI rollout logs — fingerprinted for schema drift even before a
-# full parser exists, so the format is baselined from day one (see docs/).
-CODEX_SESSIONS = os.path.expanduser(r"~/.codex/sessions")
-# pricing_history is derived from the PRICING table (not from any machine's
-# transcripts), so it's identical everywhere and stays shared at the repo root.
-PRICING_FILE = os.path.join(HERE, "pricing_history.json")
+# Every writable location and env-driven config value is now centralized in
+# traceyield.paths (E3-F2-S1); this module just re-exports the names call
+# sites (and existing tests) already depend on. See paths.py for the
+# rationale (repo-root anchoring, per-machine namespacing, env overrides)
+# and tests/test_paths.py for the guard that keeps it that way.
+HERE = paths.HERE
+CLAUDE_PROJECTS = paths.CLAUDE_PROJECTS
+CODEX_SESSIONS = paths.CODEX_SESSIONS
+machine_id = paths.machine_id
+MACHINES_DIR = paths.MACHINES_DIR
+MACHINE_DIR = paths.MACHINE_DIR
+DAILY_FILE = paths.DAILY_FILE
+SESSION_FILE = paths.SESSION_FILE
+OUT_HTML = paths.OUT_HTML
+HEALTH_FILE = paths.HEALTH_FILE
+PRICING_FILE = paths.PRICING_FILE
 
 # Base per-1M-token rates. Edit when Anthropic pricing changes.
 # Cache multipliers fixed by the API: read=0.1x, write-5m=1.25x, write-1h=2x.
