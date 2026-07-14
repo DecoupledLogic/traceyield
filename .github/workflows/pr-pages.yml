@@ -1,0 +1,94 @@
+name: PR pages
+
+# Keep the PR / release page section in sync with pull-request lifecycle.
+#
+# On every PR event this creates or updates the PR's record (prs/pr-<n>.md) from
+# live GitHub state and commits it to main. Because GitHub Pages only publishes
+# from main, the record has to land there for the page to go live; the commit to
+# main then triggers deploy-site.yml, which regenerates and publishes the pages.
+#
+# Pushing to the branch-protected main from CI needs a token whose owner can
+# bypass the "require a pull request" rule. enforce_admins is deliberately OFF on
+# this repo (same reason Tempo commits roadmap.csv to main), so an admin PAT works.
+# Set it as the PAGES_PUSH_TOKEN secret (a fine-grained PAT with contents:write on
+# this repo, owned by an admin). Without it the push step fails visibly.
+#
+# Fork PRs can't see secrets and get a read-only token, so this is skipped for
+# them (the record can be registered manually after merge).
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited, ready_for_review, closed]
+
+# Serialize per-PR so two quick events don't race on the push to main.
+concurrency:
+  group: pr-pages-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write   # to dispatch deploy-site for a commit-history refresh
+
+jobs:
+  sync:
+    # same-repo PRs only (forks have no secret and a read-only token)
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main (the control plane the record lands on)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          # PAT so the later push can bypass branch protection (enforce_admins off).
+          token: ${{ secrets.PAGES_PUSH_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Guard — pages.py must be live on main
+        # Until the PR that introduces this system merges, pages.py isn't on main
+        # yet, so there is nothing to run. Skip cleanly rather than error.
+        id: guard
+        run: |
+          if [ -f pages.py ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "pages.py not on main yet — skipping (bootstrap)."
+          fi
+
+      - name: Update the PR record (and finalize release on merge)
+        if: steps.guard.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          MERGED: ${{ github.event.pull_request.merged }}
+        run: |
+          python pages.py --pr "$PR"
+          if [ "$MERGED" = "true" ]; then
+            python pages.py --merge "$PR"
+          fi
+
+      - name: Commit record changes to main (or refresh commit history)
+        if: steps.guard.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          git config user.name  "traceyield-bot"
+          git config user.email "actions@users.noreply.github.com"
+          # records are the only committed artifact; generated HTML/CSS is ignored
+          git add prs releases
+          if git diff --cached --quiet; then
+            echo "No record change."
+            # An open PR that only got new commits still needs its live commit-history
+            # table refreshed; the deploy regenerates with --refresh, so nudge it.
+            if [ "${{ github.event.action }}" != "closed" ]; then
+              gh workflow run deploy-site.yml --ref main || echo "dispatch skipped"
+            fi
+          else
+            git commit -m "chore(pages): sync PR #$PR record"
+            git pull --rebase origin main || true
+            git push origin main
+          fi

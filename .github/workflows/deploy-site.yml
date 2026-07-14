@@ -9,6 +9,9 @@ on:
     branches: [main]
     paths:
       - 'site/**'
+      - 'prs/**'
+      - 'releases/**'
+      - 'pages.py'
       - '.github/workflows/deploy-site.yml'
   workflow_dispatch:
 
@@ -28,6 +31,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Generate PR / release pages
+        # Render the records under prs/ and releases/ into site/public/. --refresh
+        # pulls each PR's live state + commit history from gh (authed by the run's
+        # token); it is best-effort and degrades to the record if gh is unavailable.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python pages.py --refresh
       - uses: actions/setup-node@v4
         with:
           node-version: 20
