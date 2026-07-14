@@ -2,6 +2,13 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
+# Local secrets / environment files — never commit. Example templates
+# (.env.example / .env.sample) are allowed so contributors have a reference.
+.env
+.env.*
+!.env.example
+!.env.sample
+
 # Editable-install / build artifacts from `pip install -e .` (E3-F1-S4).
 *.egg-info/
 build/
@@ -14,3 +21,11 @@ dist/
 # non-personal price-history store at the repo root.)
 machines/
 .worktrees/
+
+# PR / release pages: the markdown records under prs/ and releases/ are the
+# source of truth and ARE committed; the HTML/CSS pages.py emits into the site's
+# public/ tree are build output, regenerated in CI (deploy-site.yml) on every
+# push, so they stay out of git.
+site/public/prs/
+site/public/releases/
+site/public/pr-pages.css
