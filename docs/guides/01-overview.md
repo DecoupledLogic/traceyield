@@ -2,7 +2,7 @@
 
 ## In one paragraph
 
-**traceyield** reads the transcript logs that your coding agents already write on your machine, and produces a single, self-contained, interactive HTML dashboard of your usage: what you spent, on what, and where the waste is. It has no dependencies beyond Python's standard library, no server, no build step, and no network calls except an optional best-effort check of a provider's public pricing page. Everything runs locally and your data never leaves your machine.
+**traceyield** reads the transcript logs that your coding agents already write on your machine, and produces a single, self-contained, interactive HTML dashboard of your usage: what you spent, on what, and where the waste is. It runs entirely on your machine, with no server and no network calls except an optional best-effort check of a provider's public pricing page. Everything runs locally and your data never leaves your machine.
 
 > **Which providers and levers are active for you?** traceyield is provider-neutral by design, so this guide set stays general and uses specific tools (Claude Code, Codex) only as examples. The **live source of truth for what is supported on your machine is the report itself**: the **Provider** selector lists every provider it ingested, and the **Cost by provider** panel shows which ones have dollar pricing (any provider without a rate card reads `$0`). When you want to know what is supported today, look there rather than at a hardcoded list in the docs.
 

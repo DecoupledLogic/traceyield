@@ -3,7 +3,7 @@
 # decision log (decisions/) are excluded from the published site -- they stay
 # in the repo, just not on the website.
 title: TraceYield
-description: Token-spend and health analytics for LLMs. Single-file Python, zero runtime dependencies.
+description: Token-spend and health analytics for LLM coding assistants. Self-contained and runs entirely on your machine.
 remote_theme: just-the-docs/just-the-docs
 
 plugins:

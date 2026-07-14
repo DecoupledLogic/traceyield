@@ -14,10 +14,10 @@ suppression — epic E2).*
 
 ## What it is
 
-A **single-file, stdlib-only Python tool** (`report.py`) that parses Claude
-Code's own transcript logs and emits a **self-contained interactive HTML
-dashboard** (`report.html`) of usage and health. No dependencies, no build step,
-no framework, no server. One command does everything:
+A tool that parses Claude Code's own transcript logs and emits a
+**self-contained interactive HTML dashboard** (`report.html`) of usage and
+health. It runs entirely on your machine — no server, no framework. One command
+does everything:
 
 ```bash
 python report.py                       # parse → merge → record pricing → emit report → drift check
@@ -288,7 +288,7 @@ is set. On macOS/Linux, wire `python report.py` into cron/launchd.
 
 ## Tests (`tests/test_report.py`)
 
-Stdlib `unittest` (also runs under pytest), no dependencies. It builds fixture
+The suite (also runs under pytest) builds fixture
 transcripts in a temp dir with **hand-computable token counts** and asserts exact
 costs. The parametrized `analyze(root=…)`, `merge_daily(…, path=…)`,
 `merge_sessions(…, path=…)`, and `record_pricing(path=…)` seams exist so tests
@@ -298,7 +298,7 @@ session/`by_model` shapes, update the fixtures' expected numbers.
 
 ## Conventions & gotchas
 
-- **Everything is one file.** Keep `__PAYLOAD__` / `__PRICEROWS__` intact.
+- **Keep `__PAYLOAD__` / `__PRICEROWS__` intact** in the HTML template.
 - **Resilient parsing by design.** The parse loop swallows per-line/per-file
   exceptions. Don't add logic that assumes every line succeeds.
 - **Windows-first, multi-machine.** `run.cmd` is portable; artifacts are namespaced

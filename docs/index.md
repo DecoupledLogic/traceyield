@@ -5,7 +5,7 @@ nav_order: 1
 
 # TraceYield documentation
 
-TraceYield is token-spend and health analytics for LLM coding assistants: a single-file Python tool (stdlib only, no build step) that parses Claude Code and Codex transcript logs and emits a self-contained, interactive HTML usage and health dashboard.
+TraceYield is token-spend and health analytics for LLM coding assistants: a tool that parses Claude Code and Codex transcript logs and emits a self-contained, interactive HTML usage and health dashboard. It runs entirely on your machine.
 
 ## Start here
 

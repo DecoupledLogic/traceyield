@@ -10,7 +10,7 @@ git pull
 python report.py
 ```
 
-Because the tool is a single Python file plus its data, there is nothing to rebuild and nothing to reinstall. Pull, run, done. If the test suite matters to you, run it after pulling:
+Updating is just `git pull` and a run — pull, run, done. If the test suite matters to you, run it after pulling:
 
 ```bash
 python -m unittest discover -s tests
