@@ -11,6 +11,8 @@ const { title, description = 'Token-spend and health analytics for LLM coding as
 const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const nav = [
   { href: base, label: 'Home' },
+  { href: `${base}prs/index.html`, label: 'PRs' },
+  { href: `${base}releases/index.html`, label: 'Releases' },
   { href: `${base}docs/overview`, label: 'Docs' },
 ];
 const path = Astro.url.pathname;
