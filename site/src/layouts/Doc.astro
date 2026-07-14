@@ -1,26 +1,24 @@
 ---
 import Base from './Base.astro';
 
-interface DocLink { id: string; title: string; order: number; }
-interface Props {
-  title: string;
-  description?: string;
-  docs: DocLink[];
-  current: string;
-}
-const { title, description, docs, current } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const { title, description, nav, current } = Astro.props;
 ---
 <Base title={`${title} - TraceYield docs`} description={description}>
   <div class="wrap docs">
     <aside class="docs-nav">
-      <h4>Guides</h4>
-      <ul>
-        {docs.map((d) => (
-          <li>
-            <a href={`/docs/${d.id}`} aria-current={d.id === current ? 'page' : undefined}>{d.title}</a>
-          </li>
-        ))}
-      </ul>
+      {nav.map((group) => (
+        <div class="docs-nav-group">
+          <h4>{group.group}</h4>
+          <ul>
+            {group.items.map((d) => (
+              <li>
+                <a href={`${base}docs/${d.slug}`} aria-current={d.slug === current ? 'page' : undefined}>{d.title}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </aside>
     <article class="prose" data-pagefind-body>
       <slot />

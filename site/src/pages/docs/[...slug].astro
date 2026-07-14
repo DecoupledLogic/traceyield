@@ -1,20 +1,26 @@
 ---
 import { getCollection, render } from 'astro:content';
 import Doc from '../../layouts/Doc.astro';
+import { DOCS_NAV, flatDocs } from '../../docs-nav.mjs';
 
 export async function getStaticPaths() {
   const entries = await getCollection('docs');
-  const sorted = entries.sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
-  const nav = sorted.map((d) => ({ id: d.id, title: d.data.title, order: d.data.order ?? 99 }));
-  return sorted.map((entry) => ({
-    params: { slug: entry.id },
-    props: { entry, nav },
-  }));
+  const byId = new Map(entries.map((e) => [e.id, e]));
+  return flatDocs().map((item) => {
+    const entry = byId.get(item.id);
+    if (!entry) {
+      throw new Error(
+        `docs-nav.mjs references id "${item.id}" but no such doc was loaded. ` +
+          `Check the glob in content.config.ts and the id in docs-nav.mjs.`,
+      );
+    }
+    return { params: { slug: item.slug }, props: { entry, item } };
+  });
 }
 
-const { entry, nav } = Astro.props;
+const { entry, item } = Astro.props;
 const { Content } = await render(entry);
 ---
-<Doc title={entry.data.title} description={entry.data.description} docs={nav} current={entry.id}>
+<Doc title={item.title} nav={DOCS_NAV} current={item.slug}>
   <Content />
 </Doc>
