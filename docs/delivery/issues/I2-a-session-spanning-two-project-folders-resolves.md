@@ -2,7 +2,7 @@
 id: 01M89KPGCAERRGBH51MKR664AT
 type: issue
 key: I2
-status: planned
+status: in_progress
 stage: ~
 stageSince: ~
 needsDesign: no
@@ -67,3 +67,6 @@ amended 2026-08-19). Rename both together if the title changes._
 
 ## 2026-11-25 15:03 UTC -- created
 Work-item I2 (issue) created with status planned.
+
+## 2026-11-25 15:03 UTC -- status-change
+Status planned -> in_progress. delivery started
