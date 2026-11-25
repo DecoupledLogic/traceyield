@@ -2,7 +2,7 @@
 id: 01M89J3GSXH5YD4PVS3C19A70Q
 type: feature
 key: E4-F1
-status: in_progress
+status: in_review
 stage: ~
 stageSince: ~
 needsDesign: ~
@@ -64,3 +64,6 @@ Work-item E4-F1 (feature) created with status planned.
 
 ## 2026-11-25 14:40 UTC -- status-rollup
 Rolled up to in_progress from child delivery. delivery of E4-F1-S1 started
+
+## 2026-11-25 15:02 UTC -- status-rollup
+Rolled up to in_review from child delivery. PR #41 opened

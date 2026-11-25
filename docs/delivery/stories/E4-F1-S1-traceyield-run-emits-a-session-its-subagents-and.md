@@ -2,7 +2,7 @@
 id: 01M89J3J8592XX0VENM4AQ9CT1
 type: story
 key: E4-F1-S1
-status: in_progress
+status: in_review
 stage: ~
 stageSince: ~
 needsDesign: no
@@ -39,7 +39,7 @@ The command, its guide (`docs/guides/09-run-extraction.md`) and the CLAUDE.md en
 ## Acceptance Criteria
 
 - [ ] Scenario: one request, one charge. Given a transcript that logs one model request as several records, each repeating the request's usage, when the run is extracted, then the request is one turn and its tokens and cost are counted once.
-- [ ] Scenario: lanes. Given a session that spawned subagents, when the run is extracted, then the main thread and each subagent are separate lanes, each with its models, reasoning efforts, turn and call counts, tokens and estimated cost, and no local file path appears in the document.
+- [ ] Scenario: lanes. Given a session that spawned subagents, when the run is extracted, then the main thread and each subagent are separate lanes, each with its models, reasoning efforts, turn and call counts, tokens and estimated cost, and no lane or other metadata in the document carries a local file path. (Tool input and output text is the transcript's own and can contain paths.)
 - [ ] Scenario: Codex beside Claude. Given `--cwd` and a Codex session that started in that directory or below it inside the window, when the run is extracted, then that session is a lane with its turns and its tool calls, including calls logged as `custom_tool_call`. A Codex session in another directory or outside the window is left out, and without `--cwd` no Codex lane appears.
 - [ ] Scenario: unpriced model. Given a lane whose model has no rate card, when the run is extracted, then its tokens are counted, its cost is 0 and the lane is marked not priced.
 - [ ] Scenario: tool calls. Given a tool call and its result, when the run is extracted, then the call carries its duration, a one-line summary, its input and output, and separate flags for a failed call and a call refused by a permission check. A background command also carries the time until it actually finished.
@@ -47,7 +47,7 @@ The command, its guide (`docs/guides/09-run-extraction.md`) and the CLAUDE.md en
 - [ ] Scenario: text. Given text containing values that look like credentials, when the run is extracted, then those values are replaced with `[redacted]`, any field longer than the clip length is cut and flagged, and with `--no-text` no prompt, reply, input or output text appears while timings, tokens and costs stay.
 - [ ] Scenario: retrospective input. Given failed and refused calls, when the run is extracted, then they are grouped by error class, most frequent first, each with the taxonomy's title and suggested fix.
 - [ ] Scenario: nothing found. Given a session id with no activity in the window, when the command runs, then it exits with status 2 and writes no file.
-- [ ] Scenario: store untouched. Given any run, when the command runs, then usage.db is neither read nor written and the report's output is unchanged.
+- [ ] Scenario: store untouched. Given any run, when the command runs, then usage.db is neither read nor written, and the scheduled ingest stores the same records for a Codex rollout as it did before this change.
 
 ## Test Strategy
 
@@ -80,3 +80,12 @@ Work-item E4-F1-S1 (story) created with status planned.
 
 ## 2026-11-25 14:40 UTC -- status-change
 Status planned -> in_progress. delivery started
+
+## 2026-11-25 14:48 UTC -- note
+Codex handoff review: needs-attention. 9 findings (5 high, 4 medium); all 9 fixed on the branch in 9688b9f. Full findings: data/codex-handoffs/20261125T144147Z-e4f1s1.result.json
+
+## 2026-11-25 15:02 UTC -- status-change
+Status in_progress -> in_review. PR #41 opened
+
+## 2026-11-25 15:02 UTC -- note
+Pre-PR review (in-house, high effort): 10 findings, all fixed in 5fd22db. Review gate PASS; quality-verify measured nothing (Python repo). No automated PR review was requested. ci is red on PR #41 and on main for the same pre-existing test (order-dependent glob, request Q270), so the PR cannot merge until that is fixed.
