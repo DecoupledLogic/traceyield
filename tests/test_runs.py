@@ -55,7 +55,8 @@ class RunFixture(unittest.TestCase):
                 json.dump(meta, fh)
 
     def extract(self, session=SID, start=START, end=END, **kw):
-        providers = {"claude": ClaudeProvider(root=self.claude_root), "codex": CodexProvider(root=self.codex_root)}
+        providers = {"claude": ClaudeProvider(root=self.claude_root),
+                     "codex": CodexProvider(root=self.codex_root, custom_tool_calls=True)}
         return runs.extract(session, start, end, providers=providers, **kw)
 
 
@@ -86,6 +87,18 @@ class TestTurnsArePricedOncePerRequest(RunFixture):
         doc = self.extract()
         self.assertEqual(doc["turns"][0]["text"], "Checking the repo.")
         self.assertEqual(doc["calls"][0]["turn"], doc["turns"][0]["id"])
+
+    def test_records_with_no_request_id_merge_on_a_shared_message_id(self):
+        u = usage(inp=1000, out=2000)
+        self.main_thread([
+            assistant(at(1), SID, OPUS, u, texts=["Looking."], uuid="a1", message_id="msg-1", effort="high"),
+            assistant(at(1, 1), SID, OPUS, u, tools=[("t1", "Bash", {"command": "ls"})], uuid="a2", message_id="msg-1"),
+            tool_result(at(1, 2), SID, "t1"),
+        ])
+        doc = self.extract()
+        self.assertEqual(len(doc["turns"]), 1)
+        self.assertAlmostEqual(doc["turns"][0]["cost"], 0.055)   # 1000*5 + 2000*25, once
+        self.assertEqual(doc["turns"][0]["effort"], "high")      # stated on the first block only
 
     def test_turns_without_a_request_id_stay_separate(self):
         self.main_thread([
@@ -148,6 +161,34 @@ class TestWindow(RunFixture):
         doc = self.extract()
         self.assertEqual(len(doc["turns"]), 1)
         self.assertEqual([c["input"] for c in doc["calls"]], ["inside"])
+
+    def split_request(self, first, second):
+        u = usage(out=1000)
+        self.main_thread([
+            assistant(first, SID, OPUS, u, texts=["Planning."], uuid="a1", request_id="r1"),
+            assistant(second, SID, OPUS, u, tools=[("t1", "Bash", {"command": "ls"})], uuid="a2", request_id="r1"),
+            tool_result("2026-11-24T11:05:00.000Z", SID, "t1", text="done"),
+            assistant(at(30), SID, OPUS, usage(out=10), uuid="b1", request_id="r2"),
+        ])
+        return self.extract()
+
+    def test_a_request_that_began_before_the_window_takes_its_calls_with_it(self):
+        doc = self.split_request("2026-11-24T09:59:59.500Z", "2026-11-24T10:00:00.500Z")
+        self.assertEqual([t["id"] for t in doc["turns"]], ["main:2"])
+        self.assertEqual(doc["calls"], [])            # no call left pointing at a turn that is not there
+
+    def test_a_request_that_began_inside_keeps_blocks_and_results_logged_after_the_end(self):
+        doc = self.split_request("2026-11-24T10:59:59.500Z", "2026-11-24T11:00:00.500Z")
+        last = doc["turns"][-1]
+        self.assertEqual((last["text"], len(last["calls"])), ("Planning.", 1))
+        call = doc["calls"][0]
+        self.assertEqual((call["turn"], call["output"], call["ms"]), (last["id"], "done", 299500))
+
+    def test_every_call_points_at_a_turn_in_the_document(self):
+        doc = self.split_request("2026-11-24T10:10:00.000Z", "2026-11-24T10:10:01.000Z")
+        ids = {t["id"] for t in doc["turns"]}
+        self.assertTrue(doc["calls"])
+        self.assertTrue(all(c["turn"] in ids for c in doc["calls"]))
 
     def test_a_fractional_second_past_the_start_is_inside(self):
         # "10:00:00.500Z" sorts before "10:00:00Z" as text; it must still count.
@@ -240,7 +281,14 @@ class TestPrompts(RunFixture):
         self.subagent("abc", [prompt(at(2), SID, "You are a dev agent."),
                               assistant(at(5), SID, OPUS, usage(out=10), uuid="b1")])
         self.assertEqual(self.extract()["prompts"],
-                         [{"t": at(1), "text": "Fix 1 and 2; the monitor reads the board directly"}])
+                         [{"t": at(1), "text": "Fix 1 and 2; the monitor reads the board directly", "textCut": False}])
+
+    def test_a_window_holding_only_a_prompt_still_has_its_lane(self):
+        self.main_thread([prompt(at(1), SID, "Are you there?"),
+                          assistant("2026-11-24T12:00:00.000Z", SID, OPUS, usage(out=10), uuid="a1")])
+        doc = self.extract()
+        self.assertEqual([l["id"] for l in doc["lanes"]], ["main"])
+        self.assertEqual((doc["lanes"][0]["turns"], doc["lanes"][0]["calls"], len(doc["prompts"])), (0, 0, 1))
 
 
 class TestTextHandling(RunFixture):
@@ -260,6 +308,57 @@ class TestTextHandling(RunFixture):
             self.assertNotIn(leaked, blob)
         self.assertIn("PESTPAC_PASSWORD=[redacted]", doc["prompts"][0]["text"])
         self.assertTrue(doc["calls"][0]["output"].startswith("API_KEY=[redacted]"))
+
+    def test_structured_arguments_and_quoted_values_are_redacted(self):
+        self.main_thread([
+            assistant(at(1), SID, OPUS, usage(out=10), uuid="a1", request_id="r1",
+                      tools=[("t1", "mcp__crm__connect", {"host": "x", "api_key": "example-marker-123",
+                                                          "nested": {"clientSecret": "marker two words"}})]),
+            tool_result(at(1, 1), SID, "t1", text='{"password": "marker with spaces", "ok": true}'),
+            assistant(at(2), SID, OPUS, usage(out=10), uuid="a2", request_id="r2",
+                      tools=[("t2", "Bash", {"command": "export TOKEN='marker in quotes'"})]),
+        ])
+        blob = json.dumps(self.extract())
+        for leaked in ("example-marker-123", "marker two words", "marker with spaces", "marker in quotes"):
+            self.assertNotIn(leaked, blob)
+        self.assertIn("[redacted]", blob)
+        self.assertIn('\\"host\\": \\"x\\"', blob)      # an ordinary field is left alone
+
+    def test_no_text_leaves_nothing_from_the_transcript_anywhere(self):
+        marker = "ZEBRA-MARKER"
+        self.main_thread([
+            prompt(at(0, 30), SID, f"please {marker}"),
+            assistant(at(1), SID, OPUS, usage(out=10), uuid="a1", texts=[f"saying {marker}"],
+                      tools=[("t1", "Bash", {"command": f"echo {marker}", "description": f"Echo {marker}"})]),
+            tool_result(at(1, 1), SID, "t1", text=f"{marker}"),
+        ])
+        self.subagent("abc", [assistant(at(2), SID, OPUS, usage(out=10), uuid="b1")],
+                      meta={"agentType": "dev-agent", "description": f"Build {marker}"})
+        doc = self.extract(text=False)
+        self.assertNotIn(marker, json.dumps(doc))
+        self.assertEqual((doc["calls"][0]["summary"], doc["calls"][0]["tool"]), ("", "Bash"))
+        self.assertIn(marker, json.dumps(self.extract()))      # and it is there with text on
+
+    def test_replies_and_prompts_are_cut_with_a_flag_and_summaries_are_one_line(self):
+        self.main_thread([
+            prompt(at(0, 30), SID, "p" * 5000),
+            assistant(at(1), SID, OPUS, usage(out=10), uuid="a1", texts=["r" * 5000],
+                      tools=[("t1", "Bash", {"command": "ls", "description": "First line\nsecond line"})]),
+        ])
+        doc = self.extract(clip=100)
+        turn, ask, call = doc["turns"][0], doc["prompts"][0], doc["calls"][0]
+        self.assertEqual((len(turn["text"]), turn["textCut"]), (100, True))
+        self.assertEqual((len(ask["text"]), ask["textCut"]), (100, True))
+        self.assertEqual(call["summary"], "First line second line")
+        wide = self.extract(clip=100000)
+        self.assertEqual((len(wide["turns"][0]["text"]), wide["turns"][0]["textCut"]), (runs.REPLY_CLIP, True))
+
+    def test_a_secret_straddling_the_cut_is_redacted_before_cutting(self):
+        self.main_thread([
+            assistant(at(1), SID, OPUS, usage(out=10), uuid="a1", tools=[("t1", "Bash", {"command": "env"})]),
+            tool_result(at(1, 1), SID, "t1", text="x" * 90 + " API_KEY=abcdefghijklmnop"),
+        ])
+        self.assertNotIn("abcdef", self.extract(clip=105)["calls"][0]["output"])
 
     def test_long_text_is_clipped_and_flagged(self):
         c = self.secret_run(clip=100)["calls"][0]
@@ -301,6 +400,60 @@ class TestCodexLane(RunFixture):
         self.assertEqual((lane["id"], lane["name"], lane["kind"], lane["provider"]), ("codex:cx-1", "Codex", "external", "codex"))
         self.assertEqual((lane["turns"], lane["calls"], lane["errors"], lane["efforts"]), (2, 2, 1, ["high"]))
         self.assertEqual(lane["tok"], {"in": 2000, "out": 300, "read": 9000, "write": 0})
+
+    def test_the_working_directory_is_not_written_into_the_document(self):
+        self.with_main()
+        self.rollout()
+        doc = self.extract(cwd=self.CWD)
+        self.assertEqual(doc["source"], {"session": SID, "codex": True})
+        self.assertNotIn("shop", json.dumps(doc))
+
+    def test_calls_and_cost_belong_to_the_request_whose_usage_follows_them(self):
+        self.with_main()
+        self.rollout(model="gpt-5.5")      # priced: 5.00 in, 30.00 out, cached at 0.1x
+        doc = self.extract(cwd=self.CWD)
+        turns = [t for t in doc["turns"] if t["lane"] == "codex:cx-1"]
+        calls = [c for c in doc["calls"] if c["lane"] == "codex:cx-1"]
+        self.assertEqual([c["turn"] for c in calls], [turns[0]["id"], turns[1]["id"]])
+        # turn 1: 1000 fresh*5 + 4000 cached*0.5 + 200 out*30 = 13000 / 1e6
+        self.assertAlmostEqual(turns[0]["cost"], 0.013)
+        self.assertAlmostEqual(calls[0]["cost"], 0.013)
+        # turn 2: 1000*5 + 5000*0.5 + 100*30 = 10500 / 1e6
+        self.assertAlmostEqual(calls[1]["cost"], 0.0105)
+        self.assertEqual(doc["lanes"][1]["priced"], True)
+
+    def test_the_scheduled_ingest_still_leaves_freeform_calls_as_raw_events(self):
+        self.rollout()
+        path = os.path.join(self.codex_root, "2026", "11", "24", "rollout-a.jsonl")
+        recs = list(CodexProvider(root=self.codex_root).parse_file(path))     # the default, as ingest builds it
+        self.assertEqual([r.call_id for r in recs if isinstance(r, models.ToolCall)], ["c2", "c2"])
+        raw = [json.loads(r.raw)["payload"]["type"] for r in recs if isinstance(r, models.RawEvent)]
+        self.assertEqual(raw, ["custom_tool_call", "custom_tool_call_output"])
+
+    def test_path_matching_follows_the_rules_of_the_path_it_was_given(self):
+        self.with_main()
+        self.rollout(name="posix.jsonl", cwd="/home/u/proj/sub", sid="cx-p")
+        ids = lambda cwd: [l["id"] for l in self.extract(cwd=cwd)["lanes"]]
+        self.assertEqual(ids("/home/u/proj"), ["main", "codex:cx-p"])
+        self.assertEqual(ids("/home/u/other/../proj/"), ["main", "codex:cx-p"])   # same directory, spelled differently
+        self.assertEqual(ids("/home/u/Proj"), ["main"])                           # POSIX paths are case-sensitive
+        self.assertEqual(ids("/home/u/pro"), ["main"])                            # a prefix is not a parent
+
+    def test_a_rollout_filed_outside_a_dated_folder_is_still_found(self):
+        self.with_main()
+        codex_file(self.codex_root, "loose.jsonl", [
+            codex_session_meta(at(10), "cx-loose", cwd=self.CWD),
+            codex_token_count(at(10, 6), last=tok(inp=10, out=1)),
+        ])
+        self.assertEqual([l["id"] for l in self.extract(cwd=self.CWD)["lanes"]], ["main", "codex:cx-loose"])
+
+    def test_a_dated_folder_far_from_the_window_is_not_opened(self):
+        self.with_main()
+        codex_file(os.path.join(self.codex_root, "2026", "09", "01"), "misfiled.jsonl", [
+            codex_session_meta(at(10), "cx-old", cwd=self.CWD),
+            codex_token_count(at(10, 6), last=tok(inp=10, out=1)),
+        ])
+        self.assertEqual([l["id"] for l in self.extract(cwd=self.CWD)["lanes"]], ["main"])
 
     def test_freeform_and_function_tool_calls_both_come_through(self):
         self.with_main()
@@ -397,6 +550,11 @@ class TestCli(RunFixture):
         self.assertEqual((code, out), (2, ""))
         self.assertIn("no transcript activity", err)
         self.assertFalse(os.path.exists(target))
+
+    def test_a_window_that_is_not_a_timestamp_exits_two(self):
+        code, _, err = self.run_cli("run", "--session", SID, "--start", "yesterday", "--end", END)
+        self.assertEqual(code, 2)
+        self.assertIn("ISO 8601", err)
 
     def test_out_writes_the_document_to_a_file(self):
         saved = os.environ.get("CLAUDE_PROJECTS")

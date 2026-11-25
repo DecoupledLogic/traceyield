@@ -38,7 +38,7 @@ def line(**kw):
 
 
 def assistant(ts, sid, model, usage, tools=(), texts=(), thinking=None,
-              uuid=None, parent=None, request_id=None, effort=None):
+              uuid=None, parent=None, request_id=None, effort=None, message_id=None):
     """An assistant message: model + usage, optional tool_use blocks, optional
     text/thinking content blocks, optional uuid/parentUuid (Claude Code's turn
     id -- set it to exercise replay dedup or parent-turn linkage).
@@ -70,6 +70,7 @@ def assistant(ts, sid, model, usage, tools=(), texts=(), thinking=None,
     # usage) and the reasoning effort it ran at -- see tests/test_runs.py.
     if request_id: o["requestId"] = request_id
     if effort: o["effort"] = effort
+    if message_id: o["message"]["id"] = message_id   # shared by every record of one response
     return line(**o)
 
 

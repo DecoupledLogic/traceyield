@@ -13,9 +13,12 @@ is deliberately its own thing, not `pricing.tier()` (that one is
 Claude-only). See traceyield.providers.base.Provider for the contract this
 satisfies (structurally -- this class never imports that module).
 """
+import datetime
 import glob
 import json
+import ntpath
 import os
+import posixpath
 
 from traceyield import classification, paths, transcripts
 from traceyield.models import RawEvent, Segment, Session, ToolCall, Turn
@@ -80,9 +83,18 @@ def _codex_tool_output(raw):
 class CodexProvider:
     """Produces neutral Recs from Codex CLI rollout logs (~/.codex/sessions)."""
     name = "codex"
+    # A rollout logs a request's token_count AFTER that request's reply and tool
+    # calls, so an event belongs to the next turn logged. parse_file() still
+    # stamps events with the turn it has already seen (what the store has always
+    # held); traceyield.runs reads this flag and re-attributes by time.
+    usage_follows_events = True
 
-    def __init__(self, root=None):
+    def __init__(self, root=None, custom_tool_calls=False):
         self.root = root or paths.codex_sessions()
+        # Newer Codex CLIs log `exec` as custom_tool_call / custom_tool_call_output.
+        # Off by default so the scheduled ingest stores exactly what it did before
+        # (those events stay raw_event rows); run extraction turns it on.
+        self.custom_tool_calls = custom_tool_calls
 
     def roots(self):
         return [self.root]
@@ -195,7 +207,7 @@ class CodexProvider:
                 role = p.get("role")
                 text = _codex_text(p.get("content"))
                 if role == "assistant":
-                    yield Segment("response", "assistant", turn_id=cur_turn_id, seq=line_seq, text=text)
+                    yield Segment("response", "assistant", turn_id=cur_turn_id, seq=line_seq, text=text, ts=ts)
                 elif role == "user":
                     yield Segment("prompt", "user", turn_id=cur_turn_id, seq=line_seq, text=text, ts=ts)
                 continue
@@ -214,7 +226,11 @@ class CodexProvider:
             # custom_tool_call is the freeform-input twin of function_call (newer
             # Codex CLIs route `exec` through it): same call_id join, with the
             # input as a plain string in `input`, not JSON in `arguments`.
-            if t == "response_item" and pt in ("function_call", "custom_tool_call"):
+            # Modelled only when self.custom_tool_calls is set (see __init__).
+            call_types = ("function_call", "custom_tool_call") if self.custom_tool_calls else ("function_call",)
+            output_types = (("function_call_output", "custom_tool_call_output") if self.custom_tool_calls
+                            else ("function_call_output",))
+            if t == "response_item" and pt in call_types:
                 cid = p.get("call_id") or "?"
                 nm = p.get("name") or "?"
                 cur = transcripts.ms(ts)
@@ -224,7 +240,7 @@ class CodexProvider:
                 yield Segment("tool_args", "tool", tool_call_id=cid, text=args if isinstance(args, str) else "")
                 continue
 
-            if t == "response_item" and pt in ("function_call_output", "custom_tool_call_output"):
+            if t == "response_item" and pt in output_types:
                 cid = p.get("call_id") or "?"
                 raw_out = p.get("output")
                 if isinstance(raw_out, list):          # content parts, as a message carries them
@@ -257,21 +273,46 @@ class CodexProvider:
         canonical.ingest() never calls this. Only each rollout's first line
         (its session_meta) is read here. Returns lane dicts shaped like
         ClaudeProvider.run_lanes()."""
-        def norm(p):
-            return (p or "").replace(chr(92), "/").rstrip("/").lower()
-        want = norm(cwd)
+        def under(child, parent):
+            # Compare with the rules of the filesystem the paths came from, not
+            # the one this runs on: a Windows path (drive letter or backslash)
+            # is case-insensitive, a POSIX path is not. normpath folds "." and
+            # ".." so equivalent spellings match.
+            if not child or not parent:
+                return False
+            windows = any(chr(92) in p or p[1:2] == ":" for p in (child, parent))
+            flavor = ntpath if windows else posixpath
+            c = flavor.normcase(flavor.normpath(child))
+            p = flavor.normcase(flavor.normpath(parent))
+            return c == p or c.startswith(p.rstrip(flavor.sep) + flavor.sep)
+
         lo, hi = transcripts.ms(start), transcripts.ms(end)
         lanes = []
+        if lo is None or hi is None:
+            return lanes
+        day = datetime.timedelta(days=1)
+        first = datetime.datetime.fromtimestamp(lo / 1000, datetime.timezone.utc).date() - day
+        last = datetime.datetime.fromtimestamp(hi / 1000, datetime.timezone.utc).date() + day
         for path in sorted(glob.glob(os.path.join(self.root, "**", "*.jsonl"), recursive=True)):
+            # Rollouts are filed under YYYY/MM/DD of their local start date. Skip
+            # a dated folder more than a day outside the window without opening
+            # its files; a file filed any other way is always opened.
+            parts = os.path.relpath(os.path.dirname(path), self.root).replace(chr(92), "/").split("/")
+            if len(parts) >= 3 and all(x.isdigit() for x in parts[:3]):
+                try:
+                    filed = datetime.date(int(parts[0]), int(parts[1]), int(parts[2]))
+                except ValueError:
+                    filed = None
+                if filed and not (first <= filed <= last):
+                    continue
             meta = next(iter(transcripts.iter_json_lines(path)), None)
             if not isinstance(meta, dict) or meta.get("type") != "session_meta":
                 continue
             p = meta.get("payload") if isinstance(meta.get("payload"), dict) else {}
             at = transcripts.ms(p.get("timestamp") or meta.get("timestamp"))
-            here = norm(p.get("cwd"))
-            if at is None or lo is None or hi is None or not (lo <= at <= hi):
+            if at is None or not (lo <= at <= hi):
                 continue
-            if not want or not (here == want or here.startswith(want + "/")):
+            if not under(p.get("cwd"), cwd):
                 continue
             sid = p.get("id") or os.path.basename(path)
             lanes.append({"id": "codex:" + sid, "name": "Codex", "kind": "external", "provider": self.name,

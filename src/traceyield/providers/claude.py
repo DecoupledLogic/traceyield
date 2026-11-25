@@ -84,7 +84,7 @@ class ClaudeProvider:
                            reasoning_output=None,   # Claude has no separate reasoning count (§2.4)
                            n_tool_calls=n_tools, wall_ms=wall, tier=pricing.tier(m.get("model")),
                            project=proj,   # the FILE's own project, not the session's resolved one
-                           effort=o.get("effort"))
+                           effort=o.get("effort"), message_id=m.get("id"))
                 for i, b in enumerate(content):
                     if not isinstance(b, dict): continue
                     t = b.get("type")

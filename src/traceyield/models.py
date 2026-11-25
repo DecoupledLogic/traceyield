@@ -44,6 +44,10 @@ class Turn:
     effort: str = None    # reasoning effort the turn ran at, when the log states
                            # it. Carried on the record for run extraction
                            # (traceyield.runs); not a usage.db column yet.
+    message_id: str = None  # the provider's id for the model response this record
+                           # belongs to (Claude message.id). Several records can
+                           # share one; traceyield.runs merges on it when there is
+                           # no request_id. Not a usage.db column.
 
 @dataclass
 class ToolCall:
