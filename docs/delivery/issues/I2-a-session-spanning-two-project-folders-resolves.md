@@ -2,7 +2,7 @@
 id: 01M89KPGCAERRGBH51MKR664AT
 type: issue
 key: I2
-status: in_progress
+status: in_review
 stage: ~
 stageSince: ~
 needsDesign: no
@@ -70,3 +70,9 @@ Work-item I2 (issue) created with status planned.
 
 ## 2026-11-25 15:03 UTC -- status-change
 Status planned -> in_progress. delivery started
+
+## 2026-11-25 15:16 UTC -- status-change
+Status in_progress -> in_review. PR #42 opened
+
+## 2026-11-25 15:16 UTC -- note
+ci passed on PR #42 on the Linux runner (run 45643066899), which is the proof for the third acceptance criterion. Dev was done inline, not by dev-agent. The Codex pre-PR review had not finished when the PR opened. No automated PR review was requested.
