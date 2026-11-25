@@ -367,7 +367,7 @@ class RawEvent:  # anything unmodeled: the escape hatch
     provider:str; session_id:str; ts:str; type:str; raw:str=None
 ```
 
-Two fields ride on these records without a column in the store (Decision 0010): `Turn.effort`, the reasoning effort a turn ran at when the log states it, and `Segment.ts`, the time a prompt was logged. `write()` ignores both. Run extraction (`traceyield.runs`, guide 9) reads them from the provider stream. Persisting `effort` is a separate schema change.
+Four fields ride on these records without a column in the store (Decision 0010): `Turn.effort`, the reasoning effort a turn ran at when the log states it; `Turn.message_id`, the provider's id for the response a record belongs to; `Segment.ts`, the time a prompt or reply was logged; and `Segment.origin`, which marks a prompt the harness wrote itself. `write()` ignores all four. Run extraction (`traceyield.runs`, guide 9) reads them from the provider stream. Persisting `effort` is a separate schema change.
 
 ### 6.2 The `Provider` interface
 

@@ -247,6 +247,9 @@ class CodexProvider:
                     raw_out = _codex_text(raw_out)
                 text, exit_code, success = _codex_tool_output(raw_out)
                 failed = (exit_code not in (None, 0)) or (success is False)
+                # A freeform `exec` result states its outcome in a text header, not JSON.
+                if pt == "custom_tool_call_output" and (text or "").lstrip().startswith("Script failed"):
+                    failed = True
                 tm = call_meta.get(cid)
                 cur = transcripts.ms(ts)
                 lat = (cur - tm[1]) if (tm and cur is not None and tm[1] is not None) else None
@@ -290,9 +293,12 @@ class CodexProvider:
         lanes = []
         if lo is None or hi is None:
             return lanes
-        day = datetime.timedelta(days=1)
-        first = datetime.datetime.fromtimestamp(lo / 1000, datetime.timezone.utc).date() - day
-        last = datetime.datetime.fromtimestamp(hi / 1000, datetime.timezone.utc).date() + day
+        try:
+            day = datetime.timedelta(days=1)
+            first = datetime.datetime.fromtimestamp(lo / 1000, datetime.timezone.utc).date() - day
+            last = datetime.datetime.fromtimestamp(hi / 1000, datetime.timezone.utc).date() + day
+        except (OSError, OverflowError, ValueError):
+            first = last = None               # a window at the calendar's edge: open every folder
         for path in sorted(glob.glob(os.path.join(self.root, "**", "*.jsonl"), recursive=True)):
             # Rollouts are filed under YYYY/MM/DD of their local start date. Skip
             # a dated folder more than a day outside the window without opening
@@ -303,7 +309,7 @@ class CodexProvider:
                     filed = datetime.date(int(parts[0]), int(parts[1]), int(parts[2]))
                 except ValueError:
                     filed = None
-                if filed and not (first <= filed <= last):
+                if filed and first and not (first <= filed <= last):
                     continue
             meta = next(iter(transcripts.iter_json_lines(path)), None)
             if not isinstance(meta, dict) or meta.get("type") != "session_meta":

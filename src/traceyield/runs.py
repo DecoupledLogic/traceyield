@@ -10,10 +10,11 @@ long each tool call took, what it cost, and what each call was given and
 returned.
 
 Built on the provider layer (traceyield.providers), not on usage.db: every
-lane is parsed on demand through its provider's parse_file(), so the document
-is provider-blind in the same way the canonical store is, and it works on a
-machine that has never run `traceyield report`. Nothing is written unless the
-caller asks for a file (--out); nothing leaves the machine.
+lane is parsed on demand through its provider's parse_file(), so turns, calls
+and text are read the same way for every provider, and it works on a machine
+that has never run `traceyield report`. Finding a run's lanes is per provider
+(a Claude session id, a Codex working directory). Nothing is written unless
+the caller asks for a file (--out); nothing leaves the machine.
 
 Privacy. Unlike the canonical store's default "structural" capture, this
 document carries text: prompts, the model's replies, tool inputs and tool
@@ -36,6 +37,7 @@ window ends. A call whose request began before the window is left out.
 """
 import argparse
 import bisect
+import datetime
 import json
 import re
 import sys
@@ -48,41 +50,63 @@ DEFAULT_CLIP = 4000
 REPLY_CLIP = 1200      # what the model said before acting: enough to read its intent
 PROMPT_CLIP = 600
 
-_KEYNAME = (r"[A-Za-z0-9_.-]*(?:password|passwd|secret|token|api[_-]?key|client[_-]?id|"
-            r"authorization|credential)[A-Za-z0-9_.-]*")
-_KEY = re.compile(r"(?i)^" + _KEYNAME + r"$")
-# name, optional closing quote, separator, then a quoted value of any length or
-# a bare value of 8+ characters (shorter bare values are mostly code, not secrets).
+# A credential-looking name. Only word characters around the keyword, so a
+# word boundary is the only place a match can start and a long dash- or
+# dot-joined token is scanned once, not once per segment.
+_KEYNAME = (r"\w*(?:password|passwd|pwd|passphrase|secret|token|api[_-]?key|access[_-]?key|"
+            r"account[_-]?key|private[_-]?key|client[_-]?id|authorization|credential)\w*")
+_KEY = re.compile(r"(?i)^[\w.-]*?" + _KEYNAME + r"[\w.-]*$")
+# name, optional closing quote (escaped or not), separator, then a quoted value
+# of any length (escaped quotes included) or a bare value of 8+ characters;
+# shorter bare values are mostly code, not secrets.
 _SECRET = re.compile(
-    r"(?i)(\b" + _KEYNAME + r"[\"']?\s*[:=]\s*)"
-    r"(\"(?:[^\"\\]|\\.)+\"|'(?:[^'\\]|\\.)+'|[^\s\"',;}\]]{8,})"
+    r"(?i)(\b" + _KEYNAME + r"\\?[\"']?\s*[:=]\s*)"
+    r"(\\\"(?:[^\"\\]|\\[^\"])+\\\"|\"(?:[^\"\\]|\\.)+\"|'(?:[^'\\]|\\.)+'|[^\s\"',;}\]\\]{8,})"
 )
+_FLAG = re.compile(r"(?i)(--?" + _KEYNAME + r"[ =]+)([^\s\"'-][^\s\"']{7,})")
+_URL_USER = re.compile(r"(://[^\s/:@]+:)([^\s/@]{4,})(@)")
 _BEARER = re.compile(r"(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{16,}")
+# Well-known token shapes that need no name beside them.
+_BARE = re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|"
+                   r"xox[abprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16})\b")
+_NUMBER = re.compile(r"^[\d.,_]+$")
 _BG_DONE = re.compile(r"<tool-use-id>(.*?)</tool-use-id>.*?<status>(.*?)</status>", re.S)
-# Harness-written user lines that are not something the operator typed.
-_NOT_OPERATOR = ("<", "Another Claude session", "This session is being continued",
-                 "[Request interrupted")
+# User-role lines the harness wrote, as opposed to something the operator typed.
+_HARNESS_TAG = re.compile(r"^<(?:local-command-[a-z]+|task-notification|system-reminder|bash-stdout|"
+                          r"bash-stderr|user-prompt-submit-hook|agent-message)\b")
+_HARNESS_TEXT = ("Another Claude session", "This session is being continued", "[Request interrupted")
+_COMMAND = re.compile(r"<command-name>\s*(/[^<\s]+)\s*</command-name>(?:.*?<command-args>(.*?)</command-args>)?", re.S)
+_BASH_INPUT = re.compile(r"^<bash-input>(.*?)</bash-input>", re.S)
 _SUMMARY_KEYS = ("description", "skill", "file_path", "pattern", "query", "to", "subject")
 
 
 def _mask(m):
     value = m.group(2)
-    quote = value[0] if value[0] in "\"'" else ""
+    if _NUMBER.match(value):
+        return m.group(0)                    # max_tokens: 100000 is a count, not a secret
+    if value.startswith(chr(92) + '"'):
+        quote = chr(92) + '"'
+    else:
+        quote = value[0] if value[0] in "\"'" else ""
     return f"{m.group(1)}{quote}[redacted]{quote}"
 
 
 def scrub(text):
     """Replace values that look like credentials. A pattern match, not a guarantee."""
-    text = text.replace(chr(0xFFFD), "?")   # undecodable bytes in captured output
+    # Undecodable bytes and lone surrogates (an emoji cut in half) cannot be written as UTF-8.
+    text = text.replace(chr(0xFFFD), "?").encode("utf-8", "replace").decode("utf-8")
     text = _SECRET.sub(_mask, text)
+    text = _FLAG.sub(lambda m: m.group(0) if _NUMBER.match(m.group(2)) else f"{m.group(1)}[redacted]", text)
+    text = _URL_USER.sub(lambda m: f"{m.group(1)}[redacted]{m.group(3)}", text)
+    text = _BARE.sub("[redacted]", text)
     return _BEARER.sub(lambda m: f"{m.group(1)} [redacted]", text)
 
 
 def _redact(value):
-    """Structured arguments: replace every value held under a credential-looking key."""
+    """Structured arguments: replace every text value held under a credential-looking key."""
     if isinstance(value, dict):
-        return {k: ("[redacted]" if isinstance(k, str) and _KEY.match(k) and v not in (None, "", False, True)
-                    else _redact(v)) for k, v in value.items()}
+        return {k: ("[redacted]" if isinstance(k, str) and _KEY.match(k) and isinstance(v, str) and v
+                    and not _NUMBER.match(v) else _redact(v)) for k, v in value.items()}
     if isinstance(value, list):
         return [_redact(v) for v in value]
     return value
@@ -130,6 +154,33 @@ def _ms(a, b):
     return None if a is None or b is None else max(b - a, 0)
 
 
+def utc(value):
+    """A window bound as an ISO 8601 UTC string, or None when it is not a
+    timestamp. A value with no offset is read as UTC, never as local time."""
+    try:
+        at = datetime.datetime.fromisoformat(str(value).strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if at.tzinfo is None:
+        at = at.replace(tzinfo=datetime.timezone.utc)
+    return at.astimezone(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _typed(text):
+    """What the operator typed, from a user-role line, or None for a line the
+    harness wrote. A slash command is logged wrapped in tags; unwrap it."""
+    text = text.strip()
+    command = _COMMAND.search(text)
+    if command and text.startswith("<command-"):
+        return (command.group(1) + " " + (command.group(2) or "").strip()).strip()
+    bash = _BASH_INPUT.match(text)
+    if bash:
+        return "! " + bash.group(1).strip()
+    if _HARNESS_TAG.match(text) or text.startswith(_HARNESS_TEXT) or text.startswith("<command-"):
+        return None
+    return text
+
+
 def read_lane(lane, provider, start, end, text=True, clip=DEFAULT_CLIP):
     """Parse one lane's file into (turns, calls, prompts) for the window
     [start, end] (ISO 8601 strings). See the module docstring for the request
@@ -142,6 +193,8 @@ def read_lane(lane, provider, start, end, text=True, clip=DEFAULT_CLIP):
     seq = 0
     for rec in provider.parse_file(lane["path"]):
         if isinstance(rec, Turn):
+            if rec.model == "<synthetic>":
+                continue                         # a zero-token placeholder the harness wrote, not a request
             key = rec.request_id or getattr(rec, "message_id", None) or rec.turn_id
             group_of[rec.turn_id] = key
             g = groups.get(key)
@@ -160,8 +213,9 @@ def read_lane(lane, provider, start, end, text=True, clip=DEFAULT_CLIP):
                 else:
                     replies.setdefault(rec.turn_id, []).append(rec.text)
             elif rec.kind == "prompt" and rec.ts and isinstance(rec.text, str):
-                if lane["kind"] == "main" and not rec.text.lstrip().startswith(_NOT_OPERATOR):
-                    prompts.append({"t": rec.ts, "text": rec.text.strip()})
+                typed = _typed(rec.text) if lane["kind"] == "main" and rec.origin != "harness" else None
+                if typed:
+                    prompts.append({"t": rec.ts, "text": typed})
             elif rec.kind == "tool_args":
                 calls.setdefault(rec.tool_call_id, {})["args"] = rec.text or ""
             elif rec.kind == "tool_output":
@@ -173,9 +227,11 @@ def read_lane(lane, provider, start, end, text=True, clip=DEFAULT_CLIP):
             else:                                # its result
                 c.update(end=rec.ts, ok=rec.ok, error_class=rec.error_class, exit_code=rec.exit_code)
         elif isinstance(rec, RawEvent) and rec.type == "queue-operation" and rec.raw:
-            m = _BG_DONE.search(rec.raw)
+            # The same notice is logged again as "remove" when it is consumed, which
+            # can be minutes later. The "enqueue" line is when the command finished.
+            m = _BG_DONE.search(rec.raw) if '"enqueue"' in rec.raw else None
             if m:
-                bg_done[m.group(1)] = (rec.ts, m.group(2))
+                bg_done.setdefault(m.group(1), (rec.ts, m.group(2)))
 
     lo, hi = transcripts.ms(start), transcripts.ms(end)
 
@@ -272,6 +328,9 @@ def extract(session, start, end, cwd=None, text=True, clip=DEFAULT_CLIP, provide
     it defaults to the real log roots and exists so tests can point at
     fixtures. `cwd` adds the Codex sessions that started under it."""
     providers = providers or default_providers()
+    start, end = utc(start), utc(end)
+    if start is None or end is None:
+        raise ValueError("start and end must be ISO 8601 timestamps")
     lanes = list(providers["claude"].run_lanes(session)) if session else []
     if cwd and providers.get("codex"):
         lanes += providers["codex"].run_lanes(cwd, start, end)
@@ -331,27 +390,28 @@ def main(argv=None):
         prog="traceyield run",
         description="Extract one run (a session, its subagents and optional Codex sessions) as JSON.")
     ap.add_argument("--session", required=True, help="Claude Code session id")
-    ap.add_argument("--start", required=True, help="window start, ISO 8601 UTC (2026-11-24T16:37:44Z)")
-    ap.add_argument("--end", required=True, help="window end, ISO 8601 UTC")
+    ap.add_argument("--start", required=True,
+                    help="window start, ISO 8601 (2026-11-24T16:37:44Z); with no offset it is read as UTC")
+    ap.add_argument("--end", required=True, help="window end, same form")
     ap.add_argument("--cwd", help="also include Codex sessions started under this directory in the window")
     ap.add_argument("--no-text", action="store_true",
                     help="omit everything derived from transcript text: prompts, replies, inputs, outputs, summaries")
     ap.add_argument("--clip", type=int, default=DEFAULT_CLIP, help="max characters kept per text field")
     ap.add_argument("--out", help="write here; default is stdout")
     a = ap.parse_args(argv)
-    if transcripts.ms(a.start) is None or transcripts.ms(a.end) is None:
+    if utc(a.start) is None or utc(a.end) is None:
         print("traceyield run: --start and --end must be ISO 8601 timestamps", file=sys.stderr)
         return 2
     doc = extract(a.session, a.start, a.end, cwd=a.cwd, text=not a.no_text, clip=a.clip)
     if not doc["lanes"]:
         print(f"traceyield run: no transcript activity for session {a.session} in that window", file=sys.stderr)
         return 2
+    body = json.dumps(doc, ensure_ascii=False).encode("utf-8", "replace")   # whole document first: no partial file
     if a.out:
-        with open(a.out, "w", encoding="utf-8", newline="\n") as fh:
-            json.dump(doc, fh, ensure_ascii=False)
+        with open(a.out, "wb") as fh:
+            fh.write(body)
     else:
-        sys.stdout.reconfigure(encoding="utf-8")
-        json.dump(doc, sys.stdout, ensure_ascii=False)
+        sys.stdout.buffer.write(body)
     return 0
 
 

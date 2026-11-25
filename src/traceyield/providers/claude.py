@@ -102,7 +102,8 @@ class ClaudeProvider:
                         yield Segment("tool_args", "tool", tool_call_id=cid, text=json.dumps(b.get("input", {})))
             else:                                          # a user line: prompts and/or tool_results
                 if isinstance(m.get("content"), str) and m.get("role") == "user":
-                    yield Segment("prompt", "user", turn_id=(o.get("uuid") or ""), text=m.get("content"), ts=ts)
+                    yield Segment("prompt", "user", turn_id=(o.get("uuid") or ""), text=m.get("content"), ts=ts,
+                                  origin=("harness" if o.get("isMeta") else None))
                 for b in content:
                     if not isinstance(b, dict) or b.get("type") != "tool_result": continue
                     cid = b.get("tool_use_id"); txt = transcripts.result_text(b)
@@ -127,8 +128,11 @@ class ClaudeProvider:
         provider, path, description), main thread first, or [] when the
         session has no transcript under this root."""
         lanes = []
-        for main in sorted(glob.glob(os.path.join(self.root, "*", session_id + ".jsonl"))):
-            lanes.append({"id": "main", "name": "Main thread", "kind": "main",
+        # A session can be written under more than one project directory (a
+        # worktree switch mid-conversation), so every match is a main-thread lane.
+        for n, main in enumerate(sorted(glob.glob(os.path.join(self.root, "*", session_id + ".jsonl"))), 1):
+            lanes.append({"id": "main" if n == 1 else f"main-{n}",
+                          "name": "Main thread" if n == 1 else f"Main thread {n}", "kind": "main",
                           "provider": self.name, "path": main, "description": None})
             sub_dir = os.path.join(os.path.dirname(main), session_id, "subagents")
             for path in sorted(glob.glob(os.path.join(sub_dir, "agent-*.jsonl"))):
@@ -143,5 +147,4 @@ class ClaudeProvider:
                 lanes.append({"id": agent_id, "kind": "subagent", "provider": self.name, "path": path,
                               "name": meta.get("skillName") or meta.get("agentType") or agent_id,
                               "description": meta.get("description")})
-            break   # one session id resolves to one main transcript
         return lanes

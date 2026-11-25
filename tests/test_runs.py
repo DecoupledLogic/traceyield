@@ -498,6 +498,126 @@ class TestProviderAdditions(RunFixture):
         self.assertEqual(self.extract()["lanes"][0]["efforts"], [])
 
 
+class TestRealLogShapes(RunFixture):
+    """Shapes found in real logs by the pre-PR review, rebuilt as synthetic fixtures."""
+
+    def test_a_failed_codex_exec_is_an_error(self):
+        self.main_thread([assistant(at(1), SID, OPUS, usage(out=10), uuid="a1")])
+        codex_file(os.path.join(self.codex_root, "2026", "11", "24"), "r.jsonl", [
+            codex_session_meta(at(10), "cx-f", cwd="/w/proj"),
+            codex_turn_context(at(10, 1), "gpt-5.5"),
+            codex_custom_tool_call(at(10, 3), "c1", "exec", "run()"),
+            codex_custom_tool_call_output(at(10, 5), "c1", [{"type": "input_text", "text": "Script failed\nWall time 0.1 seconds\nOutput:\nboom"}]),
+            codex_custom_tool_call(at(10, 6), "c2", "exec", "run()"),
+            codex_custom_tool_call_output(at(10, 7), "c2", "Script completed\nWall time 0.1 seconds\nOutput:\n"),
+            codex_token_count(at(10, 8), last=tok(inp=10, out=1)),
+        ])
+        doc = self.extract(cwd="/w/proj")
+        self.assertEqual([c["error"] for c in doc["calls"]], [True, False])
+        self.assertEqual(doc["lanes"][1]["errors"], 1)
+        self.assertEqual([e["calls"] for e in doc["errors"]], [[1]])
+
+    def test_background_finish_is_the_enqueue_notice_not_the_later_remove(self):
+        note = "<task-notification><tool-use-id>t1</tool-use-id><status>completed</status></task-notification>"
+        self.main_thread([
+            assistant(at(1), SID, OPUS, usage(out=10), uuid="a1",
+                      tools=[("t1", "Bash", {"command": "long", "run_in_background": True})]),
+            tool_result(at(1, 2), SID, "t1", text="started"),
+            line(type="queue-operation", operation="enqueue", timestamp=at(3), sessionId=SID, content=note),
+            line(type="queue-operation", operation="remove", timestamp=at(20), sessionId=SID, content=note),
+        ])
+        doc = self.extract()
+        self.assertEqual(doc["calls"][0]["bgMs"], 120000)
+        self.assertEqual(doc["lanes"][0]["end"], at(3))
+
+    def test_a_synthetic_placeholder_record_is_not_a_turn(self):
+        self.main_thread([
+            assistant(at(1), SID, OPUS, usage(out=10), uuid="a1"),
+            assistant(at(2), SID, "<synthetic>", usage(), uuid="a2", texts=["API Error"]),
+        ])
+        lane = self.extract()["lanes"][0]
+        self.assertEqual((lane["turns"], lane["models"], lane["priced"]), (1, [OPUS], True))
+
+    def test_a_window_with_no_offset_is_read_as_utc(self):
+        self.main_thread([assistant(at(1), SID, OPUS, usage(out=10), uuid="a1")])
+        doc = self.extract(start="2026-11-24T10:00:00", end="2026-11-24T11:00:00")
+        self.assertEqual(len(doc["turns"]), 1)
+        self.assertEqual(doc["window"], {"start": "2026-11-24T10:00:00Z", "end": "2026-11-24T11:00:00Z"})
+        self.assertEqual(len(self.extract(start="2026-11-24", end="2026-11-25")["turns"]), 1)
+        self.assertEqual(runs.utc("2026-11-24T05:00:00-05:00"), "2026-11-24T10:00:00Z")
+        with self.assertRaises(ValueError):
+            self.extract(start="yesterday")
+
+    def test_a_session_written_under_two_project_folders_keeps_both(self):
+        write_transcript(self.claude_root, "projA", SID + ".jsonl", [assistant(at(1), SID, OPUS, usage(out=10), uuid="a1")])
+        write_transcript(self.claude_root, "projB", SID + ".jsonl", [assistant(at(2), SID, OPUS, usage(out=10), uuid="b1"),
+                                                                 assistant(at(3), SID, OPUS, usage(out=10), uuid="b2")])
+        write_transcript(self.claude_root, os.path.join("projB", SID, "subagents"), "agent-x.jsonl",
+                         [assistant(at(4), SID, OPUS, usage(out=10), uuid="c1")])
+        self.assertEqual([(l["id"], l["name"], l["turns"]) for l in self.extract()["lanes"]],
+                         [("main", "Main thread", 1), ("main-2", "Main thread 2", 2), ("x", "x", 1)])
+
+    def test_a_window_at_the_edge_of_the_calendar_does_not_crash_codex_discovery(self):
+        self.main_thread([assistant(at(1), SID, OPUS, usage(out=10), uuid="a1")])
+        codex_file(os.path.join(self.codex_root, "2026", "11", "24"), "r.jsonl", [
+            codex_session_meta(at(10), "cx-w", cwd="/w/proj"), codex_token_count(at(10, 8), last=tok(inp=10, out=1))])
+        for start, end in (("1970-01-01T00:00:00Z", "9999-12-31T23:59:59Z"), ("1900-01-01T00:00:00Z", "2030-01-01T00:00:00Z")):
+            self.assertEqual([l["id"] for l in self.extract(start=start, end=end, cwd="/w/proj")["lanes"]],
+                             ["main", "codex:cx-w"])
+
+    def test_slash_commands_are_kept_and_harness_lines_are_dropped(self):
+        self.main_thread([
+            prompt(at(1), SID, "<command-message>workflow-deliver</command-message>\n"
+                               "<command-name>/workflow-deliver</command-name>\n<command-args>E4-F1-S1</command-args>"),
+            prompt(at(2), SID, "<bash-input>git status</bash-input>"),
+            prompt(at(3), SID, "<pasted_content id=\"x\">a log</pasted_content> look at this"),
+            line(timestamp=at(4), sessionId=SID, isMeta=True, message={"role": "user", "content": "(Re-invocation of /workflow-plan)"}),
+            prompt(at(5), SID, "<local-command-stdout>ok</local-command-stdout>"),
+            prompt(at(6), SID, "<system-reminder>be good</system-reminder>"),
+            assistant(at(7), SID, OPUS, usage(out=10), uuid="a1"),
+        ])
+        self.assertEqual([p["text"] for p in self.extract()["prompts"]],
+                         ["/workflow-deliver E4-F1-S1", "! git status", "<pasted_content id=\"x\">a log</pasted_content> look at this"])
+
+    def test_redaction_is_linear_on_long_joined_tokens(self):
+        import time
+        started = time.perf_counter()
+        for unit in ("abcdefgh-", "ab.cd", "aB3_x-9Zq"):
+            self.assertEqual(len(runs.scrub(unit * 20000)), len(unit) * 20000)
+        self.assertLess(time.perf_counter() - started, 2.0)
+
+    def test_a_lone_surrogate_does_not_break_the_written_file(self):
+        saved = os.environ.get("CLAUDE_PROJECTS")
+        os.environ["CLAUDE_PROJECTS"] = self.claude_root
+        self.addCleanup(lambda: os.environ.pop("CLAUDE_PROJECTS", None) if saved is None
+                        else os.environ.__setitem__("CLAUDE_PROJECTS", saved))
+        self.main_thread([
+            assistant(at(1), SID, OPUS, usage(out=10), uuid="a1", tools=[("t1", "Bash", {"command": "echo"})]),
+            tool_result(at(1, 1), SID, "t1", text="half an emoji \ud83d here"),
+        ])
+        target = os.path.join(self._tmp.name, "run.json")
+        self.assertEqual(cli.main(["run", "--session", SID, "--start", START, "--end", END, "--out", target]), 0)
+        with open(target, encoding="utf-8") as fh:
+            self.assertIn("half an emoji", json.load(fh)["calls"][0]["output"])
+
+    def test_common_credential_shapes_are_redacted_and_token_counts_are_not(self):
+        secret = "hunter2hunter2"
+        for text in ('curl -d "{\\"password\\":\\"' + secret + '\\"}" https://x',
+                     "mysql --password " + secret,
+                     "tool --api-key=" + secret,
+                     "psql postgres://admin:" + secret + "@db/prod",
+                     "DefaultEndpointsProtocol=https;AccountKey=" + secret + ";",
+                     "Server=x;Pwd=" + secret + ";",
+                     "git push https://ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2@github.com/o/r"):
+            out = runs.scrub(text)
+            self.assertNotIn(secret, out, text)
+            self.assertNotIn("a1B2c3D4e5F6g7H8i9J0k1L2", out, text)
+            self.assertIn("[redacted]", out, text)
+        for text in ("max_tokens: 100000000", "input_tokens=123456789", '"output_tokens": 4862', "--max-tokens 128000"):
+            self.assertEqual(runs.scrub(text), text)
+        self.assertEqual(runs._redact({"max_tokens": 128000, "token": "abc"}), {"max_tokens": 128000, "token": "[redacted]"})
+
+
 class TestStoreUntouched(RunFixture):
     def test_runs_module_imports_neither_the_store_nor_the_report(self):
         import ast

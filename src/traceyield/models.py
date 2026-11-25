@@ -60,8 +60,11 @@ class Segment:
     kind: str; role: str = None; turn_id: str = None; tool_call_id: str = None
     seq: int = 0; text: str = None; text_available: bool = True
     hash_src: str = None    # hashed for provenance when text is absent (e.g. redacted reasoning signature)
-    ts: str = None          # when the segment was logged, where the provider knows it (prompts).
+    ts: str = None          # when the segment was logged, where the provider knows it.
                             # Read by traceyield.runs; not a usage.db column.
+    origin: str = None      # for a prompt: "harness" when the tool wrote the line itself
+                            # (Claude isMeta), else None. Read by traceyield.runs; not
+                            # a usage.db column.
 
 @dataclass
 class RawEvent:
