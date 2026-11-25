@@ -325,6 +325,31 @@ class TestAggregateEquivalence(unittest.TestCase):
             self.assertIn("projB", days_a["2026-06-01"]["by_project"])
             self._check(root)
 
+    def test_first_project_wins_whatever_order_the_filesystem_lists_folders_in(self):
+        # glob order is the filesystem's, which Linux does not define. Feed both
+        # walkers the listing REVERSED: "first" must still mean first in path
+        # order, on every platform (request Q270; this failed on the ci runner).
+        import glob as glob_module
+        from unittest import mock
+        real = glob_module.glob
+        backwards = lambda *a, **k: sorted(real(*a, **k), reverse=True)
+        with tempfile.TemporaryDirectory() as root:
+            write_transcript(root, "projA", "a.jsonl", [
+                assistant("2026-06-01T00:00:00Z", "sw", "claude-opus-4",
+                         usage(inp=10, out=5), uuid="turn-w1"),
+            ])
+            write_transcript(root, "projB", "b.jsonl", [
+                assistant("2026-06-01T01:00:00Z", "sw", "claude-opus-4",
+                         usage(inp=20, out=10), uuid="turn-w2"),
+            ])
+            with mock.patch.object(glob_module, "glob", side_effect=backwards):
+                days_a, sess_a = report.analyze(root)
+                days_b, sess_b = ingest_and_aggregate(root)
+            self.assertEqual(sess_a["sw"]["project"], "projA")
+            self.assertEqual(sess_b["sw"]["project"], "projA")
+            self.assertEqual(days_a, days_b)
+            self.assertEqual(sess_a, sess_b)
+
 
 # --------------------------------------------------------------- by_provider
 class TestAggregateByProvider(unittest.TestCase):

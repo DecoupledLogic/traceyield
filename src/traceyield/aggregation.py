@@ -57,7 +57,10 @@ def analyze(root=CLAUDE_PROJECTS):
     session set / session start-end span, are only ever touched by a
     (non-duplicate) billable turn or a (non-duplicate) tool_result -- never by
     a plain prompt-only line -- so both are defined identically to aggregate()."""
-    files = glob.glob(os.path.join(root, "**", "*.jsonl"), recursive=True)
+    # Sorted: glob returns the filesystem's order, which Linux leaves undefined,
+    # and "first project wins" for a session spanning two folders must not
+    # depend on it. Same order as canonical.ingest().
+    files = sorted(glob.glob(os.path.join(root, "**", "*.jsonl"), recursive=True))
     days = defaultdict(new_day)
     sessions = defaultdict(new_session)
     # Run-scoped across ALL files: glob order matches canonical.ingest()'s
