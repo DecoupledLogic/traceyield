@@ -13,14 +13,17 @@ Decision records for **traceyield**. Each captures a decision, its context, and 
 | 0007 | [Cross-provider reporting: provider as a first-class facet with per-provider rate cards](0007-cross-provider-reporting-per-provider-rate-cards.md) | Drafted | 2026-07-11 |
 | 0008 | [Repackage TraceYield as an installable src-layout package with a stable CLI](0008-installable-src-layout-package.md) | Drafted | 2026-07-12 |
 | 0009 | [Adopt the deterministic best of Claude Code /insights: a behavioral facet and a prescribe-to-remediate engine](0009-insights-behavioral-facet-and-remediate-engine.md) | Drafted | 2026-07-13 |
+| 0010 | [Run extraction: one session, its subagents and Codex sessions as a JSON document read from the provider logs](0010-run-extraction-json-from-provider-logs.md) | Drafted | 2026-11-25 |
+| 0011 | [Count each Claude model request once: merge records that repeat one request's usage](0011-count-each-claude-model-request-once.md) | Drafted | 2026-11-25 |
+| 0012 | [Price by model version: per-model rate cards with their own cache rates](0012-price-by-model-version-per-model-rate-cards.md) | Drafted | 2026-11-25 |
 
 ## Statistics
 
 | Status | Count |
 |--------|-------|
 | Accepted | 1 |
-| Drafted | 8 |
-| **Total** | **9** |
+| Drafted | 11 |
+| **Total** | **12** |
 
 ---
-*Last Updated: 2026-07-13*
+*Last Updated: 2026-11-25*
