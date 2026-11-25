@@ -345,6 +345,33 @@ class TestProviderAdditions(RunFixture):
         self.assertEqual(self.extract()["lanes"][0]["efforts"], [])
 
 
+class TestStoreUntouched(RunFixture):
+    def test_runs_module_imports_neither_the_store_nor_the_report(self):
+        import ast
+        tree = ast.parse(open(runs.__file__, encoding="utf-8").read())
+        imported = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported |= {a.name.split(".")[-1] for a in node.names}
+            elif isinstance(node, ast.ImportFrom):
+                imported.add((node.module or "").split(".")[-1])
+                imported |= {a.name for a in node.names}
+        self.assertEqual(imported & {"canonical", "report", "sqlite3", "persistence", "aggregation"}, set())
+
+    def test_extracting_a_run_creates_no_machine_directory_or_database(self):
+        from traceyield import paths
+        saved = os.environ.get("TRACEYIELD_MACHINE")
+        os.environ["TRACEYIELD_MACHINE"] = "run-extract-test-never-created"
+        self.addCleanup(lambda: os.environ.pop("TRACEYIELD_MACHINE", None) if saved is None
+                        else os.environ.__setitem__("TRACEYIELD_MACHINE", saved))
+        self.main_thread([assistant(at(1), SID, OPUS, usage(out=10), uuid="a1",
+                                    tools=[("t1", "Bash", {"command": "ls"})]),
+                          tool_result(at(1, 1), SID, "t1")])
+        self.assertEqual(len(self.extract()["calls"]), 1)
+        self.assertFalse(os.path.exists(paths.machine_dir()))
+        self.assertFalse(os.path.exists(paths.db_file()))
+
+
 class TestCli(RunFixture):
     def run_cli(self, *args):
         out, err = io.StringIO(), io.StringIO()

@@ -367,6 +367,8 @@ class RawEvent:  # anything unmodeled: the escape hatch
     provider:str; session_id:str; ts:str; type:str; raw:str=None
 ```
 
+Two fields ride on these records without a column in the store (Decision 0010): `Turn.effort`, the reasoning effort a turn ran at when the log states it, and `Segment.ts`, the time a prompt was logged. `write()` ignores both. Run extraction (`traceyield.runs`, guide 9) reads them from the provider stream. Persisting `effort` is a separate schema change.
+
 ### 6.2 The `Provider` interface
 
 *Shipped as a formal `typing.Protocol` in E3-F2-S4* (`traceyield.providers.base.Provider`,
