@@ -275,7 +275,9 @@ def ingest(conn, providers=None, capture=None):
     n_files = n_recs = 0
     for prov in providers:
         for root in prov.roots():
-            for f in glob.glob(os.path.join(root, "**", "*.jsonl"), recursive=True):
+            # Sorted for the same reason as aggregation.analyze(): first-wins fields
+            # (session project, cwd, branch) must not depend on filesystem order.
+            for f in sorted(glob.glob(os.path.join(root, "**", "*.jsonl"), recursive=True)):
                 try:
                     for rec in prov.parse_file(f):
                         write(conn, rec, verbatim)
