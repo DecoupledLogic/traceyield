@@ -38,7 +38,7 @@ def line(**kw):
 
 
 def assistant(ts, sid, model, usage, tools=(), texts=(), thinking=None,
-              uuid=None, parent=None):
+              uuid=None, parent=None, request_id=None, effort=None):
     """An assistant message: model + usage, optional tool_use blocks, optional
     text/thinking content blocks, optional uuid/parentUuid (Claude Code's turn
     id -- set it to exercise replay dedup or parent-turn linkage).
@@ -65,6 +65,11 @@ def assistant(ts, sid, model, usage, tools=(), texts=(), thinking=None,
          "message": {"role": "assistant", "model": model, "usage": usage, "content": content}}
     if uuid: o["uuid"] = uuid
     if parent: o["parentUuid"] = parent
+    # requestId / effort are how Claude Code marks one model request that it
+    # logged as several records (one per content block, each repeating the
+    # usage) and the reasoning effort it ran at -- see tests/test_runs.py.
+    if request_id: o["requestId"] = request_id
+    if effort: o["effort"] = effort
     return line(**o)
 
 
@@ -131,9 +136,13 @@ def codex_session_meta(ts, sid, cwd="/home/u/proj", cli_version="0.39.0", origin
                        originator=originator, cli_version=cli_version, instructions=None)
 
 
-def codex_turn_context(ts, model, approval_policy="on-request", sandbox_mode="read-only", cwd="/home/u/proj"):
+def codex_turn_context(ts, model, approval_policy="on-request", sandbox_mode="read-only", cwd="/home/u/proj",
+                       reasoning_effort=None):
+    extra = {}
+    if reasoning_effort is not None:   # newer CLIs nest it under collaboration_mode.settings
+        extra["collaboration_mode"] = {"mode": "default", "settings": {"reasoning_effort": reasoning_effort}}
     return codex_line(ts, "turn_context", cwd=cwd, approval_policy=approval_policy,
-                       sandbox_policy={"mode": sandbox_mode}, model=model, summary="auto")
+                       sandbox_policy={"mode": sandbox_mode}, model=model, summary="auto", **extra)
 
 
 def codex_token_count(ts, last=None, total=None, flat=None):
@@ -171,6 +180,19 @@ def codex_function_call(ts, call_id, name, arguments="{}"):
 
 def codex_function_call_output(ts, call_id, output):
     return codex_line(ts, "response_item", type="function_call_output",
+                       call_id=call_id, output=output)
+
+
+def codex_custom_tool_call(ts, call_id, name, input_text):
+    """The freeform-input tool call newer Codex CLIs use for `exec`: a plain
+    string in `input` where function_call carries JSON in `arguments`."""
+    return codex_line(ts, "response_item", type="custom_tool_call", name=name,
+                       input=input_text, call_id=call_id, status="completed")
+
+
+def codex_custom_tool_call_output(ts, call_id, output):
+    """`output` may be a plain string or a list of content parts."""
+    return codex_line(ts, "response_item", type="custom_tool_call_output",
                        call_id=call_id, output=output)
 
 

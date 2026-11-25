@@ -23,9 +23,19 @@ def main(argv=None) -> int:
         print(report_module.MACHINE_DIR)
         return 0
 
+    # `traceyield run ...` extracts one run as JSON (traceyield.runs). It has
+    # its own flags, so it is handed its argv whole before the report parser
+    # below sees it. Imported here, not at module top, so `traceyield --help`
+    # and the bare invocation stay as cheap as they were.
+    if list(argv[:1]) == ["run"]:
+        from traceyield import runs
+        return runs.main(argv[1:])
+
     parser = argparse.ArgumentParser(
         prog="traceyield",
         description="Usage/health dashboard for Claude Code and Codex transcripts.",
+        epilog="`traceyield run --help` describes run extraction: one session, "
+               "its subagents and optional Codex sessions as JSON.",
     )
     parser.add_argument(
         "--version",

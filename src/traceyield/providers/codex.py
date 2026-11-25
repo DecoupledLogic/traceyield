@@ -13,7 +13,9 @@ is deliberately its own thing, not `pricing.tier()` (that one is
 Claude-only). See traceyield.providers.base.Provider for the contract this
 satisfies (structurally -- this class never imports that module).
 """
+import glob
 import json
+import os
 
 from traceyield import classification, paths, transcripts
 from traceyield.models import RawEvent, Segment, Session, ToolCall, Turn
@@ -90,6 +92,7 @@ class CodexProvider:
         meta = {}                 # cwd / cli_version / source, first seen wins
         approval_policy = sandbox_policy = None
         model = None               # active model from the most-recent turn_context
+        effort = None              # reasoning effort from the most-recent turn_context, when stated
         call_meta = {}             # call_id -> (turn_id, ts_ms)
         cur_turn_id = ""          # most-recent synthesized turn_id (for tool_args w/o a turn yet)
         prev_total = None          # last seen cumulative total_token_usage, for the diff fallback
@@ -119,6 +122,10 @@ class CodexProvider:
 
             if t == "turn_context":
                 model = p.get("model") or model
+                settings = p.get("collaboration_mode")
+                settings = settings.get("settings") if isinstance(settings, dict) else None
+                settings = settings if isinstance(settings, dict) else {}
+                effort = p.get("effort") or settings.get("reasoning_effort") or effort
                 approval_policy = p.get("approval_policy") or approval_policy
                 sp = p.get("sandbox_policy")
                 if sp is not None:
@@ -176,7 +183,7 @@ class CodexProvider:
                                input_fresh=max(inp - cached, 0), cache_read=cached,
                                cache_write_5m=0, cache_write_1h=0, output=out,
                                reasoning_output=reasoning, compacted=pending_compacted,
-                               tier=codex_tier(model),
+                               tier=codex_tier(model), effort=effort,
                                project=None)   # codex turns now participate in report.aggregate()'s
                                                 # default all-providers scope, but a codex turn's own
                                                 # project stays None -- by_project falls back to the
@@ -190,7 +197,7 @@ class CodexProvider:
                 if role == "assistant":
                     yield Segment("response", "assistant", turn_id=cur_turn_id, seq=line_seq, text=text)
                 elif role == "user":
-                    yield Segment("prompt", "user", turn_id=cur_turn_id, seq=line_seq, text=text)
+                    yield Segment("prompt", "user", turn_id=cur_turn_id, seq=line_seq, text=text, ts=ts)
                 continue
 
             if t == "response_item" and pt == "reasoning":
@@ -204,18 +211,25 @@ class CodexProvider:
                               hash_src=p.get("encrypted_content"))
                 continue
 
-            if t == "response_item" and pt == "function_call":
+            # custom_tool_call is the freeform-input twin of function_call (newer
+            # Codex CLIs route `exec` through it): same call_id join, with the
+            # input as a plain string in `input`, not JSON in `arguments`.
+            if t == "response_item" and pt in ("function_call", "custom_tool_call"):
                 cid = p.get("call_id") or "?"
                 nm = p.get("name") or "?"
                 cur = transcripts.ms(ts)
                 call_meta[cid] = (cur_turn_id, cur)
+                args = p.get("arguments") if pt == "function_call" else p.get("input")
                 yield ToolCall("codex", sid, cid, cur_turn_id, ts, name=nm, kind=transcripts.tool_kind(nm))
-                yield Segment("tool_args", "tool", tool_call_id=cid, text=p.get("arguments") or "")
+                yield Segment("tool_args", "tool", tool_call_id=cid, text=args if isinstance(args, str) else "")
                 continue
 
-            if t == "response_item" and pt == "function_call_output":
+            if t == "response_item" and pt in ("function_call_output", "custom_tool_call_output"):
                 cid = p.get("call_id") or "?"
-                text, exit_code, success = _codex_tool_output(p.get("output"))
+                raw_out = p.get("output")
+                if isinstance(raw_out, list):          # content parts, as a message carries them
+                    raw_out = _codex_text(raw_out)
+                text, exit_code, success = _codex_tool_output(raw_out)
                 failed = (exit_code not in (None, 0)) or (success is False)
                 tm = call_meta.get(cid)
                 cur = transcripts.ms(ts)
@@ -236,3 +250,30 @@ class CodexProvider:
             yield Session("codex", sid, cwd=meta.get("cwd"), cli_version=meta.get("ver"),
                           source=meta.get("src"), approval_policy=approval_policy,
                           sandbox_policy=sandbox_policy, first_ts=first_ts, last_ts=last_ts)
+
+    def run_lanes(self, cwd, start, end):
+        """Codex sessions that started inside `cwd` (or below it) between the
+        ISO timestamps `start` and `end`. Read by traceyield.runs;
+        canonical.ingest() never calls this. Only each rollout's first line
+        (its session_meta) is read here. Returns lane dicts shaped like
+        ClaudeProvider.run_lanes()."""
+        def norm(p):
+            return (p or "").replace(chr(92), "/").rstrip("/").lower()
+        want = norm(cwd)
+        lo, hi = transcripts.ms(start), transcripts.ms(end)
+        lanes = []
+        for path in sorted(glob.glob(os.path.join(self.root, "**", "*.jsonl"), recursive=True)):
+            meta = next(iter(transcripts.iter_json_lines(path)), None)
+            if not isinstance(meta, dict) or meta.get("type") != "session_meta":
+                continue
+            p = meta.get("payload") if isinstance(meta.get("payload"), dict) else {}
+            at = transcripts.ms(p.get("timestamp") or meta.get("timestamp"))
+            here = norm(p.get("cwd"))
+            if at is None or lo is None or hi is None or not (lo <= at <= hi):
+                continue
+            if not want or not (here == want or here.startswith(want + "/")):
+                continue
+            sid = p.get("id") or os.path.basename(path)
+            lanes.append({"id": "codex:" + sid, "name": "Codex", "kind": "external", "provider": self.name,
+                          "path": path, "description": p.get("originator") or p.get("source")})
+        return lanes

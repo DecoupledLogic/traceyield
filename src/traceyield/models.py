@@ -41,6 +41,9 @@ class Turn:
     tier: str = None
     project: str = None   # the project the SOURCE FILE lives in (per-turn, not
                            # per-session -- a session can span project dirs)
+    effort: str = None    # reasoning effort the turn ran at, when the log states
+                           # it. Carried on the record for run extraction
+                           # (traceyield.runs); not a usage.db column yet.
 
 @dataclass
 class ToolCall:
@@ -53,6 +56,8 @@ class Segment:
     kind: str; role: str = None; turn_id: str = None; tool_call_id: str = None
     seq: int = 0; text: str = None; text_available: bool = True
     hash_src: str = None    # hashed for provenance when text is absent (e.g. redacted reasoning signature)
+    ts: str = None          # when the segment was logged, where the provider knows it (prompts).
+                            # Read by traceyield.runs; not a usage.db column.
 
 @dataclass
 class RawEvent:
