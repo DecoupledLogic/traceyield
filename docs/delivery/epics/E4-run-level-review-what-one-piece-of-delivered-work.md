@@ -2,7 +2,7 @@
 id: 01M89J3FFC0N5QAZV3YRJHHZXC
 type: epic
 key: E4
-status: planned
+status: in_progress
 stage: ~
 stageSince: ~
 needsDesign: ~
@@ -61,3 +61,6 @@ amended 2026-08-19). Rename both together if the title changes._
 
 ## 2026-11-25 14:35 UTC -- created
 Work-item E4 (epic) created with status planned.
+
+## 2026-11-25 14:40 UTC -- status-rollup
+Rolled up to in_progress from child delivery. delivery of E4-F1-S1 started

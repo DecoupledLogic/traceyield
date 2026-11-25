@@ -2,7 +2,7 @@
 id: 01M89J3J8592XX0VENM4AQ9CT1
 type: story
 key: E4-F1-S1
-status: planned
+status: in_progress
 stage: ~
 stageSince: ~
 needsDesign: no
@@ -77,3 +77,6 @@ amended 2026-08-19). Rename both together if the title changes._
 
 ## 2026-11-25 14:35 UTC -- created
 Work-item E4-F1-S1 (story) created with status planned.
+
+## 2026-11-25 14:40 UTC -- status-change
+Status planned -> in_progress. delivery started
