@@ -69,3 +69,5 @@
 "01M89J82YZGDM16538735RZ4N0","story","E6-F1-S2","01M89J80N02J9TGFS2SKF6X33B","01M89J7Y2T670FA5V8TBY7M0M8","Codex turns are priced from a per-model rate card, including gpt-6.2-sol","planned","01M89J821050DKFR9Y6CPEH9KB","3.85","","","","","","","","","","","","",""
 "01M89J83X98WTEGYT2QAR2ZK56","story","E6-F1-S3","01M89J80N02J9TGFS2SKF6X33B","01M89J7Y2T670FA5V8TBY7M0M8","A turn above a model's context-length threshold is priced at the higher rate","planned","01M89J821050DKFR9Y6CPEH9KB","3.85","","","","","","","","","","","","",""
 "01M89J84WQBEWVFZYY47PF782W","story","E6-F1-S4","01M89J80N02J9TGFS2SKF6X33B","01M89J7Y2T670FA5V8TBY7M0M8","The drift check and pricing history work per model","planned","01M89J821050DKFR9Y6CPEH9KB","3.85","","","","","","","","","","","","",""
+"01M89KPE3X0KSWQ6YVWGRA1E38","slice","R5","","","Transcripts are walked in a fixed order","planned","","3.75","","","","","","","","","","","","",""
+"01M89KPGCAERRGBH51MKR664AT","issue","I2","","01M89KPE3X0KSWQ6YVWGRA1E38","A session spanning two project folders resolves to a project that depends on filesystem order","planned","","3.75","","","","","","","","","","","","",""
