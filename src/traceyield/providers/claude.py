@@ -10,7 +10,9 @@ store/consumer and this module can depend on nothing but the neutral layer
 traceyield.providers.base.Provider for the contract this satisfies
 (structurally -- this class never imports that module).
 """
+import glob
 import json
+import os
 
 from traceyield import classification, paths, pricing, transcripts
 from traceyield.models import RawEvent, Segment, Session, ToolCall, Turn
@@ -81,7 +83,8 @@ class ClaudeProvider:
                            cache_write_5m=w5m, cache_write_1h=w1h, output=out,
                            reasoning_output=None,   # Claude has no separate reasoning count (§2.4)
                            n_tool_calls=n_tools, wall_ms=wall, tier=pricing.tier(m.get("model")),
-                           project=proj)   # the FILE's own project, not the session's resolved one
+                           project=proj,   # the FILE's own project, not the session's resolved one
+                           effort=o.get("effort"), message_id=m.get("id"))
                 for i, b in enumerate(content):
                     if not isinstance(b, dict): continue
                     t = b.get("type")
@@ -99,7 +102,8 @@ class ClaudeProvider:
                         yield Segment("tool_args", "tool", tool_call_id=cid, text=json.dumps(b.get("input", {})))
             else:                                          # a user line: prompts and/or tool_results
                 if isinstance(m.get("content"), str) and m.get("role") == "user":
-                    yield Segment("prompt", "user", turn_id=(o.get("uuid") or ""), text=m.get("content"))
+                    yield Segment("prompt", "user", turn_id=(o.get("uuid") or ""), text=m.get("content"), ts=ts,
+                                  origin=("harness" if o.get("isMeta") else None))
                 for b in content:
                     if not isinstance(b, dict) or b.get("type") != "tool_result": continue
                     cid = b.get("tool_use_id"); txt = transcripts.result_text(b)
@@ -116,3 +120,31 @@ class ClaudeProvider:
             yield Session("claude", s, project=proj, cwd=meta.get("cwd"),
                           git_branch=meta.get("git"), cli_version=meta.get("ver"),
                           first_ts=f_ts, last_ts=l_ts)
+
+    def run_lanes(self, session_id):
+        """The transcript files that make up one session: the main thread and
+        each subagent it spawned. Read by traceyield.runs; canonical.ingest()
+        never calls this. Returns a list of lane dicts (id, name, kind,
+        provider, path, description), main thread first, or [] when the
+        session has no transcript under this root."""
+        lanes = []
+        # A session can be written under more than one project directory (a
+        # worktree switch mid-conversation), so every match is a main-thread lane.
+        for n, main in enumerate(sorted(glob.glob(os.path.join(self.root, "*", session_id + ".jsonl"))), 1):
+            lanes.append({"id": "main" if n == 1 else f"main-{n}",
+                          "name": "Main thread" if n == 1 else f"Main thread {n}", "kind": "main",
+                          "provider": self.name, "path": main, "description": None})
+            sub_dir = os.path.join(os.path.dirname(main), session_id, "subagents")
+            for path in sorted(glob.glob(os.path.join(sub_dir, "agent-*.jsonl"))):
+                agent_id = os.path.basename(path)[len("agent-"):-len(".jsonl")]
+                meta = {}
+                for suffix in (".meta.json", ".forked-skill.json"):
+                    try:
+                        with open(path[:-len(".jsonl")] + suffix, encoding="utf-8") as fh:
+                            meta.update(json.load(fh))
+                    except (OSError, ValueError):
+                        pass
+                lanes.append({"id": agent_id, "kind": "subagent", "provider": self.name, "path": path,
+                              "name": meta.get("skillName") or meta.get("agentType") or agent_id,
+                              "description": meta.get("description")})
+        return lanes

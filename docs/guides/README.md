@@ -18,6 +18,7 @@ Read these in order the first time. After that, jump to whatever you need.
 | [6. Feature reference](./06-feature-reference.md) | Go deep on every panel: exactly how each number is computed and its caveats. |
 | [7. Cost-optimization playbook](./07-cost-optimization-playbook.md) | Diagnose why spend is shaped the way it is and remediate it. This is the payoff. |
 | [8. Daily runs and automation](./08-daily-run-automation.md) | Schedule it to run every day and operate it across several machines. |
+| [9. Extracting one run](./09-run-extraction.md) | Pull one session, its subagents and Codex sessions out as JSON to review a single piece of work. |
 
 ## The one-minute version
 

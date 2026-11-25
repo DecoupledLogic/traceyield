@@ -13,7 +13,12 @@ is deliberately its own thing, not `pricing.tier()` (that one is
 Claude-only). See traceyield.providers.base.Provider for the contract this
 satisfies (structurally -- this class never imports that module).
 """
+import datetime
+import glob
 import json
+import ntpath
+import os
+import posixpath
 
 from traceyield import classification, paths, transcripts
 from traceyield.models import RawEvent, Segment, Session, ToolCall, Turn
@@ -78,9 +83,18 @@ def _codex_tool_output(raw):
 class CodexProvider:
     """Produces neutral Recs from Codex CLI rollout logs (~/.codex/sessions)."""
     name = "codex"
+    # A rollout logs a request's token_count AFTER that request's reply and tool
+    # calls, so an event belongs to the next turn logged. parse_file() still
+    # stamps events with the turn it has already seen (what the store has always
+    # held); traceyield.runs reads this flag and re-attributes by time.
+    usage_follows_events = True
 
-    def __init__(self, root=None):
+    def __init__(self, root=None, custom_tool_calls=False):
         self.root = root or paths.codex_sessions()
+        # Newer Codex CLIs log `exec` as custom_tool_call / custom_tool_call_output.
+        # Off by default so the scheduled ingest stores exactly what it did before
+        # (those events stay raw_event rows); run extraction turns it on.
+        self.custom_tool_calls = custom_tool_calls
 
     def roots(self):
         return [self.root]
@@ -90,6 +104,7 @@ class CodexProvider:
         meta = {}                 # cwd / cli_version / source, first seen wins
         approval_policy = sandbox_policy = None
         model = None               # active model from the most-recent turn_context
+        effort = None              # reasoning effort from the most-recent turn_context, when stated
         call_meta = {}             # call_id -> (turn_id, ts_ms)
         cur_turn_id = ""          # most-recent synthesized turn_id (for tool_args w/o a turn yet)
         prev_total = None          # last seen cumulative total_token_usage, for the diff fallback
@@ -119,6 +134,10 @@ class CodexProvider:
 
             if t == "turn_context":
                 model = p.get("model") or model
+                settings = p.get("collaboration_mode")
+                settings = settings.get("settings") if isinstance(settings, dict) else None
+                settings = settings if isinstance(settings, dict) else {}
+                effort = p.get("effort") or settings.get("reasoning_effort") or effort
                 approval_policy = p.get("approval_policy") or approval_policy
                 sp = p.get("sandbox_policy")
                 if sp is not None:
@@ -176,7 +195,7 @@ class CodexProvider:
                                input_fresh=max(inp - cached, 0), cache_read=cached,
                                cache_write_5m=0, cache_write_1h=0, output=out,
                                reasoning_output=reasoning, compacted=pending_compacted,
-                               tier=codex_tier(model),
+                               tier=codex_tier(model), effort=effort,
                                project=None)   # codex turns now participate in report.aggregate()'s
                                                 # default all-providers scope, but a codex turn's own
                                                 # project stays None -- by_project falls back to the
@@ -188,9 +207,9 @@ class CodexProvider:
                 role = p.get("role")
                 text = _codex_text(p.get("content"))
                 if role == "assistant":
-                    yield Segment("response", "assistant", turn_id=cur_turn_id, seq=line_seq, text=text)
+                    yield Segment("response", "assistant", turn_id=cur_turn_id, seq=line_seq, text=text, ts=ts)
                 elif role == "user":
-                    yield Segment("prompt", "user", turn_id=cur_turn_id, seq=line_seq, text=text)
+                    yield Segment("prompt", "user", turn_id=cur_turn_id, seq=line_seq, text=text, ts=ts)
                 continue
 
             if t == "response_item" and pt == "reasoning":
@@ -204,19 +223,33 @@ class CodexProvider:
                               hash_src=p.get("encrypted_content"))
                 continue
 
-            if t == "response_item" and pt == "function_call":
+            # custom_tool_call is the freeform-input twin of function_call (newer
+            # Codex CLIs route `exec` through it): same call_id join, with the
+            # input as a plain string in `input`, not JSON in `arguments`.
+            # Modelled only when self.custom_tool_calls is set (see __init__).
+            call_types = ("function_call", "custom_tool_call") if self.custom_tool_calls else ("function_call",)
+            output_types = (("function_call_output", "custom_tool_call_output") if self.custom_tool_calls
+                            else ("function_call_output",))
+            if t == "response_item" and pt in call_types:
                 cid = p.get("call_id") or "?"
                 nm = p.get("name") or "?"
                 cur = transcripts.ms(ts)
                 call_meta[cid] = (cur_turn_id, cur)
+                args = p.get("arguments") if pt == "function_call" else p.get("input")
                 yield ToolCall("codex", sid, cid, cur_turn_id, ts, name=nm, kind=transcripts.tool_kind(nm))
-                yield Segment("tool_args", "tool", tool_call_id=cid, text=p.get("arguments") or "")
+                yield Segment("tool_args", "tool", tool_call_id=cid, text=args if isinstance(args, str) else "")
                 continue
 
-            if t == "response_item" and pt == "function_call_output":
+            if t == "response_item" and pt in output_types:
                 cid = p.get("call_id") or "?"
-                text, exit_code, success = _codex_tool_output(p.get("output"))
+                raw_out = p.get("output")
+                if isinstance(raw_out, list):          # content parts, as a message carries them
+                    raw_out = _codex_text(raw_out)
+                text, exit_code, success = _codex_tool_output(raw_out)
                 failed = (exit_code not in (None, 0)) or (success is False)
+                # A freeform `exec` result states its outcome in a text header, not JSON.
+                if pt == "custom_tool_call_output" and (text or "").lstrip().startswith("Script failed"):
+                    failed = True
                 tm = call_meta.get(cid)
                 cur = transcripts.ms(ts)
                 lat = (cur - tm[1]) if (tm and cur is not None and tm[1] is not None) else None
@@ -236,3 +269,58 @@ class CodexProvider:
             yield Session("codex", sid, cwd=meta.get("cwd"), cli_version=meta.get("ver"),
                           source=meta.get("src"), approval_policy=approval_policy,
                           sandbox_policy=sandbox_policy, first_ts=first_ts, last_ts=last_ts)
+
+    def run_lanes(self, cwd, start, end):
+        """Codex sessions that started inside `cwd` (or below it) between the
+        ISO timestamps `start` and `end`. Read by traceyield.runs;
+        canonical.ingest() never calls this. Only each rollout's first line
+        (its session_meta) is read here. Returns lane dicts shaped like
+        ClaudeProvider.run_lanes()."""
+        def under(child, parent):
+            # Compare with the rules of the filesystem the paths came from, not
+            # the one this runs on: a Windows path (drive letter or backslash)
+            # is case-insensitive, a POSIX path is not. normpath folds "." and
+            # ".." so equivalent spellings match.
+            if not child or not parent:
+                return False
+            windows = any(chr(92) in p or p[1:2] == ":" for p in (child, parent))
+            flavor = ntpath if windows else posixpath
+            c = flavor.normcase(flavor.normpath(child))
+            p = flavor.normcase(flavor.normpath(parent))
+            return c == p or c.startswith(p.rstrip(flavor.sep) + flavor.sep)
+
+        lo, hi = transcripts.ms(start), transcripts.ms(end)
+        lanes = []
+        if lo is None or hi is None:
+            return lanes
+        try:
+            day = datetime.timedelta(days=1)
+            first = datetime.datetime.fromtimestamp(lo / 1000, datetime.timezone.utc).date() - day
+            last = datetime.datetime.fromtimestamp(hi / 1000, datetime.timezone.utc).date() + day
+        except (OSError, OverflowError, ValueError):
+            first = last = None               # a window at the calendar's edge: open every folder
+        for path in sorted(glob.glob(os.path.join(self.root, "**", "*.jsonl"), recursive=True)):
+            # Rollouts are filed under YYYY/MM/DD of their local start date. Skip
+            # a dated folder more than a day outside the window without opening
+            # its files; a file filed any other way is always opened.
+            parts = os.path.relpath(os.path.dirname(path), self.root).replace(chr(92), "/").split("/")
+            if len(parts) >= 3 and all(x.isdigit() for x in parts[:3]):
+                try:
+                    filed = datetime.date(int(parts[0]), int(parts[1]), int(parts[2]))
+                except ValueError:
+                    filed = None
+                if filed and first and not (first <= filed <= last):
+                    continue
+            meta = next(iter(transcripts.iter_json_lines(path)), None)
+            if not isinstance(meta, dict) or meta.get("type") != "session_meta":
+                continue
+            p = meta.get("payload") if isinstance(meta.get("payload"), dict) else {}
+            at = transcripts.ms(p.get("timestamp") or meta.get("timestamp"))
+            if at is None or not (lo <= at <= hi):
+                continue
+            if not under(p.get("cwd"), cwd):
+                continue
+            sid = p.get("id") or os.path.basename(path)
+            lanes.append({"id": "codex:" + sid, "name": "Codex", "kind": "external", "provider": self.name,
+                          "path": path, "description": p.get("originator") or p.get("source")})
+        return lanes
